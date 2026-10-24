@@ -7,6 +7,8 @@ from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QFormLayout,QLine
 from desktop import Studio, card, label, button
 from steam_services import (install_steamcmd,search,details,collection,workshop_id,steam_arguments,result_summary,provision)
 from core import validate, mod_load_mode
+from steam_terminal import terminal_process
+from steam_status import plain_terminal,progress_percent,stage
 
 class Task(QThread):
     done=Signal(object); failed=Signal(str)
@@ -16,11 +18,11 @@ class Task(QThread):
         except Exception as e:self.failed.emit(str(e))
 
 class SteamSession(QObject):
-    output=Signal(str); completed=Signal(object); active=Signal(bool); progress=Signal(int)
+    output=Signal(str); completed=Signal(object); active=Signal(bool); progress=Signal(int); detail=Signal(str)
     def __init__(self,manager,parent=None):
-        super().__init__(parent); self.manager=manager; self.process=QProcess(self); self.process.setProcessChannelMode(QProcess.MergedChannels)
+        super().__init__(parent); self.manager=manager; self.process=terminal_process(self); self.process.setProcessChannelMode(QProcess.MergedChannels)
         self.process.readyReadStandardOutput.connect(self.read); self.process.finished.connect(self.finish); self.process.errorOccurred.connect(self.error)
-        self.profile=None; self.raw=''; self.secrets=[]; self.kind=''; self.ids=[]; self.was_cancelled=False; self.chained=False; self.watch=QTimer(self); self.watch.setInterval(60000); self.watch.timeout.connect(self.remind)
+        self.profile=None; self.raw=''; self.secrets=[]; self.kind=''; self.ids=[]; self.was_cancelled=False; self.chained=False; self.watch=QTimer(self); self.watch.setInterval(1000); self.watch.timeout.connect(self.remind)
     def running(self):return self.profile is not None
     def start(self,profile,kind,ids=None,chained=False):
         if self.running():raise ValueError('En SteamCMD-jobb kjører allerede. Vent eller avbryt den først.')
@@ -36,21 +38,24 @@ class SteamSession(QObject):
         self.ids=list(dict.fromkeys(ids if ids is not None else [m['id'] for m in profile['mods'] if m.get('enabled',True) and m.get('id')])) if kind in ('all','mods') else []
         if kind=='mods' and not self.ids:raise ValueError('Legg til minst én aktiv Workshop-mod først.')
         args=steam_arguments(profile,kind,self.ids)
-        self.profile=profile; self.kind=kind; self.chained=chained; self.raw=''; self.secrets=[]; self.was_cancelled=False; self.last_output=time.monotonic(); self.manager.busy.add(profile['id'])
-        self.process.setProgram(str(exe.resolve())); self.process.setArguments(args); self.process.setWorkingDirectory(str(exe.resolve().parent)); self.active.emit(True); self.progress.emit(-1); self.output.emit('Starter SteamCMD. Venter på Steam …'); self.process.start(); self.watch.start()
+        self.profile=profile; self.kind=kind; self.chained=chained; self.raw=''; self.secrets=[]; self.was_cancelled=False; self.last_output=time.monotonic(); self.started_at=self.last_output; self.last_stage='Starter SteamCMD'; self.manager.busy.add(profile['id'])
+        self.process.setProgram(str(exe.resolve())); self.process.setArguments(args); self.process.setWorkingDirectory(str(exe.resolve().parent)); self.active.emit(True); self.progress.emit(-1); self.raw='Starter SteamCMD.\nPlan: innlogging → '+('DayZ Server 223350 → ' if kind in ('server','all') else '')+(str(len(self.ids))+' Workshop-mods → ' if self.ids else '')+'avslutt.\nVenter på meldinger fra Steam …\n'; self.output.emit(self.sanitized()); self.detail.emit('Starter SteamCMD — ingen nedlasting er bekreftet ennå.'); self.process.start(); self.watch.start()
     def sanitized(self):
-        text=self.raw[-240000:]
+        text=plain_terminal(self.raw[-240000:])
         for value in self.secrets:
             if value:text=text.replace(value,'[skjult]')
-        return re.sub(r'\x1b\[[0-9;]*[A-Za-z]','',text)
+        return plain_terminal(text)
     def read(self):
         data=bytes(self.process.readAllStandardOutput()).decode('utf-8',errors='replace')
+        if not data:return
         self.raw+=data
         # Keep output bounded. Passwords are never written to disk by this app.
         if len(self.raw)>1000000:self.raw=self.raw[-800000:]
         self.last_output=time.monotonic(); self.output.emit(self.sanitized())
-        matches=re.findall(r'(?:progress:|\[)\s*(\d+(?:\.\d+)?)\s*%',data,re.I)
-        if matches:self.progress.emit(min(100,int(float(matches[-1]))))
+        text=self.sanitized(); previous_stage=self.last_stage; self.last_stage=stage(text); self.detail.emit(self.last_stage)
+        percent=progress_percent(plain_terminal(data))
+        if percent is not None:self.progress.emit(percent)
+        elif previous_stage!=self.last_stage:self.progress.emit(-1)
     def send_secret(self,value):
         if not self.running():raise ValueError('Start en SteamCMD-jobb først.')
         if any(c in value for c in ['\n','\r','\x00']):raise ValueError('Send én linje om gangen.')
@@ -73,13 +78,17 @@ class SteamSession(QObject):
         # Do not publish raw stdout to application logs, only result summary.
         self.completed.emit(data); self.raw=''; self.secrets=[]
     def remind(self):
-        if self.running() and time.monotonic()-self.last_output>120:self.manager.log('SteamCMD venter uten nye utdata. Sjekk innlogging, Steam Guard eller nettverk i Kom i gang.')
+        if not self.running():return
+        idle=int(time.monotonic()-self.last_output); elapsed=int(time.monotonic()-self.started_at)
+        text=f'{self.last_stage} • kjørt {elapsed//60:02d}:{elapsed%60:02d} • siste melding for {idle} s siden'
+        if idle>=30:text+=' • Ingen nye meldinger; nedlasting er ikke bekreftet.'
+        self.detail.emit(text)
 
 class IntegratedStudio(Studio):
     def __init__(self,home=None):
         self.tasks=set(); self.steam=None; self.workshop_results=[]; self.lookup_seq=0
         super().__init__(home); self.setWindowTitle('Taldris Server Studio • 0.4 / Lokale utviklermods')
-        self.steam=SteamSession(self.manager,self); self.steam.output.connect(self.terminal_output); self.steam.completed.connect(self.steam_done); self.steam.active.connect(self.steam_active); self.steam.progress.connect(self.set_progress)
+        self.steam=SteamSession(self.manager,self); self.steam.output.connect(self.terminal_output); self.steam.completed.connect(self.steam_done); self.steam.active.connect(self.steam_active); self.steam.progress.connect(self.set_progress); self.steam.detail.connect(lambda text:self.terminal_detail.setText(text))
         self.page_names+=['Kom i gang','Steam Workshop']; self.setup_page(); self.workshop_page()
         side=self.nav[0].parentWidget().layout()
         for index,title,icon in [(8,'Kom i gang','▶'),(9,'Steam Workshop','▦')]:
@@ -143,10 +152,12 @@ class IntegratedStudio(Studio):
         self.setup_status=label('Velg mapper for å begynne.','eyebrow'); c.addWidget(self.setup_status)
         buttons=QHBoxLayout(); buttons.addWidget(button('↓ Last ned SteamCMD',self.action(self.bootstrap))); buttons.addWidget(button('Test innlogging',self.action(self.login_test))); buttons.addWidget(button('Installer og klargjør',self.action(self.install_server),'primary')); c.addLayout(buttons)
         form_outer.addWidget(f); form_outer.addWidget(label('Anonym er førstevalg. Steam bestemmer tilgangen: DayZ Server og særlig Workshop kan kreve Steam-konto med nødvendig tilgang. Passord/Steam Guard sendes i fanen SteamCMD-konsoll, ikke i oppsettfilen.','muted')); form_outer.addStretch(); scroll=QScrollArea(); scroll.setWidgetResizable(True); scroll.setWidget(install); tabs.addTab(scroll,'Oppstartsveiviser')
-        console=QWidget(); cl=QVBoxLayout(console); self.console_status=label('Ingen SteamCMD-jobb kjører.','eyebrow'); cl.addWidget(self.console_status); self.progress=QProgressBar(); self.progress.setRange(0,100); self.progress.setValue(0); cl.addWidget(self.progress)
+        console=QWidget(); cl=QVBoxLayout(console); self.console_status=label('Ingen SteamCMD-jobb kjører.','eyebrow'); cl.addWidget(self.console_status); self.progress=QProgressBar(); self.progress.setRange(0,100); self.progress.setValue(0); self.progress.setFormat('Nedlasting / kontroll: %p%'); self.progress.setToolTip('Bevegelse uten prosent betyr bare at prosessen kjører. Nedlasting er først bekreftet når Steam rapporterer den.'); cl.addWidget(self.progress)
+        self.terminal_detail=label('Ingen nedlasting er bekreftet.','muted'); cl.addWidget(self.terminal_detail)
         self.terminal=QPlainTextEdit(); self.terminal.setReadOnly(True); self.terminal.setFont(QFont('Consolas',10)); self.terminal.setPlaceholderText('Live utdata fra SteamCMD vises her under nedlasting og innlogging.'); cl.addWidget(self.terminal,1)
-        self.secret=QLineEdit(); self.secret.setEchoMode(QLineEdit.Password); self.secret.setPlaceholderText('Passord eller Steam Guard-kode når Steam ber om det …'); self.secret.returnPressed.connect(self.send_secret)
+        self.secret=QLineEdit(); self.secret.setEchoMode(QLineEdit.Password); self.secret.setPlaceholderText('Passord eller Steam Guard-kode når Steam ber om det …'); self.secret.returnPressed.connect(self.send_secret); self.secret.setEnabled(False)
         row=QHBoxLayout(); row.addWidget(self.secret,1); row.addWidget(button('Send til SteamCMD',self.send_secret)); row.addWidget(button('Avbryt jobb',self.cancel_steam,'danger')); cl.addLayout(row)
+        controls=QHBoxLayout(); self.follow_terminal=QCheckBox('Følg siste melding'); self.follow_terminal.setChecked(True); controls.addWidget(self.follow_terminal); controls.addStretch(); controls.addWidget(button('Åpne SteamCMD-loggmappe',self.open_steam_logs)); cl.addLayout(controls)
         cl.addWidget(label('Input skjules og lagres ikke i profil eller aktivitetslogg av programmet. SteamCMD kan selv beholde innloggingsdata i sin egen mappe. SteamCMD-jobben er separat fra abonnementer i Steam-klienten.','muted')); tabs.addTab(console,'SteamCMD-konsoll'); self.setup_tabs=tabs
         tools=QHBoxLayout(); tools.addWidget(button('Opprett konfigurasjon uten nedlasting',self.action(self.create_config))); tools.addWidget(button('Start eksisterende server',self.action(lambda:self.manager.start(self.p)),'primary')); tools.addStretch(); layout.addLayout(tools)
     def setup_browse(self,kind):
@@ -183,7 +194,14 @@ class IntegratedStudio(Studio):
     def create_config(self):
         self.save_setup(); self.create_config_for(self.p); self.read_config(); self.setup_status.setText('✓ Konfigurasjonen er klar.')
     def terminal_output(self,text):
-        self.terminal.setPlainText(text); self.terminal.verticalScrollBar().setValue(self.terminal.verticalScrollBar().maximum())
+        bar=self.terminal.verticalScrollBar(); position=bar.value(); self.terminal.setPlainText(text)
+        bar.setValue(bar.maximum() if self.follow_terminal.isChecked() else position)
+    def open_steam_logs(self):
+        p=self.steam.profile if self.steam and self.steam.running() else self.p
+        if not p.get('steamcmd'):return
+        path=Path(p['steamcmd']).parent/'logs'
+        if not path.is_dir():path=path.parent
+        QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
     def steam_active(self,active):
         self.console_status.setText('● STEAMCMD KJØRER — følg utdata nedenfor' if active else '○ STEAMCMD AVSLUTTET'); self.secret.setEnabled(active)
     def set_progress(self,n):
@@ -199,7 +217,7 @@ class IntegratedStudio(Studio):
         if self.steam is None:return
         p=p or self.p; self.go(8); self.setup_tabs.setCurrentIndex(1); self.steam.start(p,'all')
     def steam_done(self,data):
-        p=data['profile']; self.events.put(data['message']); self.console_status.setText(('✓ ' if data['ok'] else '✕ ')+data['message']); self.setup_status.setText(data['message'])
+        p=data['profile']; self.events.put(data['message']); self.console_status.setText(('✓ ' if data['ok'] else '✕ ')+data['message']); self.setup_status.setText(data['message']); self.terminal_detail.setText(data['message'])
         if not data['ok']:return
         if data['kind']=='login':
             self.events.put('Innlogging godkjent for denne SteamCMD-økten. Det garanterer ikke nedlastingstillatelse.'); return

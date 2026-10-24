@@ -2,9 +2,10 @@ import hashlib,io,json,tempfile,unittest,zipfile
 from pathlib import Path
 from unittest.mock import patch
 from program_updates import check,download,repository,asset_url,ASSET
+from release_info import VERSION,BUILD
 class UpdateTests(unittest.TestCase):
     def fixture(self,channel='dev'):
-        tag=('dev-' if channel=='dev' else '')+'v0.5.0.b10'; repo='owner/studio'; data=dict(version='0.5.0',build=10,asset=ASSET,size=123,sha256='a'*64)
+        tag=('dev-' if channel=='dev' else '')+f'v{VERSION}.b{BUILD+10}'; repo='owner/studio'; data=dict(version=VERSION,build=BUILD+10,asset=ASSET,size=123,sha256='a'*64)
         release=dict(tag_name=tag,draft=False,prerelease=channel=='dev',assets=[dict(name=n,browser_download_url=asset_url(repo,tag,n)) for n in [ASSET,'build.json']])
         def fetch(url):
             if url.endswith('build.json'):return data
@@ -19,7 +20,7 @@ class UpdateTests(unittest.TestCase):
     def test_foreign_assets_and_mismatched_build_rejected(self):
         repo,_,data,release,fetch=self.fixture(); release['assets'][0]['browser_download_url']='https://evil.example/file'
         with self.assertRaises(ValueError):check(repo,'dev',fetch)
-        repo,_,data,release,fetch=self.fixture(); data['build']=11
+        repo,_,data,release,fetch=self.fixture(); data['build']=BUILD+11
         with self.assertRaises(ValueError):check(repo,'dev',fetch)
     def test_download_verified_and_bad_checksum_removed(self):
         raw=io.BytesIO()
