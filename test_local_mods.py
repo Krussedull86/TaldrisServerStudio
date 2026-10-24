@@ -6,7 +6,7 @@ from local_mods import scan_mods,import_mods
 from steam_services import steam_arguments
 class LocalModTests(unittest.TestCase):
     def setUp(self):
-        self.tmp=tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup); self.base=Path(self.tmp.name); self.m=Manager(self.base/'data'); self.p=self.m.state['servers'][0]; self.p['root']=str(self.base/'server'); Path(self.p['root']).mkdir()
+        self.tmp=tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup); self.base=Path(self.tmp.name); self.m=Manager(self.base/'data'); self.p=self.m.state['servers'][0]; self.p['auto_firewall']=False; self.p['root']=str(self.base/'server'); Path(self.p['root']).mkdir()
     def make_mod(self,name,parent=None):
         p=(parent or self.base)/name; (p/'Addons').mkdir(parents=True); (p/'Addons'/'mod.Pbo').write_bytes(b'packed test'); return p
     def test_scan_only_at_folders_and_direct_selection(self):

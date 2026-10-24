@@ -5,7 +5,7 @@ from core import Manager
 from server_diagnostics import current_logs,exit_label,describe
 class ServerDiagnosticTests(unittest.TestCase):
     def setUp(self):
-        self.temp=tempfile.TemporaryDirectory(); self.addCleanup(self.temp.cleanup); self.base=Path(self.temp.name); self.messages=[]; self.m=Manager(self.base/'data',self.messages.append); self.p=self.m.state['servers'][0]
+        self.temp=tempfile.TemporaryDirectory(); self.addCleanup(self.temp.cleanup); self.base=Path(self.temp.name); self.messages=[]; self.m=Manager(self.base/'data',self.messages.append); self.p=self.m.state['servers'][0]; self.p['auto_firewall']=False
         self.root=self.base/'server with spaces'; self.root.mkdir(); self.p['root']=str(self.root); (self.root/'DayZServer_x64.exe').touch(); (self.root/'serverDZ.cfg').write_text('hostname="Test";')
         self.proc=Mock(pid=4242); self.proc.poll.return_value=None
     def start(self):

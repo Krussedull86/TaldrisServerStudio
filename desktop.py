@@ -193,8 +193,12 @@ class Studio(QMainWindow):
         if not files:raise ValueError('Ingen RPT i profilmappen.')
         self.log_path.setText(str(max(files,key=lambda f:f.stat().st_mtime))); self.log_signature=None
     def config_page(self):
-        l=self.page(); row=QHBoxLayout(); row.addWidget(button('Les fra disk',self.action(self.read_config))); row.addWidget(button('Lagre med backup',self.action(self.save_config),'primary')); row.addStretch(); l.addLayout(row)
+        l=self.page(); row=QHBoxLayout(); row.addWidget(button('Les fra disk',self.action(self.read_config))); row.addWidget(button('Lagre med backup',self.action(self.save_config),'primary')); row.addWidget(button('Steam query-port',self.action(self.edit_query_port))); row.addWidget(button('Bohemia: konfigurasjon',lambda:QDesktopServices.openUrl(QUrl('https://community.bistudio.com/wiki/DayZ:Server_Configuration')))); row.addStretch(); l.addLayout(row)
         self.editor=QPlainTextEdit(); self.editor.setFont(QFont('Consolas',12)); self.editor.setPlaceholderText('Velg servermappe i Innstillinger for å redigere serverkonfigurasjonen.'); l.addWidget(self.editor,1); l.addWidget(label('Eksisterende konfigurasjon sikkerhetskopieres før lagring. Krever omstart for å tre i kraft.','muted'))
+    def edit_query_port(self):
+        from windows_firewall import set_query_port
+        port,ok=QInputDialog.getInt(self,'Steam query-port','UDP-port for Steam-serverlisten. Lagre konfigurasjonen etterpå.',int(self.p['port'])+3,1,65535)
+        if ok:self.editor.setPlainText(set_query_port(self.editor.toPlainText(),port))
     def read_config(self):
         self.editor.clear(); self.config_source=None
         if self.p['root']:
@@ -229,6 +233,7 @@ class Studio(QMainWindow):
             row=QWidget(); r=QHBoxLayout(row); r.setContentsMargins(0,0,0,0); v=QLineEdit(); self.fields[key]=v; r.addWidget(v)
             if key in ['root','steamcmd','workshop']:r.addWidget(button('Velg …',lambda checked=False,k=key:self.browse(k)))
             form.addRow(title,row)
+        self.firewall_auto=QCheckBox('Opprett Windows-brannmurregler automatisk ved serverstart'); form.addRow('',self.firewall_auto)
         form.addRow('',button('Lagre serveroppsett',self.action(self.save_settings),'primary')); scroll.setWidget(content); l.addWidget(scroll,1)
         l.addWidget(label('RCon, live spillerdata, kick/ban og CFTools API er ikke implementert i 0.5. Steam-passord lagres ikke av panelet.','muted'))
     def browse(self,k):
@@ -238,10 +243,12 @@ class Studio(QMainWindow):
         self.editable(); candidate=dict(self.p)
         for k,v in self.fields.items():candidate[k]=v.text().strip()
         for k in ['port','map_size']:candidate[k]=int(candidate[k])
+        candidate['auto_firewall']=self.firewall_auto.isChecked()
         validate(candidate); self.p.update(candidate); self.manager.save(); self.load(); self.events.put('Serveroppsett lagret.')
     def load(self):
         self.selector.blockSignals(True); self.selector.clear(); self.selector.addItems([p['name'] for p in self.manager.state['servers']]); self.selector.setCurrentIndex(self.manager.state['servers'].index(self.p)); self.selector.blockSignals(False)
         for k,v in self.fields.items():v.setText(str(self.p[k]))
+        self.firewall_auto.setChecked(self.p.get('auto_firewall',True))
         self.auto.setChecked(self.p['auto_update']); self.interval.setText(str(self.p['update_minutes'])); self.server_title.setText(self.p['name']); self.refresh_mods(); self.refresh_map(); self.guard(self.read_config); self.refresh_backups(); self.tick()
     def select(self,i):
         if i<0:return

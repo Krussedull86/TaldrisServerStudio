@@ -139,7 +139,7 @@ def provision(profile,name,players,mission):
     config=local_path(root,profile['config'])
     if config.exists():raise ValueError('Konfigurasjonen finnes allerede. Bruk konfigurasjonseditoren for endringer.')
     root.mkdir(parents=True,exist_ok=True); config.parent.mkdir(parents=True,exist_ok=True); local_path(root,profile['profiles']).mkdir(parents=True,exist_ok=True)
-    text=(f'hostname = {cfg_string(name)};\nmaxPlayers = {int(players)};\nverifySignatures = 2;\nforceSameBuild = 1;\n'
+    text=(f'hostname = {cfg_string(name)};\nmaxPlayers = {int(players)};\nsteamQueryPort = {int(profile["port"])+3};\nverifySignatures = 2;\nforceSameBuild = 1;\n'
           'disableVoN = 0;\nvonCodecQuality = 20;\ndisable3rdPerson = 0;\ndisableCrosshair = 0;\n'
           'serverTime = "SystemTime";\nserverTimeAcceleration = 1;\nserverTimePersistent = 1;\n'
           'class Missions\n{\n class DayZ\n {\n  template = '+cfg_string(mission)+';\n };\n};\n')

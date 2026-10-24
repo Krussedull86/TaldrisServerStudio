@@ -3,10 +3,11 @@ import json, os, re, shutil, subprocess, threading, time, uuid, zipfile
 from pathlib import Path
 from server_diagnostics import snapshot,current_logs,error_excerpt,exit_label
 from windows_runtime import directx_issue
+from windows_firewall import ensure_firewall
 
 DEFAULT = dict(name='Taldris • DayZ', root='', steamcmd='', steam_user='', workshop='',
                config='serverDZ.cfg', profiles='profiles', port=2302, mods=[], markers=[],
-               map_size=25600, map_image='', auto_update=False, update_minutes=60)
+               map_size=25600, map_image='', auto_firewall=True, auto_update=False, update_minutes=60)
 
 def local_path(root, relative):
     p = (Path(root).resolve() / relative).resolve()
@@ -59,6 +60,7 @@ class Manager:
             p.setdefault('login_mode','account' if p.get('steam_user') else 'anonymous')
             p.setdefault('mission','dayzOffline.chernarusplus')
             p.setdefault('max_players',40)
+            p.setdefault('auto_firewall',True)
         self.save()
     def add(self):
         p=json.loads(json.dumps(DEFAULT)); p.update(login_mode='anonymous',mission='dayzOffline.chernarusplus',max_players=40); p['id']=uuid.uuid4().hex; self.state['servers'].append(p); self.save(); return p
@@ -101,6 +103,7 @@ class Manager:
             for i,arg in enumerate(args):
                 if arg.startswith('-config='):args[i]='-config='+str(local_path(root,p['config']))
                 if arg.startswith('-profiles='):args[i]='-profiles='+str(profiles)
+            ensure_firewall(p,self.log)
             record=dict(name=p['name'],exe=args[0],cwd=str(root),profiles=str(profiles),args=list(args),baseline=snapshot(profiles),started=time.monotonic(),started_wall=time.time(),expected_stop=False,state='starting')
             flags=getattr(subprocess,'CREATE_NEW_PROCESS_GROUP',0)|getattr(subprocess,'CREATE_NEW_CONSOLE',0)
             try:proc=subprocess.Popen(args,cwd=str(root),creationflags=flags)
