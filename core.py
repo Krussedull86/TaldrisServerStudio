@@ -111,7 +111,7 @@ class Manager:
                 with self.lock: self.busy.discard(p['id'])
         threading.Thread(target=run,daemon=True).start()
     def backup(self,p):
-        root=Path(p['root']); out=self.home/'backups'/p['id']; out.mkdir(parents=True,exist_ok=True)
+        root=Path(p['root']).resolve(); out=self.home/'backups'/p['id']; out.mkdir(parents=True,exist_ok=True)
         dest=out/(time.strftime('%Y%m%d-%H%M%S')+'-'+uuid.uuid4().hex[:6]+'.zip')
         sources=[local_path(root,p['config']),local_path(root,p['profiles']),root/'mpmissions',root/'battleye']
         if not any(x.exists() for x in sources): raise ValueError('Ingen serverdata å sikkerhetskopiere.')
@@ -122,7 +122,7 @@ class Manager:
                 for src in sources:
                     for f in ([src] if src.is_file() else src.rglob('*') if src.exists() else []):
                         if f.is_file() and not f.is_symlink() and f.resolve().is_relative_to(root.resolve()):
-                            rel=str(f.relative_to(root))
+                            rel=f.relative_to(root).as_posix()
                             if rel not in seen: z.write(f,rel); seen.add(rel)
             temp.replace(dest)
         finally: temp.unlink(missing_ok=True)

@@ -22,6 +22,11 @@ class Tests(unittest.TestCase):
         archive=next((self.base/'data'/'backups').rglob('*.zip'))
         with zipfile.ZipFile(archive) as z:self.assertEqual(z.read('mpmissions/state.bin'),b'abc'); self.assertIsNone(z.testzip())
         self.m.save(); self.assertEqual(Manager(self.base/'data').state['servers'][0]['root'],str(self.root))
+    def test_backup_normalizes_alternate_root_spelling(self):
+        (self.root/'serverDZ.cfg').write_text('hostname="test";'); (self.root/'mpmissions').mkdir(); (self.root/'mpmissions'/'state.bin').write_bytes(b'abc')
+        self.p['root']=str(self.root/'..'/'server'); self.m.backup(self.p)
+        archive=next((self.base/'data'/'backups').rglob('*.zip'))
+        with zipfile.ZipFile(archive) as z:self.assertEqual(z.read('mpmissions/state.bin'),b'abc'); self.assertIn('serverDZ.cfg',z.namelist())
     def test_deploy(self):
         src=self.base/'workshop'/'123'/'addons'; src.mkdir(parents=True); (src/'test.pbo').write_bytes(b'pbo')
         keys=src.parent/'keys'; keys.mkdir(); (keys/'test.bikey').write_bytes(b'key')
