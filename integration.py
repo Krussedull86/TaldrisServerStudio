@@ -239,6 +239,7 @@ class IntegratedStudio(Studio):
             if data['chained']:self.create_config_for(p)
             return True
         def ready(_):
+            p['_deployment_ok']=True
             stamp=time.time()
             for m in p['mods']:
                 if m.get('id') in data['ids']:m['installed_at']=stamp; m['installed_updated']=m.get('remote_updated',0)

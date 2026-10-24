@@ -77,8 +77,8 @@ class Studio(QMainWindow):
         self.events=queue.Queue(); self.manager=Manager(home or Path(os.getenv('LOCALAPPDATA',Path.home()))/'TaldrisServerStudio',self.events.put)
         self.p=self.manager.state['servers'][0]; self.deadlines={}; self.log_signature=None; self.page_names=['Oversikt','Kart og markører','Modbibliotek','Logger','Konfigurasjon','Sikkerhetskopier','Automatisering','Innstillinger']
         shell=QWidget(); self.setCentralWidget(shell); outer=QHBoxLayout(shell); outer.setContentsMargins(0,0,0,0); outer.setSpacing(0)
-        sidebar=QFrame(); sidebar.setObjectName('sidebar'); sidebar.setFixedWidth(232); left=QVBoxLayout(sidebar); left.setContentsMargins(18,28,18,22); left.setSpacing(9)
-        left.addWidget(label('◈  TALDRIS','brand')); left.addWidget(label('SERVER STUDIO  /  0.5','muted')); left.addSpacing(28); left.addWidget(label('ARBEIDSOMRÅDE','eyebrow'))
+        sidebar=QFrame(); sidebar.setObjectName('sidebar'); sidebar.setFixedWidth(248); left=QVBoxLayout(sidebar); left.setContentsMargins(18,28,18,22); left.setSpacing(9)
+        left.addWidget(label('◈  TALDRIS','brand')); left.addWidget(label('SERVER STUDIO','muted')); left.addSpacing(28); left.addWidget(label('ARBEIDSOMRÅDE','eyebrow'))
         self.nav=[]
         for i,(name,icon) in enumerate(zip(self.page_names,['◫','⌖','▦','≡','⚙','◇','◷','☷'])):
             b=button(icon+'   '+name,lambda checked=False,n=i:self.go(n),'nav'); b.setCheckable(True); left.addWidget(b); self.nav.append(b)
@@ -273,7 +273,7 @@ class Studio(QMainWindow):
         self.start_btn.setEnabled(not running and not busy); self.stop_btn.setEnabled(running)
         for w,t in zip(self.metrics,[str(sum(m['enabled'] for m in self.p['mods'])),str(len(self.p['markers'])),str(self.p['port']),'—']):w.setText(t)
         for p in self.manager.state['servers']:
-            if p['auto_update']:
+            if p['auto_update'] and not getattr(self,'operations_ready',False):
                 due=self.deadlines.setdefault(p['id'],time.monotonic()+p['update_minutes']*60)
                 if time.monotonic()>=due:
                     self.deadlines[p['id']]=time.monotonic()+p['update_minutes']*60
@@ -292,8 +292,9 @@ class Studio(QMainWindow):
     def closeEvent(self,event):
         if self.manager.busy:QMessageBox.information(self,'Jobb pågår','Vent til oppdatering eller backup er ferdig.'); event.ignore(); return
         if any(self.manager.running(p) for p in self.manager.state['servers']):
-            if QMessageBox.question(self,'Avslutte panelet?','Serverprosessene fortsetter. Panelet kan ikke ta over disse automatisk ved neste oppstart. Avslutte?',QMessageBox.Yes|QMessageBox.No,QMessageBox.No)!=QMessageBox.Yes:event.ignore(); return
-        self.manager.save(); event.accept()
+            if QMessageBox.question(self,'Avslutte panelet?','Serverprosessene fortsetter. Panelet kobler seg til bekreftede serverprosesser igjen ved neste oppstart. Automatisering krever at panelet kjører. Avslutte?',QMessageBox.Yes|QMessageBox.No,QMessageBox.No)!=QMessageBox.Yes:event.ignore(); return
+        from process_registry import save_processes
+        save_processes(self.manager); self.manager.save(); event.accept()
 
 if __name__=='__main__':
     app=QApplication(sys.argv); app.setStyle('Fusion'); app.setStyleSheet(STYLE); window=Studio(); window.show(); sys.exit(app.exec())

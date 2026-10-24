@@ -68,3 +68,32 @@ def download(update,directory):
             if 'TaldrisServerStudio.exe' not in z.namelist():raise ValueError('Windows-programmet mangler i pakken.')
         part.replace(target); return str(target)
     finally:part.unlink(missing_ok=True)
+
+
+def stage_install(update, archive, home):
+    """Verify again, extract a bounded allowlist, never overwrite a running EXE."""
+    archive=Path(archive); home=Path(home)
+    if archive.stat().st_size!=int(update['size']) or hashlib.sha256(archive.read_bytes()).hexdigest()!=update['sha256']:
+        raise ValueError('Oppdateringspakken er endret etter nedlasting.')
+    tag=update['tag']
+    if not re.fullmatch(r'(dev-)?v\d+\.\d+\.\d+\.b\d+',tag):raise ValueError('Ugyldig versjon.')
+    target=home/'program_versions'/tag
+    target.mkdir(parents=True,exist_ok=True)
+    with zipfile.ZipFile(archive) as z:
+        names=z.namelist()
+        if len(names)!=len(set(names)) or set(names)-{'TaldrisServerStudio.exe','LES_MEG.md'}:
+            raise ValueError('Uventet innhold i oppdateringspakken.')
+        for item in z.infolist():
+            if item.file_size>600*1024*1024:raise ValueError('Utpakket fil er for stor.')
+        if 'TaldrisServerStudio.exe' not in names:raise ValueError('Programfilen mangler.')
+        for name in names:
+            dest=target/name
+            # A prior verified installation may already be running; never replace it.
+            content=z.read(name)
+            if dest.exists():
+                if dest.read_bytes()!=content:raise ValueError('Versjonsmappen har annet innhold. Oppdateringen avbrytes.')
+            else:
+                tmp=dest.with_suffix('.partial'); tmp.write_bytes(content); tmp.replace(dest)
+    exe=target/'TaldrisServerStudio.exe'
+    if not exe.read_bytes().startswith(b'MZ'):raise ValueError('Ugyldig Windows-program.')
+    return str(exe)

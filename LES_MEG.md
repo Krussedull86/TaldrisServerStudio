@@ -144,3 +144,8 @@ Dokumentasjon:
 - https://community.bistudio.com/wiki/DayZ:Hosting_a_Linux_Server
 - https://community.bistudio.com/wiki/DayZ:Server_Configuration
 - https://partner.steamgames.com/doc/webapi/ISteamRemoteStorage
+
+## Drift i 0.6.0
+Åpne Automatisering. Velg automatiske Steam-oppdateringer og om serverfilene skal oppdateres. Aktiver restartplan og velg klokkeslett eller intervall. Velg backup og eventuell krasjgjenstart. Lagre. Restartplanen tas i bruk fra neste serverstart. Serveren bruker sin egen nedtelling og lagring før panelet oppdaterer og starter den igjen. Panelet må være åpent.
+
+Programoppdatering → Lagre og sjekk installerer en nyere utgave og starter bare kontrollpanelet på nytt. DayZ fortsetter. Første gang fra en eldre utgave må 0.6.0 lastes ned og startes manuelt. SteamCMD og andre jobber må være ferdig før panelbytte. En server som allerede kjører med eksakt kjent EXE/config/profiles/port kan tas over automatisk.

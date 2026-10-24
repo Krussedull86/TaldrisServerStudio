@@ -4,6 +4,8 @@ from pathlib import Path
 from server_diagnostics import snapshot,current_logs,error_excerpt,exit_label
 from windows_runtime import directx_issue
 from windows_firewall import ensure_firewall
+from server_schedule import prepare_messages
+from process_registry import save_processes,restore_processes,discover_processes
 
 DEFAULT = dict(name='Taldris • DayZ', root='', steamcmd='', steam_user='', workshop='',
                config='serverDZ.cfg', profiles='profiles', port=2302, mods=[], markers=[],
@@ -62,6 +64,8 @@ class Manager:
             p.setdefault('max_players',40)
             p.setdefault('auto_firewall',True)
         self.save()
+        restore_processes(self)
+        discover_processes(self)
     def add(self):
         p=json.loads(json.dumps(DEFAULT)); p.update(login_mode='anonymous',mission='dayzOffline.chernarusplus',max_players=40); p['id']=uuid.uuid4().hex; self.state['servers'].append(p); self.save(); return p
     def save(self):
@@ -103,13 +107,15 @@ class Manager:
             for i,arg in enumerate(args):
                 if arg.startswith('-config='):args[i]='-config='+str(local_path(root,p['config']))
                 if arg.startswith('-profiles='):args[i]='-profiles='+str(profiles)
+            restart_due=prepare_messages(p,self.log)
             ensure_firewall(p,self.log)
-            record=dict(name=p['name'],exe=args[0],cwd=str(root),profiles=str(profiles),args=list(args),baseline=snapshot(profiles),started=time.monotonic(),started_wall=time.time(),expected_stop=False,state='starting')
+            record=dict(name=p['name'],exe=args[0],cwd=str(root),profiles=str(profiles),args=list(args),restart_due=restart_due,baseline=snapshot(profiles),started=time.monotonic(),started_wall=time.time(),expected_stop=False,state='starting')
             flags=getattr(subprocess,'CREATE_NEW_PROCESS_GROUP',0)|getattr(subprocess,'CREATE_NEW_CONSOLE',0)
             try:proc=subprocess.Popen(args,cwd=str(root),creationflags=flags)
             except OSError as e:
                 self.log('Kunne ikke starte '+args[0]+': '+str(e)); raise
             record.update(proc=proc,pid=proc.pid); self.procs[p['id']]=proc; self.launches[p['id']]=record
+            save_processes(self)
             self.log('Starter EXE: '+args[0])
             self.log('Argumenter: '+subprocess.list2cmdline(args[1:]))
             self.log(p['name']+': prosess opprettet, PID '+str(proc.pid)+'. Eget servervindu er aktivert på Windows. Følger oppstarten …')
@@ -118,6 +124,7 @@ class Manager:
         with self.lock:
             if not self.running(p): raise ValueError('Ingen administrert prosess kjører.')
             if p['id'] in self.launches:self.launches[p['id']]['expected_stop']=True
+            save_processes(self)
             self.procs[p['id']].terminate(); self.log('Tvungen stopp sendt. Kontroller RPT før ny oppstart.')
     def poll_processes(self):
         events=[]
@@ -129,7 +136,9 @@ class Manager:
                 label,hint=exit_label(code); uptime=int(time.monotonic()-record['started']); paths=current_logs(record)
                 record.update(state='exited',exit_code=int(code),exit_label=label,uptime=uptime,logs=[str(p) for p in paths])
                 event=dict(profile_id=identity,pid=record['pid'],code=int(code),uptime=uptime,expected_stop=record['expected_stop'],logs=record['logs']); events.append(event)
-                if record['expected_stop']:self.log(record['name']+': prosessen er avsluttet etter stoppkommando, kode '+label+'.')
+                planned=record.get('restart_due') and abs(time.time()-record['restart_due'])<300 and code==0
+                if planned:self.log(record['name']+': planlagt, ren avslutning. Vedlikehold venter på driftspanelet.')
+                elif record['expected_stop']:self.log(record['name']+': prosessen er avsluttet etter stoppkommando, kode '+label+'.')
                 else:
                     self.log(record['name']+': SERVERPROSESSEN AVSLUTTET etter '+str(uptime)+' s. PID '+str(record['pid'])+', kode '+label+'.')
                     if hint:self.log(hint)
@@ -137,6 +146,7 @@ class Manager:
                     if excerpt:self.log('Oppstartsfeil fra '+str(error_path)+':\n'+excerpt)
                     if paths:self.log('Logg fra denne oppstarten: '+str(next((p for p in paths if p.suffix.lower()=='.rpt'),paths[0])))
                     else:self.log('Ingen ny RPT/feillogg ble funnet fra denne oppstarten. Sjekk servervinduet, Windows-hendelsesloggen og at DayZ-serverfilene er komplette.')
+        if events:save_processes(self)
         return events
     def job(self,p,fn):
         with self.lock:
