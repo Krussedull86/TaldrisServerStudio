@@ -6,6 +6,7 @@ from PySide6.QtGui import QColor, QPainter, QPen, QBrush, QPixmap, QDesktopServi
 from PySide6.QtCore import QUrl
 from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QFrame,QLabel,QPushButton,QVBoxLayout,QHBoxLayout,QGridLayout,QStackedWidget,QComboBox,QLineEdit,QPlainTextEdit,QTableWidget,QTableWidgetItem,QHeaderView,QAbstractItemView,QFileDialog,QMessageBox,QInputDialog,QCheckBox,QFormLayout,QScrollArea,QGraphicsView,QGraphicsScene,QGraphicsItem,QSplitter)
 from core import Manager, validate, local_path, command, mod_load_mode
+from server_diagnostics import describe,current_logs
 
 STYLE='''
 QWidget { background:#0c111b; color:#e4ebf7; font-family:"Segoe UI"; font-size:13px; }
@@ -103,9 +104,9 @@ class Studio(QMainWindow):
     def update_server(self,p=None):self.manager.job(p or self.p,self.manager.update)
     def overview(self):
         l=self.page(); hero,h=card('SERVERKONTROLL'); self.server_title=label('Din DayZ-server','title'); h.addWidget(self.server_title)
-        self.server_status=label('STOPPET','eyebrow'); h.addWidget(self.server_status); h.addWidget(label('Start, følg og vedlikehold serveren fra ett sted.','muted'))
+        self.server_status=label('STOPPET','eyebrow'); h.addWidget(self.server_status); self.launch_detail=label('Ingen serveroppstart er registrert i denne økten.','muted'); h.addWidget(self.launch_detail); h.addWidget(label('Start, følg og vedlikehold serveren fra ett sted.','muted'))
         actions=QHBoxLayout(); self.start_btn=button('▶  Start server',self.action(lambda:self.manager.start(self.p)),'primary'); self.stop_btn=button('■  Tvungen stopp',self.stop,'danger')
-        actions.addWidget(self.start_btn); actions.addWidget(self.stop_btn); actions.addWidget(button('↗  Koble til lokalt',lambda:QDesktopServices.openUrl(QUrl('steam://connect/127.0.0.1:'+str(self.p['port']))))); actions.addStretch(); h.addLayout(actions); l.addWidget(hero)
+        actions.addWidget(self.start_btn); actions.addWidget(self.stop_btn); actions.addWidget(button('Vis oppstartslogg',self.action(self.show_launch_log))); actions.addWidget(button('↗  Koble til lokalt',lambda:QDesktopServices.openUrl(QUrl('steam://connect/127.0.0.1:'+str(self.p['port']))))); actions.addStretch(); h.addLayout(actions); l.addWidget(hero)
         metrics=QHBoxLayout(); self.metrics=[]
         for title,foot in [('AKTIVE MODS','Valgt lastrekkefølge'),('KARTMARKØRER','Dine egne steder'),('SPILLPORT','Lokal serverprofil'),('SPILLERE','Live data ikke tilkoblet')]:
             f,c=card(title); value=label('—','metric'); c.addWidget(value); c.addWidget(label(foot,'muted')); metrics.addWidget(f); self.metrics.append(value)
@@ -248,8 +249,19 @@ class Studio(QMainWindow):
     def new_server(self):self.p=self.manager.add(); self.load(); self.go(7)
     def stop(self):
         if QMessageBox.question(self,'Tvungen stopp','Dette kan miste ulagrede spilldata. Bruk DayZ sin graceful shutdown når mulig. Terminere prosessen?',QMessageBox.Yes|QMessageBox.No,QMessageBox.No)==QMessageBox.Yes:self.guard(lambda:self.manager.force_stop(self.p))
+    def show_launch_log(self):
+        record=self.manager.launches.get(self.p['id'])
+        if not record:raise ValueError('Start serveren først for å finne logg fra akkurat denne oppstarten.')
+        paths=current_logs(record)
+        if not paths:raise ValueError('Ingen ny RPT/feillogg fra denne oppstarten ennå. Se det separate servervinduet eller åpne loggmappen: '+record['profiles'])
+        path=next((p for p in paths if p.suffix.lower()=='.rpt'),paths[0]); self.log_path.setText(str(path)); self.log_signature=None; self.go(3)
     def tick(self):
+        exits=self.manager.poll_processes()
+        for event in exits:
+            if event['profile_id']==self.p['id'] and event['logs']:
+                self.log_path.setText(next((p for p in event['logs'] if p.lower().endswith('.rpt')),event['logs'][0])); self.log_signature=None
         while not self.events.empty():self.activity.appendPlainText(time.strftime('%H:%M:%S')+'   '+self.events.get())
+        record=self.manager.launches.get(self.p['id']); self.launch_detail.setText(describe(record)+'\n'+record['exe'] if record else 'Ingen serveroppstart er registrert i denne økten.')
         running=self.manager.running(self.p); busy=self.p['id'] in self.manager.busy; self.server_status.setText('◌  JOBB PÅGÅR' if busy else '●  PROSESS KJØRER' if running else '○  STOPPET / IKKE ADMINISTRERT')
         self.start_btn.setEnabled(not running and not busy); self.stop_btn.setEnabled(running)
         for w,t in zip(self.metrics,[str(sum(m['enabled'] for m in self.p['mods'])),str(len(self.p['markers'])),str(self.p['port']),'—']):w.setText(t)

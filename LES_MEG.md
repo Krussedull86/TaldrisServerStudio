@@ -1,4 +1,4 @@
-# Taldris Server Studio 0.5.1
+# Taldris Server Studio 0.5.2
 
 Windows-program for å installere og administrere en lokal DayZ Dedicated Server eller en Windows-VPS. Nytt: SteamCMD-nedlasting, integrert SteamCMD-konsoll, oppstartsveiviser og direkte Steam Workshop-søk.
 
@@ -56,6 +56,14 @@ Anonym innlogging i SteamCMD gir ikke automatisk rettigheter til DayZ Server ell
 Programmet lar deg forsøke anonymt. Hvis Steam avviser tilgang, viser det feilmeldingen og starter ikke serveren. Velg deretter **Steam-konto**, oppgi brukernavn og prøv igjen. Workshop krever ofte en konto med nødvendig DayZ-tilgang. Programmet omgår ikke tilgangskrav.
 
 **Test innlogging** tester bare innloggingen i den SteamCMD-økten. Det bekrefter ikke nedlastingsrettigheter. Hver jobb starter en ny SteamCMD-prosess med den lagrede innloggingsmetoden; SteamCMD kan gjenbruke sine egne bufrede innloggingsdata.
+
+## Rettet i 0.5.2: serveroppstart og prosesser som avslutter raskt
+
+Ingen BAT-fil er nødvendig. Programmet kjører DayZServer_x64.exe direkte med konfigurasjonsfil, port, profiles og de aktive -mod/-serverMod-listene. Modus «Begge» legger mappen i begge listene.
+
+DayZ får nå et eget konsollvindu på Windows. Aktivitetsloggen viser faktisk EXE-sti, oppstartsargumenter og prosess-ID. Oppstart overvåkes; ved avslutning vises avslutningskode (og Windows-kode i heksadesimal), kjøretid og eventuelle oppstartsfeil fra nye RPT-/feillogger. Loggfiler fra eldre oppstarter brukes ikke som bevis for den nye feilen. «Prosess kjører» er fortsatt ikke en bekreftelse på at serveren er spillklar.
+
+På Oversikt viser **Vis oppstartslogg** en logg fra gjeldende oppstart. Hvis ingen ny logg finnes, sier programmet fra. Mangel på Windows-runtime, feil i konfigurasjonen eller feil/manglende modavhengigheter må bekreftes med denne diagnostikken; programmet gjetter ikke på en bestemt årsak.
 
 ## Rettet i 0.5.1: SteamCMD som bare viste startteksten
 

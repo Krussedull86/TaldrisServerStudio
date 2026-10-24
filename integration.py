@@ -244,7 +244,7 @@ class IntegratedStudio(Studio):
             self.manager.save(); self.events.put('Klargjøring ferdig for '+p['name']); self.refresh_backups()
             if self.p is p:self.read_config(); self.refresh_mods()
             if data['chained'] and p.get('start_after_install'):
-                self.manager.start(p); self.events.put('Serveren er startet. Kontroller RPT for å se når den er klar.'); self.go(0)
+                self.manager.start(p); self.events.put('Serverprosessen er opprettet. Programmet følger oppstarten; se servervinduet og RPT for status.'); self.go(0)
         self.run_task(deploy_and_finish,ready,p,'Klargjøring')
     def workshop_page(self):
         l=self.page(); row=QHBoxLayout(); self.ws_query=QLineEdit(); self.ws_query.setPlaceholderText('Søk direkte i DayZ Steam Workshop …'); self.ws_query.returnPressed.connect(self.ws_search)

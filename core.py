@@ -1,6 +1,7 @@
 """Local DayZ process manager. No third-party runtime dependencies."""
 import json, os, re, shutil, subprocess, threading, time, uuid, zipfile
 from pathlib import Path
+from server_diagnostics import snapshot,current_logs,error_excerpt,exit_label
 
 DEFAULT = dict(name='Taldris • DayZ', root='', steamcmd='', steam_user='', workshop='',
                config='serverDZ.cfg', profiles='profiles', port=2302, mods=[], markers=[],
@@ -50,7 +51,7 @@ def command(p):
 class Manager:
     def __init__(self, home, log=lambda s:None):
         self.home=Path(home); self.home.mkdir(parents=True,exist_ok=True)
-        self.file=self.home/'settings.json'; self.log=log; self.procs={}; self.busy=set(); self.lock=threading.RLock()
+        self.file=self.home/'settings.json'; self.log=log; self.procs={}; self.launches={}; self.busy=set(); self.lock=threading.RLock()
         self.state=json.loads(self.file.read_text('utf-8')) if self.file.exists() else {'servers':[]}
         if not self.state['servers']: self.add()
         for p in self.state['servers']:
@@ -66,6 +67,7 @@ class Manager:
         proc=self.procs.get(p['id']); return proc is not None and proc.poll() is None
     def start(self,p):
         with self.lock:
+            self.poll_processes()
             if p['id'] in self.busy: raise ValueError('En jobb pågår for denne serveren.')
             if self.running(p): raise ValueError('Serveren kjører allerede.')
             for other in self.state['servers']:
@@ -90,13 +92,46 @@ class Manager:
                                 if key.is_file() and key.suffix.casefold()=='.bikey':
                                     dest=Path(p['root'])/'keys'/key.name; dest.parent.mkdir(exist_ok=True)
                                     if key.resolve()!=dest.resolve():shutil.copy2(key,dest)
-            # Do not redirect DayZ output: RPT logs are the authoritative source.
-            self.procs[p['id']]=subprocess.Popen(args,cwd=p['root'],creationflags=getattr(subprocess,'CREATE_NEW_PROCESS_GROUP',0))
-            self.log(p['name']+': prosess startet. Dette bekrefter ikke at serveren er klar for spillere.')
+            root=Path(p['root']).resolve(); profiles=local_path(root,p['profiles']); profiles.mkdir(parents=True,exist_ok=True)
+            # Resolve every path against the intended server directory before creating the process.
+            args[0]=str((root/'DayZServer_x64.exe').resolve())
+            for i,arg in enumerate(args):
+                if arg.startswith('-config='):args[i]='-config='+str(local_path(root,p['config']))
+                if arg.startswith('-profiles='):args[i]='-profiles='+str(profiles)
+            record=dict(name=p['name'],exe=args[0],cwd=str(root),profiles=str(profiles),args=list(args),baseline=snapshot(profiles),started=time.monotonic(),started_wall=time.time(),expected_stop=False,state='starting')
+            flags=getattr(subprocess,'CREATE_NEW_PROCESS_GROUP',0)|getattr(subprocess,'CREATE_NEW_CONSOLE',0)
+            try:proc=subprocess.Popen(args,cwd=str(root),creationflags=flags)
+            except OSError as e:
+                self.log('Kunne ikke starte '+args[0]+': '+str(e)); raise
+            record.update(proc=proc,pid=proc.pid); self.procs[p['id']]=proc; self.launches[p['id']]=record
+            self.log('Starter EXE: '+args[0])
+            self.log('Argumenter: '+subprocess.list2cmdline(args[1:]))
+            self.log(p['name']+': prosess opprettet, PID '+str(proc.pid)+'. Eget servervindu er aktivert på Windows. Følger oppstarten …')
+            self.log('Serverlogger: '+str(profiles))
     def force_stop(self,p):
         with self.lock:
             if not self.running(p): raise ValueError('Ingen administrert prosess kjører.')
+            if p['id'] in self.launches:self.launches[p['id']]['expected_stop']=True
             self.procs[p['id']].terminate(); self.log('Tvungen stopp sendt. Kontroller RPT før ny oppstart.')
+    def poll_processes(self):
+        events=[]
+        with self.lock:
+            for identity,record in self.launches.items():
+                if record['state']=='exited':continue
+                code=record['proc'].poll()
+                if code is None:continue
+                label,hint=exit_label(code); uptime=int(time.monotonic()-record['started']); paths=current_logs(record)
+                record.update(state='exited',exit_code=int(code),exit_label=label,uptime=uptime,logs=[str(p) for p in paths])
+                event=dict(profile_id=identity,pid=record['pid'],code=int(code),uptime=uptime,expected_stop=record['expected_stop'],logs=record['logs']); events.append(event)
+                if record['expected_stop']:self.log(record['name']+': prosessen er avsluttet etter stoppkommando, kode '+label+'.')
+                else:
+                    self.log(record['name']+': SERVERPROSESSEN AVSLUTTET etter '+str(uptime)+' s. PID '+str(record['pid'])+', kode '+label+'.')
+                    if hint:self.log(hint)
+                    error_path,excerpt=error_excerpt(paths)
+                    if excerpt:self.log('Oppstartsfeil fra '+str(error_path)+':\n'+excerpt)
+                    if paths:self.log('Logg fra denne oppstarten: '+str(next((p for p in paths if p.suffix.lower()=='.rpt'),paths[0])))
+                    else:self.log('Ingen ny RPT/feillogg ble funnet fra denne oppstarten. Sjekk servervinduet, Windows-hendelsesloggen og at DayZ-serverfilene er komplette.')
+        return events
     def job(self,p,fn):
         with self.lock:
             if p['id'] in self.busy or self.running(p): raise ValueError('Stopp serveren før oppdatering eller konsistent backup.')
