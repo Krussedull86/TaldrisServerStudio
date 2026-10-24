@@ -2,6 +2,7 @@
 import json, os, re, shutil, subprocess, threading, time, uuid, zipfile
 from pathlib import Path
 from server_diagnostics import snapshot,current_logs,error_excerpt,exit_label
+from windows_runtime import directx_issue
 
 DEFAULT = dict(name='Taldris • DayZ', root='', steamcmd='', steam_user='', workshop='',
                config='serverDZ.cfg', profiles='profiles', port=2302, mods=[], markers=[],
@@ -77,6 +78,8 @@ class Manager:
             args=command(p)
             if not Path(args[0]).is_file(): raise ValueError('Fant ikke DayZServer_x64.exe. Installer eller velg riktig mappe.')
             if not local_path(p['root'],p['config']).is_file(): raise ValueError('Serverkonfigurasjon mangler.')
+            runtime_error=directx_issue(p['root'])
+            if runtime_error:self.log(runtime_error); raise ValueError(runtime_error)
             for m in p['mods']:
                 if not m.get('enabled',True):continue
                 path=mod_path(p,m)

@@ -9,6 +9,7 @@ from steam_services import (install_steamcmd,search,details,collection,workshop_
 from core import validate, mod_load_mode
 from steam_terminal import terminal_process
 from steam_status import plain_terminal,progress_percent,stage
+from windows_runtime import DIRECTX_PAGE
 
 class Task(QThread):
     done=Signal(object); failed=Signal(str)
@@ -159,7 +160,7 @@ class IntegratedStudio(Studio):
         row=QHBoxLayout(); row.addWidget(self.secret,1); row.addWidget(button('Send til SteamCMD',self.send_secret)); row.addWidget(button('Avbryt jobb',self.cancel_steam,'danger')); cl.addLayout(row)
         controls=QHBoxLayout(); self.follow_terminal=QCheckBox('Følg siste melding'); self.follow_terminal.setChecked(True); controls.addWidget(self.follow_terminal); controls.addStretch(); controls.addWidget(button('Åpne SteamCMD-loggmappe',self.open_steam_logs)); cl.addLayout(controls)
         cl.addWidget(label('Input skjules og lagres ikke i profil eller aktivitetslogg av programmet. SteamCMD kan selv beholde innloggingsdata i sin egen mappe. SteamCMD-jobben er separat fra abonnementer i Steam-klienten.','muted')); tabs.addTab(console,'SteamCMD-konsoll'); self.setup_tabs=tabs
-        tools=QHBoxLayout(); tools.addWidget(button('Opprett konfigurasjon uten nedlasting',self.action(self.create_config))); tools.addWidget(button('Start eksisterende server',self.action(lambda:self.manager.start(self.p)),'primary')); tools.addStretch(); layout.addLayout(tools)
+        tools=QHBoxLayout(); tools.addWidget(button('Opprett konfigurasjon uten nedlasting',self.action(self.create_config))); tools.addWidget(button('DirectX (Microsoft)',lambda:QDesktopServices.openUrl(QUrl(DIRECTX_PAGE)))); tools.addWidget(button('Start eksisterende server',self.action(lambda:self.manager.start(self.p)),'primary')); tools.addStretch(); layout.addLayout(tools)
     def setup_browse(self,kind):
         p=QFileDialog.getExistingDirectory(self,'Velg mappe')
         if p:(self.setup_root if kind=='root' else self.setup_steam).setText(p)

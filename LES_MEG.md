@@ -1,4 +1,4 @@
-# Taldris Server Studio 0.5.2
+# Taldris Server Studio 0.5.3
 
 Windows-program for å installere og administrere en lokal DayZ Dedicated Server eller en Windows-VPS. Nytt: SteamCMD-nedlasting, integrert SteamCMD-konsoll, oppstartsveiviser og direkte Steam Workshop-søk.
 
@@ -56,6 +56,18 @@ Anonym innlogging i SteamCMD gir ikke automatisk rettigheter til DayZ Server ell
 Programmet lar deg forsøke anonymt. Hvis Steam avviser tilgang, viser det feilmeldingen og starter ikke serveren. Velg deretter **Steam-konto**, oppgi brukernavn og prøv igjen. Workshop krever ofte en konto med nødvendig DayZ-tilgang. Programmet omgår ikke tilgangskrav.
 
 **Test innlogging** tester bare innloggingen i den SteamCMD-økten. Det bekrefter ikke nedlastingsrettigheter. Hver jobb starter en ny SteamCMD-prosess med den lagrede innloggingsmetoden; SteamCMD kan gjenbruke sine egne bufrede innloggingsdata.
+
+## Rettet i 0.5.3: DirectX-feil og oppdateringens sertifikatkontroll
+
+`XAPOFX1_5.dll mangler` og `0xc0000135` betyr at en nødvendig komponent ikke kan lastes. Installer **Microsoft DirectX End-User Runtimes (June 2010)** fra https://www.microsoft.com/en-us/download/details.aspx?id=8109. Last ned pakken, pakk den ut til en tom mappe, og kjør **DXSETUP.exe** fra den utpakkede mappen.
+
+Hvis du har kopiert en løs XAPOFX1_5.dll til servermappen og deretter får **0xc000007b**, kan det være feil arkitektur eller filformat. Flytt den manuelt kopierte filen til en backupmappe utenfor servermappen og installer hele Microsoft-pakken. Programmet leser nå filhodet og viser en konkret beskjed hvis den lokale DLL-kopien er 32-bit og serveren er 64-bit. Det endrer eller sletter ikke DLL-filer. Andre feil kan fortsatt kreve kontroll av serverfiler og øvrige avhengigheter.
+
+Ved serverstart sjekkes denne DirectX-komponenten før en ekte Windows-serverfil kjøres. **Kom i gang → DirectX (Microsoft)** åpner den offisielle nedlastingssiden. Dette krever ingen BAT-fil.
+
+Programoppdatering, SteamCMD-bootstrap og Workshop-API bruker nå en medfølgende CA-sertifikatpakke sammen med systemets klarerte sertifikater. HTTPS beholder sertifikat- og vertsnavnkontroll. Dette retter manglende offentlige CA-sertifikater i den pakkede EXE-en. Feil klokke eller en ubetrodd nettverksproxy kan fortsatt føre til avvisning; slike feil får en tydelig forklaring.
+
+Hvis den gamle utgaven ikke klarer å hente oppdateringen på grunn av SSL-feilen, last ned den nye Windows-pakken manuelt fra GitHub Releases først. Deretter kan programmet sjekke oppdateringer med den nye sertifikatpakken.
 
 ## Rettet i 0.5.2: serveroppstart og prosesser som avslutter raskt
 

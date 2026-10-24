@@ -2,6 +2,7 @@
 import hashlib,json,re,zipfile
 from pathlib import Path
 from urllib.request import Request,urlopen
+from network_tls import tls_context
 from urllib.error import HTTPError
 from urllib.parse import urlparse
 from release_info import VERSION,BUILD
@@ -17,7 +18,7 @@ def repository(value):
 def get_json(url):
     req=Request(url,headers={'User-Agent':'TaldrisServerStudio','Accept':'application/vnd.github+json'})
     try:
-        with urlopen(req,timeout=30) as r:raw=r.read(4*1024*1024+1)
+        with urlopen(req,timeout=30,context=tls_context()) as r:raw=r.read(4*1024*1024+1)
     except HTTPError as e:
         if e.code==404:raise ValueError('Fant ikke offentlig repo eller publisert utgave for kanalen.')
         if e.code==403:raise ValueError('GitHub avviste forespørselen eller har nådd API-grensen. Prøv senere.')
@@ -55,7 +56,7 @@ def download(update,directory):
     out=Path(directory); out.mkdir(parents=True,exist_ok=True); target=out/(tag+'-'+ASSET); part=target.with_suffix('.partial'); total=0; digest=hashlib.sha256()
     try:
         request=Request(update['url'],headers={'User-Agent':'TaldrisServerStudio'})
-        with urlopen(request,timeout=60) as response,part.open('wb') as f:
+        with urlopen(request,timeout=60,context=tls_context()) as response,part.open('wb') as f:
             while True:
                 chunk=response.read(1024*1024)
                 if not chunk:break

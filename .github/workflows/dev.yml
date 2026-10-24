@@ -41,7 +41,7 @@ jobs:
           BUILD: ${{ github.run_number }}
           REPOSITORY: ${{ github.repository }}
         run: python scripts/release.py stamp
-      - run: python -m PyInstaller --noconfirm --clean --onefile --windowed --name TaldrisServerStudio app.py
+      - run: python -m PyInstaller --noconfirm --clean --onefile --windowed --collect-data certifi --name TaldrisServerStudio app.py
       - name: Prepare release files and SHA-256
         run: python scripts/release.py package
       - uses: actions/upload-artifact@v4

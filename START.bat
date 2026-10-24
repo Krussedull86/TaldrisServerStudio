@@ -4,7 +4,7 @@ where py >nul 2>nul
 if errorlevel 1 goto missing
 if not exist .venv\Scripts\python.exe py -3 -m venv .venv
 if errorlevel 1 goto fail
-.venv\Scripts\python.exe -c "import PySide6; import winpty" >nul 2>nul
+.venv\Scripts\python.exe -c "import PySide6; import winpty; import certifi" >nul 2>nul
 if errorlevel 1 .venv\Scripts\python.exe -m pip install -r requirements.txt
 if errorlevel 1 goto fail
 .venv\Scripts\python.exe app.py

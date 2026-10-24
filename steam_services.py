@@ -5,6 +5,7 @@ import io, json, os, re, stat, tempfile, zipfile
 from pathlib import Path
 from urllib.parse import urlencode, urlparse, parse_qs
 from urllib.request import Request, urlopen
+from network_tls import tls_context
 from html.parser import HTMLParser
 
 STEAMCMD_URL='https://steamcdn-a.akamaihd.net/client/installer/steamcmd.zip'
@@ -14,7 +15,7 @@ MAX_RESPONSE=12*1024*1024
 
 def read_url(url,data=None,limit=MAX_RESPONSE):
     req=Request(url,data=data,headers={'User-Agent':'TaldrisServerStudio/0.3','Accept-Language':'en-US,en;q=0.9'})
-    with urlopen(req,timeout=40) as response:
+    with urlopen(req,timeout=40,context=tls_context()) as response:
         raw=response.read(limit+1)
         if len(raw)>limit:raise ValueError('Svaret fra Steam er for stort.')
         return raw

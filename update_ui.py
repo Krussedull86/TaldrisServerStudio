@@ -6,6 +6,7 @@ from desktop import label,button,card
 from integration import IntegratedStudio,Task
 from release_info import VERSION,BUILD,REPOSITORY
 from program_updates import check,download,repository
+from network_tls import network_message
 
 class ReleaseStudio(IntegratedStudio):
     def __init__(self,home=None):
@@ -34,7 +35,7 @@ class ReleaseStudio(IntegratedStudio):
             self.update_message.setText(message)
             if info['newer']:self.events.put(message); self.statusBar().showMessage(message+' • Åpne Programoppdatering')
         def failed(msg):self.update_running=False; self.update_message.setText(msg)
-        task.done.connect(received); task.failed.connect(failed); task.finished.connect(lambda:self.tasks.discard(task)); task.finished.connect(task.deleteLater); task.start()
+        task.done.connect(received); task.failed.connect(lambda msg:failed(network_message(msg))); task.finished.connect(lambda:self.tasks.discard(task)); task.finished.connect(task.deleteLater); task.start()
     def download_update(self):
         if not self.latest_update:raise ValueError('Sjekk etter en utgave først.')
         if self.update_running:return
@@ -43,6 +44,6 @@ class ReleaseStudio(IntegratedStudio):
         task=Task(lambda:download(update,self.manager.home/'program_updates'),self); self.tasks.add(task)
         def received(path):self.update_running=False; self.update_download.setEnabled(True); self.update_message.setText('✓ Pakken er kontrollert: '+Path(path).name); self.open_update_folder()
         def failed(msg):self.update_running=False; self.update_download.setEnabled(True); self.update_message.setText(msg)
-        task.done.connect(received); task.failed.connect(failed); task.finished.connect(lambda:self.tasks.discard(task)); task.finished.connect(task.deleteLater); task.start()
+        task.done.connect(received); task.failed.connect(lambda msg:failed(network_message(msg))); task.finished.connect(lambda:self.tasks.discard(task)); task.finished.connect(task.deleteLater); task.start()
     def open_update_folder(self):
         path=self.manager.home/'program_updates'; path.mkdir(parents=True,exist_ok=True); QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
