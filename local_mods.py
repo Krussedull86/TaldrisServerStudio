@@ -33,11 +33,11 @@ def scan_mods(directory,recursive=False):
         for current,dirs,_ in os.walk(root,followlinks=False,onerror=onerror):
             if Path(current)!=root and Path(current).name.startswith('@'):dirs[:]=[]; continue
             for name in list(dirs):
-                if name.startswith('@'):add(Path(current)/name); dirs.remove(name)
+                if name.startswith('@') and not name.endswith(('.previous','.staging','.rollback')):add(Path(current)/name); dirs.remove(name)
             dirs[:]=[n for n in dirs if n not in ('.git','node_modules','.venv')]
     else:
         for p in root.iterdir():
-            if p.name.startswith('@') and p.is_dir():add(p)
+            if p.name.startswith('@') and not p.name.endswith(('.previous','.staging','.rollback')) and p.is_dir():add(p)
     return {'mods':sorted(candidates,key=lambda m:m['name'].casefold()),'warnings':warnings}
 
 def import_mods(profile,rows,server_only=False,load_mode=None):

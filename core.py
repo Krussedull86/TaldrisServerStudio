@@ -86,7 +86,8 @@ class Manager:
         if self.state['servers']:p['name']='DayZ-server '+str(len(self.state['servers'])+1)
         p.update(login_mode='anonymous',mission='dayzOffline.chernarusplus',max_players=40); p['id']=uuid.uuid4().hex; self.state['servers'].append(p); self.save(); return p
     def save(self):
-        tmp=self.file.with_suffix('.tmp'); tmp.write_text(json.dumps(self.state,indent=2,ensure_ascii=False),'utf-8'); tmp.replace(self.file)
+        with self.lock:
+            tmp=self.file.with_suffix('.tmp'); tmp.write_text(json.dumps(self.state,indent=2,ensure_ascii=False),'utf-8'); tmp.replace(self.file)
     def running(self,p):
         proc=self.procs.get(p['id']); return proc is not None and proc.poll() is None
     def start(self,p):
@@ -219,15 +220,16 @@ class Manager:
             src=base/m['id']; dst=root/m['folder']
             if not src.is_dir() or not (src/'addons').is_dir(): raise ValueError('Ufullstendig Workshop-mod: '+m['id'])
             stage=root/(m['folder']+'.staging'); old=root/(m['folder']+'.previous')
-            if stage.exists() or old.exists(): raise ValueError('Tidligere staging/previous-mappe finnes. Kontroller den før du fortsetter: '+m['folder'])
+            if stage.exists(): raise ValueError('En staging-mappe finnes. Kontroller den før du fortsetter: '+m['folder'])
             shutil.copytree(src,stage)
+            if old.exists():shutil.rmtree(old)
             try:
                 if dst.exists(): dst.rename(old)
                 stage.rename(dst)
             except Exception:
                 if old.exists() and not dst.exists(): old.rename(dst)
                 raise
-            if old.exists(): shutil.rmtree(old)
+            # Keep one complete previous version for an explicit rollback.
             keys=root/'keys'; keys.mkdir(exist_ok=True)
             for key in dst.rglob('*.bikey'): shutil.copy2(key, keys/key.name)
             self.log('Installert: '+m['folder'])

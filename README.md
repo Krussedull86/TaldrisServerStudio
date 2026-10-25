@@ -48,3 +48,8 @@ Kilder: https://community.bistudio.com/wiki/DayZ:Server_Messages ; https://cftoo
 
 ### 0.6.1 – Flere samtidige servere
 Bruk + Ny server for hver installasjon. Profilene foreslår ulike portblokker (2302, 2402, 2502 …); nye konfigurasjoner får Steam query-port +3. Bruk egne servermapper. Oversikt viser status, spillport, query-port og mappe for alle profiler; dobbeltklikk for å velge en server. Start/stopp gjelder bare den valgte profilen, og andre servere fortsetter. Spillportblokk og eksplisitt steamQueryPort kontrolleres mot andre kjørende profiler. Dette kontrollerer profilene i panelet, ikke alle eksterne programmer på maskinen. Mods, konfigurasjon, backup og automatisering er per server. SteamCMD-jobber deles i én køplass: en nedlasting om gangen; aktive DayZ-prosesser i andre mapper fortsetter.
+
+### 0.7.0 – Samlet driftsverksted
+Ny separat bakgrunnsagent med autentisert loopback-API og Windows-tjeneste, Discord-bot med roller per server og slash-/knappestyring, RCon og spillermoderering, avbrytbar restartnedtelling, kontroll av Steam query-svar, gjenoppretting av backup med transaksjonsjournal, modrollback og testserverkloning. Konfigurasjonssenter med visuell CFG/JSON/XML-editor, types-tabell/import/masseendring, rå tekst, diff og historikk. Kartverksted for redigering av X/Z-punkter i flere XML-lag.
+
+Se [DRIFT_DISCORD_EDITORER.md](DRIFT_DISCORD_EDITORER.md) for oppsett, kommandoer, filformater og konkrete begrensninger. Discord må kobles til med egen bot og eier-ID; Windows-tjenesten installeres eksplisitt fra panelet. Dette er en dev-utgave. Ekte Discord-/Steam-/DayZ-integrasjon er ikke bekreftet bare ved at de automatiske testene passerer.

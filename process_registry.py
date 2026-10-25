@@ -30,6 +30,7 @@ class AttachedProcess:
 
 
 def save_processes(manager):
+    if getattr(manager,'remote',False) is True:return
     records={}
     for key,record in manager.launches.items():
         if record['state']=='exited':continue

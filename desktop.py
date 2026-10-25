@@ -74,7 +74,7 @@ class MapView(QGraphicsView):
 class Studio(QMainWindow):
     def __init__(self,home=None):
         super().__init__(); self.setWindowTitle('Taldris Server Studio • 0.5'); self.resize(1440,940); self.setMinimumSize(1120,780)
-        self.events=queue.Queue(); self.manager=Manager(home or Path(os.getenv('LOCALAPPDATA',Path.home()))/'TaldrisServerStudio',self.events.put)
+        self.events=queue.Queue(); self.manager=getattr(self,'manager_class',Manager)(home or Path(os.getenv('LOCALAPPDATA',Path.home()))/'TaldrisServerStudio',self.events.put)
         self.p=self.manager.state['servers'][0]; self.deadlines={}; self.log_signature=None; self.page_names=['Oversikt','Kart og markører','Modbibliotek','Logger','Konfigurasjon','Sikkerhetskopier','Automatisering','Innstillinger']
         shell=QWidget(); self.setCentralWidget(shell); outer=QHBoxLayout(shell); outer.setContentsMargins(0,0,0,0); outer.setSpacing(0)
         sidebar=QFrame(); sidebar.setObjectName('sidebar'); sidebar.setFixedWidth(248); left=QVBoxLayout(sidebar); left.setContentsMargins(18,28,18,22); left.setSpacing(9)

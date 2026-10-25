@@ -149,3 +149,6 @@ Dokumentasjon:
 Åpne Automatisering. Velg automatiske Steam-oppdateringer og om serverfilene skal oppdateres. Aktiver restartplan og velg klokkeslett eller intervall. Velg backup og eventuell krasjgjenstart. Lagre. Restartplanen tas i bruk fra neste serverstart. Serveren bruker sin egen nedtelling og lagring før panelet oppdaterer og starter den igjen. Panelet må være åpent.
 
 Programoppdatering → Lagre og sjekk installerer en nyere utgave og starter bare kontrollpanelet på nytt. DayZ fortsetter. Første gang fra en eldre utgave må 0.6.0 lastes ned og startes manuelt. SteamCMD og andre jobber må være ferdig før panelbytte. En server som allerede kjører med eksakt kjent EXE/config/profiles/port kan tas over automatisk.
+
+## Nytt i 0.7.0
+Programmet bruker nå en egen bakgrunnsagent. Windows-tjenesten kan installeres fra Discord / tjeneste for drift etter avlogging. Legg inn egen Discord-bot og eier-ID i samme side. RCon og spillere gir moderering og restart med nedtelling. Konfigurasjon har visuelle editorer og types-tabell; Kart og markører har XML-lag med flyttbare koordinater. Full veiledning: DRIFT_DISCORD_EDITORER.md i GitHub-repoet. Første gang fra gammel utgave må du lukke det gamle panelet og starte den nye EXE-en manuelt; DayZ kan fortsette hvis prosessidentiteten kan bekreftes.

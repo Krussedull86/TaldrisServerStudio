@@ -81,7 +81,7 @@ def stage_install(update, archive, home):
     target.mkdir(parents=True,exist_ok=True)
     with zipfile.ZipFile(archive) as z:
         names=z.namelist()
-        if len(names)!=len(set(names)) or set(names)-{'TaldrisServerStudio.exe','LES_MEG.md'}:
+        if len(names)!=len(set(names)) or set(names)-{'TaldrisServerStudio.exe','LES_MEG.md','DRIFT_DISCORD_EDITORER.md'}:
             raise ValueError('Uventet innhold i oppdateringspakken.')
         for item in z.infolist():
             if item.file_size>600*1024*1024:raise ValueError('Utpakket fil er for stor.')

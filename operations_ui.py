@@ -20,7 +20,7 @@ class OperationsStudio(ReleaseStudio):
         self.operations_ready=True; self.op_seen=set(); self.op_checking=set(); self.op_next={}; self.op_crashes={}; self.op_retries={}
         self.op_timer=QTimer(self); self.op_timer.timeout.connect(self.operations_tick); self.op_timer.start(5000)
         for profile in self.manager.state['servers']:
-            if profile.get('maintenance_state') in ('backup','steam','deploy'):
+            if not getattr(self.manager,'remote',False) and profile.get('maintenance_state') in ('backup','steam','deploy'):
                 self.maintenance_failed(profile,'Forrige vedlikehold ble avbrutt. Bruk Kjør vedlikehold nå for å prøve igjen.')
         self.load_operations()
     def automation_page(self):

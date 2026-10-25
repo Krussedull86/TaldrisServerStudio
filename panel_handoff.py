@@ -1,5 +1,5 @@
 """Panel-only update handoff; no DayZ process is terminated."""
-import json
+import json,re
 import os
 from pathlib import Path
 import subprocess
@@ -24,6 +24,9 @@ def active_exe(home):
     if not path.exists():return None
     info=json.loads(path.read_text('utf-8')); exe=Path(info['exe']).resolve()
     if not exe.is_relative_to((Path(home)/'program_versions').resolve()) or exe.name!='TaldrisServerStudio.exe' or not exe.is_file():raise ValueError('Ugyldig installert programsti.')
+    from release_info import VERSION,BUILD
+    match=re.search(r'(?:dev-)?v(\d+)\.(\d+)\.(\d+)\.b(\d+)',exe.parent.name)
+    if match and tuple(map(int,match.groups()))<=tuple(map(int,VERSION.split('.')))+(BUILD,):return None
     return exe
 
 
@@ -37,4 +40,4 @@ def mark_active(home):
 def launch_handoff(exe,home):
     if not getattr(sys,'frozen',False):raise ValueError('Automatisk installasjon brukes fra Windows-EXE. Pakken er klargjort; kildekodekjøring oppdateres via Git.')
     me=psutil.Process()
-    return subprocess.Popen([str(exe),'--home',str(home),'--wait-panel',str(me.pid),str(me.create_time())],cwd=str(Path(exe).parent),creationflags=getattr(subprocess,'CREATE_NEW_PROCESS_GROUP',0),close_fds=True)
+    return subprocess.Popen([str(exe),'--home',str(home),'--wait-panel',str(me.pid),str(me.create_time())],cwd=str(Path(exe).parent),creationflags=getattr(subprocess,'CREATE_NEW_PROCESS_GROUP',0),close_fds=True,env={**os.environ,'PYINSTALLER_RESET_ENVIRONMENT':'1'})
