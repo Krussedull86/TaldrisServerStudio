@@ -1,0 +1,10 @@
+name = "Taldris Map Ink";
+picture = "";
+logo = "";
+logoSmall = "";
+logoOver = "";
+tooltip = "Taldris Map Ink";
+overview = "Handwritten drawings on physical vanilla DayZ maps. Requires pens.";
+action = "";
+author = "Krussedull86";
+version = "0.1.0-dev";
