@@ -3,6 +3,11 @@ modded class ItemMap
 {
     protected ref array<ref TMI_Stroke> m_TMI_Strokes = new array<ref TMI_Stroke>;
     protected bool m_TMI_ClientLoaded;
+    protected int m_TMI_Ack;
+    protected int m_TMI_LastTransaction;
+    protected string m_TMI_LastWriter;
+
+    int TMI_GetAck() { return m_TMI_Ack; }
 
     array<ref TMI_Stroke> TMI_GetStrokes()
     {
@@ -71,11 +76,12 @@ modded class ItemMap
         rpc.Send(this, TMI_Protocol.REQUEST, true, NULL);
     }
 
-    void TMI_SaveBatch(array<ref TMI_Stroke> pending, int penColor)
+    void TMI_SaveBatch(array<ref TMI_Stroke> pending, int penColor, int transaction)
     {
         if (!GetGame().IsClient() || !pending || pending.Count() == 0) return;
         if (pending.Count() > TMI_Protocol.MAX_BATCH) return;
         ref ScriptRPC rpc = new ScriptRPC;
+        rpc.Write(transaction);
         rpc.Write(penColor);
         rpc.Write(pending.Count());
         foreach (TMI_Stroke stroke : pending)
@@ -102,8 +108,21 @@ modded class ItemMap
         rpc.Send(this, TMI_Protocol.SNAPSHOT, true, recipient);
     }
 
+    protected void TMI_SendAck(PlayerIdentity recipient, int transaction)
+    {
+        ref ScriptRPC rpc = new ScriptRPC;
+        rpc.Write(transaction);
+        rpc.Send(this, TMI_Protocol.ACK, true, recipient);
+    }
+
     override void OnRPC(PlayerIdentity sender, int rpc_type, ParamsReadContext ctx)
     {
+        if (rpc_type == TMI_Protocol.ACK && GetGame().IsClient())
+        {
+            int receipt;
+            if (ctx.Read(receipt)) m_TMI_Ack = receipt;
+            return;
+        }
         if (rpc_type == TMI_Protocol.SNAPSHOT && GetGame().IsClient())
         {
             int count;
@@ -133,6 +152,15 @@ modded class ItemMap
             PlayerBase writer;
             if (!TMI_Authorized(sender, writer)) return;
 
+            int transaction;
+            if (!ctx.Read(transaction) || transaction <= 0) return;
+            // One outstanding transaction per editor. Replays never append twice.
+            if (m_TMI_LastWriter == sender.GetId() && m_TMI_LastTransaction == transaction)
+            {
+                TMI_SendSnapshot(sender);
+                TMI_SendAck(sender, transaction);
+                return;
+            }
             int inkColor;
             int count;
             if (!ctx.Read(inkColor) || !ctx.Read(count)) return;
@@ -153,7 +181,10 @@ modded class ItemMap
             foreach (TMI_Stroke line : accepted)
                 m_TMI_Strokes.Insert(line);
 
+            m_TMI_LastWriter = sender.GetId();
+            m_TMI_LastTransaction = transaction;
             TMI_SendSnapshot(sender);
+            TMI_SendAck(sender, transaction);
             return;
         }
         super.OnRPC(sender, rpc_type, ctx);

@@ -19,7 +19,9 @@ Dette prosjektet legger frihåndstegning oppå **vanilla fysisk ItemMap**, og br
 - Overgang for eksisterende lagrede vanilla-kart må testes med serverbackup. Tilleggsfelt i `OnStoreLoad` kan kreve migrering ved oppgradering/nedgradering.
 - RPC-ytelse og pakketstørrelse, samtidige klienter og kartbytte må testes. Grense per kart er 4096 linjesegmenter.
 - Tekstbokser, viskelær for lagret blekk, penn-blekkforbruk, egen tusj, drag-and-drop-kombinasjon i inventory, signering og Steam Workshop-publisering er ikke implementert.
-- Ved lagring sendes flere RPC-batcher; klientens pending-buffer tømmes før serverbekreftelse. Production-versjon bør ha transaksjons-ID, ACK, retry og rate limiting.
+- Lagring sender én batch om gangen med transaksjons-ID og serverbekreftelse. Bare bekreftede segmenter fjernes fra pending-bufferen. Klienten prøver opptil tre ganger automatisk; SAVE prøver samme batch igjen. Serveren gjenkjenner siste transaksjon fra samme spiller på dette kartet.
+- Pending-bufferen er fortsatt bare i den åpne editoren: ikke lukk kartet ved manglende bekreftelse. Avvist lagring beholder segmentene, men krever at kart/penn er tilgjengelig før SAVE prøves igjen. Kvitteringer er ikke lagret over serverrestart, og full feilmelding, varig klientutkast og rate limiting gjenstår.
+- Både server og klient må oppdateres samtidig: APPEND-formatet har nå transaksjons-ID.
 - GUI-oppsett og koordinatplassering må verifiseres på 16:9 og ultrawide. På enkelte skjermer kan root-widgetenes pointer-atferd måtte justeres.
 
 ## Bygging på Windows
@@ -35,3 +37,15 @@ Dette prosjektet legger frihåndstegning oppå **vanilla fysisk ItemMap**, og br
 ## Forslag til neste iterasjon
 
 Gjør editoren produksjonsklar: ACK/retry, stroke-baserte Undo, tekst-notater, felt for penn-i-hånd/inventory-combine, markerpenner, admin-konfig, migreringstester og ytelsesprofilering. Opprett issue/PR med testlogger før merging.
+
+## Test av bekreftet lagring
+
+Disse multiplayer-testene gjenstår i DayZ:
+
+1. Tegn mer enn 48 segmenter med flere pennfarger. SAVE skal lagre én batch om gangen til pending er tom.
+2. Forsink serverrespons over tre sekunder. Retry skal ikke lage doble segmenter.
+3. Fjern pennen før SAVE. Tegningen skal bli liggende i pending. Legg pennen tilbake og prøv igjen.
+4. Under venting skal UNDO og pennbytte ikke endre batchen.
+5. Gi kartet videre etter bekreftet lagring og restart serveren. Samme tegning skal vises.
+
+Lokalt kjørt: `python3 mods/TaldrisMapInk/tests/validate_source.py` og `git diff --check`. Dette er statiske kontroller, ikke kompilering eller kjøretidstester.

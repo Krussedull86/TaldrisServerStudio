@@ -21,6 +21,12 @@ modded class MapMenu
     protected int m_TMI_LastMouseY;
     protected ref array<ref TMI_Stroke> m_TMI_Pending = new array<ref TMI_Stroke>;
 
+    protected int m_TMI_Transaction;
+    protected int m_TMI_InFlightCount;
+    protected int m_TMI_SentAt;
+    protected int m_TMI_Attempts;
+    protected ref array<ref TMI_Stroke> m_TMI_InFlight;
+
     override Widget Init()
     {
         Widget main = super.Init();
@@ -46,6 +52,9 @@ modded class MapMenu
     {
         super.InitMapItem(item);
         m_TMI_Pending.Clear();
+        m_TMI_InFlightCount = 0;
+        m_TMI_InFlight = NULL;
+        m_TMI_Transaction = Math.RandomInt(1, 1000000000);
         m_TMI_EditMode = false;
         m_TMI_Drawing = false;
         if (m_TMI_Input) m_TMI_Input.Show(false);
@@ -57,6 +66,11 @@ modded class MapMenu
         if (!m_TMI_Status) return;
         if (!m_Map) { m_TMI_Status.SetText("No physical map"); return; }
         if (!m_Map.TMI_IsLoaded()) { m_TMI_Status.SetText("Loading map ink..."); return; }
+        if (m_TMI_InFlightCount > 0)
+        {
+            m_TMI_Status.SetText("Waiting for server | ink retained");
+            return;
+        }
         if (m_TMI_EditMode)
             m_TMI_Status.SetText(string.Format("INK ON | unsaved segments: %1", m_TMI_Pending.Count()));
         else
@@ -74,6 +88,12 @@ modded class MapMenu
 
     override bool OnClick(Widget w, int x, int y, int button)
     {
+        // Keep the queued prefix stable until its receipt arrives.
+        if (m_TMI_InFlightCount > 0)
+        {
+            if (w == m_TMI_Save) TMI_Resend();
+            if (w == m_TMI_Save || w == m_TMI_Undo || w == m_TMI_Toggle || w == m_TMI_Black || w == m_TMI_Blue || w == m_TMI_Red || w == m_TMI_Green) return true;
+        }
         if (w == m_TMI_Black) { TMI_ChoosePen("Pen_Black"); return true; }
         if (w == m_TMI_Blue)  { TMI_ChoosePen("Pen_Blue"); return true; }
         if (w == m_TMI_Red)   { TMI_ChoosePen("Pen_Red"); return true; }
@@ -135,7 +155,7 @@ modded class MapMenu
 
     protected void TMI_AddPoint(int x, int y)
     {
-        if (!m_TMI_Drawing || !m_MapWidgetInstance || m_TMI_Pending.Count() >= TMI_Protocol.MAX_SEGMENTS)
+        if (!m_TMI_Drawing || m_TMI_InFlightCount > 0 || !m_MapWidgetInstance || m_TMI_Pending.Count() + m_Map.TMI_GetStrokes().Count() >= TMI_Protocol.MAX_SEGMENTS)
             return;
         int dx = x - m_TMI_LastMouseX;
         int dy = y - m_TMI_LastMouseY;
@@ -154,26 +174,31 @@ modded class MapMenu
         m_TMI_LastMouseY = y;
     }
 
+    protected void TMI_Resend()
+    {
+        if (!m_Map || !m_TMI_InFlight || m_TMI_InFlightCount == 0) return;
+        m_Map.TMI_SaveBatch(m_TMI_InFlight, m_TMI_InFlight[0].m_Color, m_TMI_Transaction);
+        m_TMI_SentAt = GetGame().GetTime();
+        m_TMI_Attempts++;
+    }
+
     protected void TMI_CommitPending()
     {
-        if (!m_Map || !m_Map.TMI_IsLoaded() || m_TMI_Pending.Count() == 0) return;
+        if (!m_Map || !m_Map.TMI_IsLoaded() || m_TMI_Pending.Count() == 0 || m_TMI_InFlightCount > 0) return;
         PlayerBase player = PlayerBase.Cast(GetGame().GetPlayer());
-        // One pen colour per server-validated batch. Switching colours requires Save first.
-        if (!TMI_Protocol.HasPen(player, m_TMI_Pending[0].m_Color)) return;
-        int offset = 0;
-        while (offset < m_TMI_Pending.Count())
+        int color = m_TMI_Pending[0].m_Color;
+        if (!TMI_Protocol.HasPen(player, color)) return;
+        m_TMI_Drawing = false;
+        m_TMI_InFlight = new array<ref TMI_Stroke>;
+        for (int i = 0; i < m_TMI_Pending.Count() && i < TMI_Protocol.MAX_BATCH; i++)
         {
-            ref array<ref TMI_Stroke> batch = new array<ref TMI_Stroke>;
-            int color = m_TMI_Pending[offset].m_Color;
-            while (offset < m_TMI_Pending.Count() && batch.Count() < TMI_Protocol.MAX_BATCH && m_TMI_Pending[offset].m_Color == color)
-            {
-                batch.Insert(m_TMI_Pending[offset]);
-                offset++;
-            }
-            if (TMI_Protocol.HasPen(player, color)) m_Map.TMI_SaveBatch(batch, color);
-            else return;
+            if (m_TMI_Pending[i].m_Color != color) break;
+            m_TMI_InFlight.Insert(m_TMI_Pending[i]);
         }
-        m_TMI_Pending.Clear();
+        m_TMI_Transaction++;
+        m_TMI_InFlightCount = m_TMI_InFlight.Count();
+        m_TMI_Attempts = 0;
+        TMI_Resend();
     }
 
     override void Update(float timeslice)
@@ -181,6 +206,19 @@ modded class MapMenu
         super.Update(timeslice);
         if (!m_TMI_Root || !m_Map || !m_TMI_Canvas || !m_MapWidgetInstance) return;
 
+        if (m_TMI_InFlightCount > 0)
+        {
+            if (m_Map.TMI_GetAck() == m_TMI_Transaction)
+            {
+                for (int acknowledged = 0; acknowledged < m_TMI_InFlightCount; acknowledged++)
+                    m_TMI_Pending.Remove(0);
+                m_TMI_InFlightCount = 0;
+                m_TMI_InFlight = NULL;
+                TMI_CommitPending();
+            }
+            else if (m_TMI_Attempts < 3 && GetGame().GetTime() - m_TMI_SentAt >= 3000)
+                TMI_Resend();
+        }
         if (m_TMI_Drawing)
         {
             int px;

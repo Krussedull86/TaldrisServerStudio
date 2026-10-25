@@ -4,6 +4,7 @@ class TMI_Protocol
     static const int REQUEST = 7512401;
     static const int SNAPSHOT = 7512402;
     static const int APPEND = 7512403;
+    static const int ACK = 7512404;
     static const int MAX_SEGMENTS = 4096;
     static const int MAX_BATCH = 48;
 
