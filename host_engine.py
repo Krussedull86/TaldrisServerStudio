@@ -28,7 +28,7 @@ def offline_job(fn):
 
 class HostEngine:
     def __init__(self,home,service=False):
-        self.home=Path(home);self.home.mkdir(parents=True,exist_ok=True);self.service=service;self.events=deque(maxlen=1000);self.event_id=0;self.event_lock=threading.RLock();self.manager=Manager(self.home,self.log)
+        self.home=Path(home);self.home.mkdir(parents=True,exist_ok=True);self.service=service;self.events=deque(maxlen=1000);self.event_id=0;self.event_lock=threading.RLock();self.secrets=[];self.manager=Manager(self.home,self.log)
         self.jobs={};self.queue=queue.Queue();self.stop_event=threading.Event();self.worker=None;self.schedule_thread=None;self.console='';self.pty=None;self.secrets=[];self.steam_profile=None;self.check_due={};self.retries={};self.crashes={};self.health={};self.health_due={};self.metric_procs={};self.rcon_locks={};self.pending_upgrade_exe=None;self.fast_threads=[];self.pending_keys=set();self.pending_lock=threading.Lock();self.discord=None
         for p in self.manager.state['servers']:
             if p['root'] and (Path(p['root'])/'.taldris-restore.json').exists():

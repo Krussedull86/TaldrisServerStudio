@@ -56,11 +56,11 @@ class AgentAPI:
             if getattr(e,'upgrade_pending',False):return True
             source=Path(params['exe']).resolve()
             if source.suffix.casefold()!='.exe' or not source.is_file() or source.open('rb').read(2)!=b'MZ':raise ValueError('Ugyldig agentprogram.')
-            e.upgrade_pending=True
             me=psutil.Process();args=[str(source),'--home',str(e.home)]
             if e.service:args+=['--upgrade-service']
             else:args+=['--agent','--wait-agent',str(me.pid),str(me.create_time())]
             subprocess.Popen(args,cwd=str(source.parent),creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0)|getattr(subprocess,'CREATE_NEW_PROCESS_GROUP',0),close_fds=True,env={**os.environ,'PYINSTALLER_RESET_ENVIRONMENT':'1'})
+            e.upgrade_pending=True
             if not e.service:threading.Timer(.5,e.stop_event.set).start()
             return True
         if method=='document_save':

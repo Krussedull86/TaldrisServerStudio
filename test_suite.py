@@ -196,3 +196,13 @@ class WindowsOwnerTests(unittest.TestCase):
     def test_empty_profile_cannot_open_current_directory_as_server(self):
         with tempfile.TemporaryDirectory() as folder:
             with self.assertRaises(ValueError):Document({'root':'','id':'empty'},'README.md',folder)
+
+class ExistingProcessStartupTests(unittest.TestCase):
+    def test_restore_log_is_safe_before_manager_construction_returns(self):
+        from core import Manager
+        with tempfile.TemporaryDirectory() as folder:
+            def restoring_manager(home,log):
+                log('Eksisterende serverprosess bekreftet under oppstart.')
+                return Manager(home,log)
+            with patch('host_engine.Manager',side_effect=restoring_manager):engine=HostEngine(Path(folder))
+            self.assertTrue(any('Eksisterende serverprosess' in event['text'] for event in engine.events))
