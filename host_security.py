@@ -7,7 +7,9 @@ def protect_file(path):
     path=Path(path)
     if sys.platform=='win32':
         import win32api,win32security,ntsecuritycon
-        owner=win32security.GetNamedSecurityInfo(str(path.parent),win32security.SE_FILE_OBJECT,win32security.OWNER_SECURITY_INFORMATION).GetSecurityDescriptorOwner()
+        owner_file=(path if path.is_dir() else path.parent)/'host_owner.json'
+        if owner_file.exists():owner=win32security.ConvertStringSidToSid(json.loads(owner_file.read_text('utf-8'))['sid'])
+        else:owner=win32security.GetTokenInformation(win32security.OpenProcessToken(win32api.GetCurrentProcess(),win32security.TOKEN_QUERY),win32security.TokenUser)[0]
         acl=win32security.ACL()
         for sid in [owner,win32security.ConvertStringSidToSid('S-1-5-18'),win32security.ConvertStringSidToSid('S-1-5-32-544')]:acl.AddAccessAllowedAceEx(win32security.ACL_REVISION,(win32security.OBJECT_INHERIT_ACE|win32security.CONTAINER_INHERIT_ACE) if path.is_dir() else 0,ntsecuritycon.FILE_ALL_ACCESS,sid)
         win32security.SetNamedSecurityInfo(str(path),win32security.SE_FILE_OBJECT,win32security.DACL_SECURITY_INFORMATION|win32security.PROTECTED_DACL_SECURITY_INFORMATION,None,None,acl,None)
@@ -53,3 +55,12 @@ class AgentLock:
         except OSError:self.file.close();self.file=None;raise RuntimeError('En bakgrunnsagent eier allerede denne datamappen.')
     def close(self):
         if self.file:self.file.close();self.file=None
+
+
+def remember_owner(home):
+    home=Path(home);home.mkdir(parents=True,exist_ok=True)
+    path=home/'host_owner.json'
+    if sys.platform=='win32' and not path.exists():
+        import win32api,win32security
+        sid=win32security.GetTokenInformation(win32security.OpenProcessToken(win32api.GetCurrentProcess(),win32security.TOKEN_QUERY),win32security.TokenUser)[0]
+        atomic_private(path,{'sid':win32security.ConvertSidToStringSid(sid)})

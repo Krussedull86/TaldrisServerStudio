@@ -11,7 +11,8 @@ def version_key(version,build):
 
 
 def ensure_agent(home):
-    home=Path(home);client=AgentClient(home)
+    from host_security import remember_owner
+    home=Path(home);remember_owner(home);client=AgentClient(home)
     try:
         snapshot=client.call('snapshot',timeout=2)
         from release_info import VERSION,BUILD

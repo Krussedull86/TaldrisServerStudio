@@ -47,6 +47,7 @@ def command(host,port,password,text,timeout=5):
 
 
 def credentials(profile):
+    if not profile.get('root','').strip():raise ValueError('Velg servermappe først.')
     relative=profile.get('rcon_config','')
     if not relative:raise ValueError('Velg BattlEye sin aktive BEServer_x64.cfg i RCon-oppsettet.')
     path=local_path(profile['root'],relative)

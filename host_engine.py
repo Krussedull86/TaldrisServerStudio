@@ -58,6 +58,7 @@ class HostEngine:
         if len(matches)!=1:raise ValueError('Velg en entydig server-ID fra oversikten.')
         return matches[0]
     def editable(self,p):
+        if not p.get('root','').strip():raise ValueError('Velg servermappe først.')
         if self.manager.running(p) or (p['id'] in self.manager.busy and p['id'] not in getattr(getattr(self,'offline_owner',None),'keys',set())):raise ValueError('Stopp serveren og vent til jobbene er ferdig.')
         for other in self.manager.state['servers']:
             if other['id']!=p['id'] and (self.manager.running(other) or other['id'] in self.manager.busy) and Path(other['root']).resolve()==Path(p['root']).resolve():raise ValueError('En annen aktiv profil bruker samme mappe.')
@@ -190,6 +191,7 @@ class HostEngine:
             if digest(doc.original)!=params['base']:raise ValueError('Filen er endret. Hent fersk SHA før gjenoppretting.')
             doc.restore(doc.history_dir/params['version']);doc.save();return 'Konfigurasjonsversjonen er gjenopprettet med backup.'
         if action=='logs':
+            if not p.get('root','').strip():raise ValueError('Velg servermappe først.')
             folder=local_path(p['root'],p['profiles']);files=[f for f in folder.glob('*') if f.suffix.casefold() in ('.rpt','.log','.adm') and f.is_file()]
             if not files:raise ValueError('Ingen serverlogger funnet.')
             path=max(files,key=lambda f:f.stat().st_mtime)

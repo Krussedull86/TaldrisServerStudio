@@ -183,3 +183,16 @@ class UpdateIsolationTests(unittest.TestCase):
         from panel_handoff import active_exe
         path=self.e.home/'program_versions'/'dev-v0.0.1.b1'/'TaldrisServerStudio.exe';path.parent.mkdir(parents=True);path.write_bytes(b'MZ')
         (self.e.home/'active_program.json').write_text(json.dumps({'exe':str(path)}));self.assertIsNone(active_exe(self.e.home))
+
+class WindowsOwnerTests(unittest.TestCase):
+    @unittest.skipUnless(os.name=='nt','Windows ACL and user SID test')
+    def test_saved_owner_is_used_after_process_identity_changes(self):
+        from host_security import remember_owner,atomic_private
+        import win32security
+        with tempfile.TemporaryDirectory() as folder:
+            home=Path(folder);remember_owner(home);sid=json.loads((home/'host_owner.json').read_text())['sid']
+            with patch('win32security.GetTokenInformation',side_effect=AssertionError('Should reuse recorded owner instead of service identity')):atomic_private(home/'agent-test.json',{'ok':True})
+            acl=win32security.GetNamedSecurityInfo(str(home/'agent-test.json'),win32security.SE_FILE_OBJECT,win32security.DACL_SECURITY_INFORMATION).GetSecurityDescriptorDacl();sids=[win32security.ConvertSidToStringSid(acl.GetAce(i)[2]) for i in range(acl.GetAceCount())];self.assertIn(sid,sids)
+    def test_empty_profile_cannot_open_current_directory_as_server(self):
+        with tempfile.TemporaryDirectory() as folder:
+            with self.assertRaises(ValueError):Document({'root':'','id':'empty'},'README.md',folder)

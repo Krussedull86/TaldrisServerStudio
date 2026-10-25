@@ -99,6 +99,7 @@ def catalog(profile):
 
 class Document:
     def __init__(self,profile,relative,home):
+        if not str(profile.get('root','')).strip():raise ValueError('Velg servermappe først.')
         self.profile=profile;self.relative=relative;self.home=Path(home);self.path=local_path(profile['root'],relative)
         if self.path.suffix.casefold() not in EXTENSIONS:raise ValueError('Velg CFG, JSON, XML eller TXT.')
         if self.path.stat().st_size>MAX_BYTES:raise ValueError('Filen er større enn 8 MB.')
