@@ -9,7 +9,8 @@ class ReleaseTests(unittest.TestCase):
             metadata=types.SimpleNamespace(VERSION='0.5.0',BUILD=12,REPOSITORY='owner/studio')
             with patch.object(release,'ROOT',root),patch.dict('sys.modules',{'release_info':metadata}):release.package()
             out=root/'release_output'; binary=out/'TaldrisServerStudio-Windows.zip'; before=binary.read_bytes()
-            with zipfile.ZipFile(binary) as z:self.assertEqual(set(z.namelist()),{'TaldrisServerStudio.exe','LES_MEG.md','DRIFT_DISCORD_EDITORER.md'})
+            with zipfile.ZipFile(binary) as z:
+                self.assertEqual(set(z.namelist()),{'TaldrisServerStudio.exe','LES_MEG.md'});self.assertIn('Guide',z.read('LES_MEG.md').decode())
             calls=[]
             def fake(*args):
                 calls.append(args)

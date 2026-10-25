@@ -18,7 +18,7 @@ def package():
     if not binary.is_file():raise ValueError('Missing Windows executable')
     target=out/'TaldrisServerStudio-Windows.zip'
     with zipfile.ZipFile(target,'w',zipfile.ZIP_DEFLATED) as z:
-        z.write(binary,binary.name); z.write(ROOT/'LES_MEG.md','LES_MEG.md'); z.write(ROOT/'DRIFT_DISCORD_EDITORER.md','DRIFT_DISCORD_EDITORER.md')
+        z.write(binary,binary.name); z.writestr('LES_MEG.md',(ROOT/'LES_MEG.md').read_text('utf-8')+'\n\n'+(ROOT/'DRIFT_DISCORD_EDITORER.md').read_text('utf-8'))
     info=dict(version=v.VERSION,build=v.BUILD,sha256=sha(target),size=target.stat().st_size,asset=target.name)
     (out/'build.json').write_text(json.dumps(info,indent=2),encoding='utf-8')
     (out/'SHA256SUMS.txt').write_text(info['sha256']+'  '+target.name+'\n',encoding='utf-8')
