@@ -9,7 +9,7 @@ def smoke(exe):
     shell=win32com.client.Dispatch('WScript.Shell');links=[Path(shell.SpecialFolders('Programs'))/'Taldris Server Studio'/'Taldris Server Studio.lnk',Path(shell.SpecialFolders('Desktop'))/'Taldris Server Studio.lnk']
     if any(p.exists() for p in links):raise RuntimeError('Use an isolated runner without an existing Taldris installation.')
     with tempfile.TemporaryDirectory() as folder:
-        base=Path(folder);home=base/'data';home.mkdir();sentinel=home/'keep-server-data.txt';sentinel.write_text('keep')
+        base=Path(folder).resolve();home=base/'data';home.mkdir();sentinel=home/'keep-server-data.txt';sentinel.write_text('keep')
         env={**os.environ,'LOCALAPPDATA':folder};root=base/'Programs/TaldrisServerStudio'
         try:
             for _ in range(2):subprocess.run([str(exe),'--install-only','--home',str(home)],env=env,check=True,timeout=90)

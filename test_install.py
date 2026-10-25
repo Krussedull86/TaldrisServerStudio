@@ -16,7 +16,7 @@ class InstallationTests(unittest.TestCase):
                 info=self_install.read_install(home);launcher=Path(info['launcher']);self.assertTrue(launcher.is_file())
                 newer=home/'program_versions'/'dev-v99.0.0.b100'/'TaldrisServerStudio.exe';newer.parent.mkdir();newer.write_bytes(b'MZ-newer');atomic(home/'active_program.json',{'exe':str(newer)})
                 self.assertEqual(self_install.install(home),str(newer))
-                with patch('self_install.sys.executable',str(launcher)):self.assertEqual(self_install.launcher_target(home),newer)
+                with patch('self_install.sys.executable',str(launcher)):self.assertEqual(self_install.launcher_target(home),newer.resolve())
                 atomic(home/'active_program.json',{'exe':str(source)})
                 with patch('self_install.sys.executable',str(launcher)):
                     with self.assertRaises(ValueError):self_install.launcher_target(home)
