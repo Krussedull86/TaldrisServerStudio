@@ -27,15 +27,21 @@ def coordinates(root):
 
 class PointItem(QGraphicsEllipseItem):
     def __init__(self,workbench,layer,point,color):
-        super().__init__(-5,-5,10,10);self.workbench=workbench;self.layer=layer;self.point=point;self.ready=False
+        super().__init__(-5,-5,10,10);self.workbench=workbench;self.layer=layer;self.point=point;self.ready=False;self.radius_item=None;self.pending_drag=False
         self.setBrush(QBrush(QColor(color)));self.setPen(QPen(QColor('#ffffff')));self.setFlags(QGraphicsItem.ItemIsSelectable|QGraphicsItem.ItemIsMovable|QGraphicsItem.ItemSendsGeometryChanges|QGraphicsItem.ItemIgnoresTransformations)
         self.setPos(*workbench.world_to_scene(point['x'],point['z']));self.setToolTip(point['name']+f"\nX {point['x']:.2f} / Z {point['z']:.2f}");self.ready=True
+    def mousePressEvent(self,event):
+        self.pending_drag=self.layer is self.workbench.active_layer()
+        super().mousePressEvent(event)
     def itemChange(self,change,value):
         if change==QGraphicsItem.ItemPositionChange and self.ready:
             if self.layer is not self.workbench.active_layer():return self.pos()
             return type(value)(max(0,min(1000,value.x())),max(0,min(1000,value.y())))
         if change==QGraphicsItem.ItemPositionHasChanged and self.ready:
+            if self.pending_drag:self.workbench.checkpoint(self.layer);self.pending_drag=False
             x,z=self.workbench.scene_to_world(self.pos().x(),self.pos().y());self.point['node'].set('x',f'{x:.3f}');self.point['node'].set('z',f'{z:.3f}');self.point.update(x=x,z=z)
+            if self.radius_item:self.radius_item.setPos(self.pos())
+            self.setToolTip(self.point['name']+f'\nX {x:.2f} / Z {z:.2f}')
             self.workbench.update_document(self.layer);self.workbench.status.setText(f'Endret X {x:.2f}, Z {z:.2f}. Ikke lagret ennå.')
         return super().itemChange(change,value)
 
@@ -57,7 +63,8 @@ class MapWorkbench(QWidget):
     def __init__(self,studio):
         super().__init__();self.studio=studio;self.layers=[];self.server_id=None
         layout=QVBoxLayout(self);row=QHBoxLayout();row.addWidget(button('Kartbilde',lambda:studio.guard(self.choose_image)));row.addWidget(button('+ XML-lag',lambda:studio.guard(self.add_layer)));self.layer_choice=QComboBox();row.addWidget(self.layer_choice,1);row.addWidget(button('Vis/skjul lag',self.toggle_layer));row.addWidget(button('Tilpass kart',self.fit));layout.addLayout(row)
-        row=QHBoxLayout();self.groups=QComboBox();row.addWidget(self.groups,1);row.addWidget(button('+ Punkt med koordinater',lambda:studio.guard(self.manual_point)));row.addWidget(button('Slett valgte punkter',lambda:studio.guard(self.remove_points)));row.addWidget(button('Kontroller og lagre lag',lambda:studio.guard(self.save_active),'primary'));layout.addLayout(row)
+        row=QHBoxLayout();self.groups=QComboBox();row.addWidget(self.groups,1);row.addWidget(button('+ Punkt med koordinater',lambda:studio.guard(self.manual_point)));row.addWidget(button('Rediger valgt punkt',lambda:studio.guard(self.edit_point)));row.addWidget(button('Slett valgte punkter',lambda:studio.guard(self.remove_points)));row.addWidget(button('Kontroller og lagre lag',lambda:studio.guard(self.save_active),'primary'));layout.addLayout(row)
+        row=QHBoxLayout();row.addWidget(button('Angre',lambda:studio.guard(lambda:self.history_step(False))));row.addWidget(button('Gjør om',lambda:studio.guard(lambda:self.history_step(True))));row.addStretch();layout.addLayout(row)
         self.view=MapView(self);layout.addWidget(self.view,1);self.cursor=label('X / Z','eyebrow');layout.addWidget(self.cursor);self.status=label('Zoom med musehjul. Dra kartet for å flytte visningen. Dobbeltklikk for å legge til punkt i valgt gruppe. Dra et punkt for å flytte det.','muted');layout.addWidget(self.status)
         self.layer_choice.currentIndexChanged.connect(self.choose_layer)
     def world_to_scene(self,x,z):
@@ -111,7 +118,7 @@ class MapWorkbench(QWidget):
                     try:
                         r=float(radius)/float(self.studio.p['map_size'])*1000
                         if r>0:
-                            x,y=self.world_to_scene(point['x'],point['z']);scene.addEllipse(x-r,y-r,2*r,2*r,QPen(QColor(layer['color'])))
+                            x,y=self.world_to_scene(point['x'],point['z']);item.radius_item=scene.addEllipse(-r,-r,2*r,2*r,QPen(QColor(layer['color'])));item.radius_item.setPos(x,y);item.radius_item.setZValue(-.5)
                     except ValueError:pass
         scene.setSceneRect(QRectF(-20,-20,1040,1040));self.fit()
     def fit(self):self.view.fitInView(self.view.sceneRect(),Qt.KeepAspectRatio)
@@ -122,6 +129,7 @@ class MapWorkbench(QWidget):
         if not layer or i<0:raise ValueError('Velg et lag og en koordinatgruppe først.')
         parent=self.group_nodes[i];existing=next((p for p in coordinates(layer['root']) if p['parent'] is parent),None)
         if not existing:raise ValueError('Gruppen mangler et punkt å bruke som mal.')
+        self.checkpoint(layer)
         point=copy.deepcopy(existing['node']);wx,wz=self.scene_to_world(x,y);point.set('x',f'{wx:.3f}');point.set('z',f'{wz:.3f}');parent.append(point);self.update_document(layer);self.render()
     def manual_point(self):
         x,ok=QInputDialog.getDouble(self,'Nytt punkt','X:',0,0,float(self.studio.p['map_size']),3)
@@ -131,10 +139,41 @@ class MapWorkbench(QWidget):
     def remove_points(self):
         layer=self.active_layer();items=[i for i in self.view.scene().selectedItems() if isinstance(i,PointItem) and i.layer is layer]
         if not items:return
-        for item in items:
-            if item.point['parent'] is None:raise ValueError('Rotnoden kan ikke slettes.')
-            item.point['parent'].remove(item.point['node'])
+        if any(item.point['parent'] is None for item in items):raise ValueError('Rotnoden kan ikke slettes.')
+        self.checkpoint(layer)
+        for item in items: item.point['parent'].remove(item.point['node'])
         self.update_document(layer);self.render();self.choose_layer()
+    def checkpoint(self,layer):
+        text=xml_text(layer['root']);history=layer.setdefault('undo',[])
+        if not history or history[-1]!=text:history.append(text)
+        del history[:-50];layer['redo']=[]
+    def history_step(self,redo=False):
+        layer=self.active_layer()
+        if not layer:return
+        source=layer.setdefault('redo' if redo else 'undo',[])
+        if not source:return
+        text=source.pop();current=xml_text(layer['root'])
+        if text==current and source:text=source.pop()
+        if text==current:return
+        layer.setdefault('undo' if redo else 'redo',[]).append(current)
+        layer['root']=parse_xml(text);self.update_document(layer);self.render();self.choose_layer()
+        self.status.setText('Gjort om. Ikke lagret ennå.' if redo else 'Angret. Ikke lagret ennå.')
+    def edit_point(self):
+        layer=self.active_layer();items=[i for i in self.view.scene().selectedItems() if isinstance(i,PointItem) and i.layer is layer]
+        if len(items)!=1:raise ValueError('Velg ett punkt i det aktive laget først.')
+        node=items[0].point['node'];size=float(self.studio.p['map_size'])
+        x,ok=QInputDialog.getDouble(self,'Rediger punkt','X:',float(node.get('x')),0,size,3)
+        if not ok:return
+        z,ok=QInputDialog.getDouble(self,'Rediger punkt','Z:',float(node.get('z')),0,size,3)
+        if not ok:return
+        radius_key='r' if 'r' in node.attrib else 'radius' if 'radius' in node.attrib else None
+        radius=None
+        if radius_key:
+            radius,ok=QInputDialog.getDouble(self,'Rediger punkt','Radius (meter):',float(node.get(radius_key)),0,size,3)
+            if not ok:return
+        self.checkpoint(layer);node.set('x',f'{x:.3f}');node.set('z',f'{z:.3f}')
+        if radius_key:node.set(radius_key,f'{radius:.3f}')
+        self.update_document(layer);self.render();self.status.setText('Punkt endret. Ikke lagret ennå.')
     def save_active(self):
         layer=self.active_layer()
         if not layer:raise ValueError('Velg et lag først.')

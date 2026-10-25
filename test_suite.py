@@ -117,6 +117,26 @@ class EditorUITests(unittest.TestCase):
             xml=parse_xml('<eventposdef><event name="Car"><pos x="100" z="200" y="5" a="90"/></event></eventposdef>');points=coordinates(xml);self.assertEqual(points[0]['x'],100);self.assertEqual(points[0]['node'].get('y'),'5')
             center.deleteLater();workbench.deleteLater()
 
+    def test_map_drag_radius_history_and_xml_preservation(self):
+        from map_workbench import MapWorkbench,PointItem,coordinates
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder);xml='<events><!--keep--><event name="Car"><pos x="100" z="200" y="7" a="90" r="50" custom="keep"/></event></events>'
+            (root/'events.xml').write_text(xml)
+            studio=Mock();studio.p=dict(root=folder,id='p',name='Test',config='serverDZ.cfg',map_size=10000,map_image='');studio.manager.home=root/'data';studio.guard=lambda fn:fn()
+            workbench=MapWorkbench(studio);doc=Document(studio.p,'events.xml',studio.manager.home)
+            layer=dict(doc=doc,root=parse_xml(xml),visible=True,color='#62e5c3');workbench.layers=[layer];workbench.layer_choice.addItem('events.xml');workbench.render();workbench.choose_layer()
+            point=next(i for i in workbench.view.scene().items() if isinstance(i,PointItem))
+            workbench.checkpoint(layer);point.setPos(30,960)
+            self.assertEqual(point.radius_item.pos(),point.pos());self.assertEqual(coordinates(layer['root'])[0]['x'],300)
+            self.assertIn('custom="keep"',doc.text);self.assertIn('<!--keep-->',doc.text)
+            workbench.history_step();self.assertEqual(coordinates(layer['root'])[0]['x'],100)
+            workbench.history_step(True);self.assertEqual(coordinates(layer['root'])[0]['z'],400)
+            self.assertEqual(coordinates(layer['root'])[0]['node'].get('y'),'7')
+            workbench.history_step();workbench.add_point(50,950)
+            self.assertEqual(len(coordinates(layer['root'])),2);self.assertEqual(layer['redo'],[])
+            workbench.history_step();self.assertEqual(len(coordinates(layer['root'])),1)
+            workbench.deleteLater()
+
 class DiscordRegistrationTests(unittest.IsolatedAsyncioTestCase):
     async def test_register_commands_and_views_without_discord_network(self):
         import discord

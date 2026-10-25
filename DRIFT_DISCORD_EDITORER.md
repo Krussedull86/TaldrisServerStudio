@@ -106,6 +106,8 @@ Velg kartbilde og korrekt kartstørrelse per server. Bildet strekkes til kartets
 
 **+ XML-lag** åpner mission-/spawn-/territoriefiler som har elementer med `x` og `z`. Flere lag kan vises/skjules samtidig. Velg aktivt lag og gruppe. Dra punkter for å flytte dem, dobbeltklikk for å legge til fra samme punktmal, eller skriv inn nøyaktige koordinater. Y, rotasjon og andre attributter beholdes. Radius som allerede ligger i `r` eller `radius` kan vises som sirkler.
 
+**Rediger valgt punkt** lar deg endre X/Z og eksisterende radius i meter. Radiussirkelen følger punktet ved flytting. **Angre** og **Gjør om** holder inntil 50 endringer per lag i den åpne økten, også når du bytter server. Endringene skrives først til serverfilen når du lagrer.
+
 **Kontroller og lagre lag** viser filforskjell og lager backup. Kartet beregner ikke terrenghøyde og endrer ikke Y automatisk. Det viser konfigurerte punkter, ikke faktiske loot-spawns eller live spillerposisjoner. Vilkårlige JSON-koordinater, polygonsoneverktøy, automatisk uthenting av kartbilder og live posisjoner fra en egen servermod er videre arbeid.
 
 ## Backup, rollback og testserver
