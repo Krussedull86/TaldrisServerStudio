@@ -1,0 +1,40 @@
+name: rpverse-maplink
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: maplink
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      POSTGRES_DB: maplink
+    volumes:
+      - maplink_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U maplink"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+  api:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://maplink:${POSTGRES_PASSWORD}@postgres:5432/maplink
+      MAPLINK_ADMIN_TOKEN: ${MAPLINK_ADMIN_TOKEN:?Set MAPLINK_ADMIN_TOKEN}
+    ports:
+      - "127.0.0.1:8907:8907"
+    command: sh -c "python -m backend migrate && uvicorn backend.api:app --host 0.0.0.0 --port 8907"
+  discord:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://maplink:${POSTGRES_PASSWORD}@postgres:5432/maplink
+      MAPLINK_DISCORD_WEBHOOK: ${MAPLINK_DISCORD_WEBHOOK:-}
+    command: python -m backend.discord_worker
+volumes:
+  maplink_db:
