@@ -1,5 +1,5 @@
 """Build and publish immutable releases. No user server/mod data is packaged."""
-import hashlib,json,os,re,subprocess,sys,zipfile
+import hashlib,json,os,re,shutil,subprocess,sys,zipfile
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT))
@@ -16,12 +16,13 @@ def package():
     out=ROOT/'release_output'; out.mkdir(exist_ok=True)
     binary=ROOT/'dist'/'TaldrisServerStudio.exe'
     if not binary.is_file():raise ValueError('Missing Windows executable')
+    shutil.copy2(binary,out/'TaldrisServerStudio-Setup.exe')
     target=out/'TaldrisServerStudio-Windows.zip'
     with zipfile.ZipFile(target,'w',zipfile.ZIP_DEFLATED) as z:
         z.write(binary,binary.name); z.writestr('LES_MEG.md',(ROOT/'LES_MEG.md').read_text('utf-8')+'\n\n'+(ROOT/'DRIFT_DISCORD_EDITORER.md').read_text('utf-8'))
     info=dict(version=v.VERSION,build=v.BUILD,sha256=sha(target),size=target.stat().st_size,asset=target.name)
     (out/'build.json').write_text(json.dumps(info,indent=2),encoding='utf-8')
-    (out/'SHA256SUMS.txt').write_text(info['sha256']+'  '+target.name+'\n',encoding='utf-8')
+    (out/'SHA256SUMS.txt').write_text(info['sha256']+'  '+target.name+'\n'+sha(out/'TaldrisServerStudio-Setup.exe')+'  TaldrisServerStudio-Setup.exe\n',encoding='utf-8')
 def publish_dev():
     out=ROOT/'release_output'; info=json.loads((out/'build.json').read_text())
     tag=f"dev-v{info['version']}.b{info['build']}"
@@ -33,10 +34,15 @@ def promote():
     if not source.get('prerelease') or source.get('draft'):raise ValueError('Source must be a published dev prerelease')
     out=ROOT/'release_output'; out.mkdir(exist_ok=True)
     gh('release','download',tag,'--dir',str(out),'--pattern','TaldrisServerStudio-Windows.zip','--pattern','build.json','--pattern','SHA256SUMS.txt')
+    if any(a['name']=='TaldrisServerStudio-Setup.exe' for a in source.get('assets',[])):gh('release','download',tag,'--dir',str(out),'--pattern','TaldrisServerStudio-Setup.exe')
     info=json.loads((out/'build.json').read_text())
     if tag!=f"dev-v{info['version']}.b{int(info['build'])}":raise ValueError('Dev tag and metadata disagree')
     binary=out/'TaldrisServerStudio-Windows.zip'
     if sha(binary)!=info['sha256'] or binary.stat().st_size!=int(info['size']):raise ValueError('Checksum mismatch')
+    setup=out/'TaldrisServerStudio-Setup.exe'
+    if setup.is_file():
+        with zipfile.ZipFile(binary) as z:
+            if sha(setup)!=hashlib.sha256(z.read('TaldrisServerStudio.exe')).hexdigest():raise ValueError('Installer and verified ZIP disagree')
     stable=tag.removeprefix('dev-')
     # Use exact commit resolved from source tag, not a branch name or latest dev head.
     commit=gh('api',f'repos/{os.environ["GH_REPO"]}/commits/{tag}','--jq','.sha')

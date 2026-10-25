@@ -235,8 +235,10 @@ class Studio(QMainWindow):
             if key in ['root','steamcmd','workshop']:r.addWidget(button('Velg …',lambda checked=False,k=key:self.browse(k)))
             form.addRow(title,row)
         self.firewall_auto=QCheckBox('Opprett Windows-brannmurregler automatisk ved serverstart'); form.addRow('',self.firewall_auto)
+        self.local_test=QCheckBox('Lokal test – start uten krav om Steam Query');form.addRow('',self.local_test)
+        form.addRow('',label('Hopper over krav om query-port og query-overvåking. Koble direkte til spillporten. Dette sperrer ikke nettverkstilgang.','muted'))
         form.addRow('',button('Lagre serveroppsett',self.action(self.save_settings),'primary')); scroll.setWidget(content); l.addWidget(scroll,1)
-        l.addWidget(label('RCon, live spillerdata, kick/ban og CFTools API er ikke implementert i 0.5. Steam-passord lagres ikke av panelet.','muted'))
+        l.addWidget(label('Steam-passord lagres ikke av panelet. Lokal test påvirker bare krav og overvåking av Steam Query.','muted'))
     def browse(self,k):
         p=QFileDialog.getOpenFileName(self,'Velg SteamCMD','','Program (*.exe)')[0] if k=='steamcmd' else QFileDialog.getExistingDirectory(self,'Velg mappe')
         if p:self.fields[k].setText(p)
@@ -244,12 +246,12 @@ class Studio(QMainWindow):
         self.editable(); candidate=dict(self.p)
         for k,v in self.fields.items():candidate[k]=v.text().strip()
         for k in ['port','map_size']:candidate[k]=int(candidate[k])
-        candidate['auto_firewall']=self.firewall_auto.isChecked()
+        candidate['auto_firewall']=self.firewall_auto.isChecked();candidate['query_enabled']=not self.local_test.isChecked()
         validate(candidate); self.p.update(candidate); self.manager.save(); self.load(); self.events.put('Serveroppsett lagret.')
     def load(self):
         self.selector.blockSignals(True); self.selector.clear(); self.selector.addItems([p['name'] for p in self.manager.state['servers']]); self.selector.setCurrentIndex(self.manager.state['servers'].index(self.p)); self.selector.blockSignals(False)
         for k,v in self.fields.items():v.setText(str(self.p[k]))
-        self.firewall_auto.setChecked(self.p.get('auto_firewall',True))
+        self.firewall_auto.setChecked(self.p.get('auto_firewall',True));self.local_test.setChecked(not self.p.get('query_enabled',True))
         self.auto.setChecked(self.p['auto_update']); self.interval.setText(str(self.p['update_minutes'])); self.server_title.setText(self.p['name']); self.refresh_mods(); self.refresh_map(); self.guard(self.read_config); self.refresh_backups(); self.tick()
     def select(self,i):
         if i<0:return
@@ -282,6 +284,7 @@ class Studio(QMainWindow):
                 import re
                 text=mask_config(local_path(p['root'],p['config']).read_text('utf-8-sig')); values=re.findall(r'\bsteamQueryPort\s*=\s*(\d+)\s*;',text,re.I)
                 if len(values)==1:query=values[0]
+                if not p.get('query_enabled',True):query='Lokal test / ingen sjekk'
             except (OSError,ValueError):pass
             for col,value in enumerate([p['name'],status,str(p['port']),query,p['root']]):self.all_servers.setItem(row,col,QTableWidgetItem(value))
         for p in self.manager.state['servers']:

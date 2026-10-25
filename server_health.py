@@ -16,6 +16,7 @@ def parse_info(data):
 
 
 def query(profile,timeout=.6):
+    if not profile.get('query_enabled',True):return dict(responding=False,disabled=True,checked=time.time())
     config=(Path(profile['root'])/profile['config']).read_text('utf-8-sig');fields=[field for field in cfg_fields(config) if field['key']=='steamQueryPort']
     if len(fields)!=1:raise ValueError('Steam query-port er ikke entydig.')
     port=int(fields[0]['value']);request=b'\xff\xff\xff\xffTSource Engine Query\x00'

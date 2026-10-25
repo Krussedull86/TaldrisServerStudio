@@ -28,6 +28,10 @@ def set_query_port(text, port):
 
 
 def server_ports(profile):
+    if not profile.get('query_enabled',True):
+        game=int(profile['port']);ports=[game,game+1,game+2]
+        if any(not 1<=port<=65535 for port in ports):raise ValueError('Ugyldig spillport.')
+        return ports
     config = (Path(profile['root']) / profile['config']).read_text('utf-8-sig')
     config = mask_config(config)
     matches = re.findall(r'\bsteamQueryPort\s*=\s*(\d+)\s*;', config, re.I)

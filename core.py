@@ -9,7 +9,7 @@ from process_registry import save_processes,restore_processes,discover_processes
 
 DEFAULT = dict(name='Taldris • DayZ', root='', steamcmd='', steam_user='', workshop='',
                config='serverDZ.cfg', profiles='profiles', port=2302, mods=[], markers=[],
-               map_size=25600, map_image='', auto_firewall=True, auto_update=False, update_minutes=60)
+               map_size=25600, map_image='', auto_firewall=True, query_enabled=True, auto_update=False, update_minutes=60)
 
 def local_path(root, relative):
     p = (Path(root).resolve() / relative).resolve()
@@ -20,7 +20,11 @@ def local_path(root, relative):
 def reserved_ports(profile):
     config=Path(profile['root'])/profile['config']
     if config.is_file():
-        try:return set(server_ports(profile))
+        try:
+            if profile.get('query_enabled',True):return set(server_ports(profile))
+            from windows_firewall import mask_config
+            matches=re.findall(r'\bsteamQueryPort\s*=\s*(\d+)\s*;',mask_config(config.read_text('utf-8-sig')),re.I)
+            return set(server_ports(profile))|{int(matches[0]) if len(matches)==1 and 1<=int(matches[0])<=65535 else int(profile['port'])+3}
         except ValueError as error:
             if 'mangler' not in str(error):raise
     game=int(profile['port'])
@@ -128,6 +132,7 @@ class Manager:
                 if arg.startswith('-config='):args[i]='-config='+str(local_path(root,p['config']))
                 if arg.startswith('-profiles='):args[i]='-profiles='+str(profiles)
             restart_due=prepare_messages(p,self.log)
+            if not p.get('query_enabled',True):self.log('Lokal test: Steam Query er ikke påkrevd og overvåkes ikke. Koble direkte til 127.0.0.1:'+str(p['port'])+'. Dette sperrer ikke nettverkstilgang.')
             ensure_firewall(p,self.log)
             record=dict(name=p['name'],exe=args[0],cwd=str(root),profiles=str(profiles),args=list(args),restart_due=restart_due,baseline=snapshot(profiles),started=time.monotonic(),started_wall=time.time(),expected_stop=False,state='starting')
             flags=getattr(subprocess,'CREATE_NEW_PROCESS_GROUP',0)|getattr(subprocess,'CREATE_NEW_CONSOLE',0)

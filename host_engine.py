@@ -10,7 +10,7 @@ from steam_status import plain_terminal
 from process_registry import save_processes
 from rcon_client import server_command
 
-EDITABLE={'name','root','steamcmd','steam_user','login_mode','workshop','config','profiles','port','mods','markers','map_size','map_image','auto_firewall','auto_update','update_minutes','mission','max_players','start_after_install','update_game','scheduled_restart','restart_mode','restart_times','restart_interval','maintenance_backup','backup_keep','crash_recovery','rcon_config','local_scan_root','autostart'}
+EDITABLE={'name','root','steamcmd','steam_user','login_mode','workshop','config','profiles','port','mods','markers','map_size','map_image','auto_firewall','query_enabled','auto_update','update_minutes','mission','max_players','start_after_install','update_game','scheduled_restart','restart_mode','restart_times','restart_interval','maintenance_backup','backup_keep','crash_recovery','rcon_config','local_scan_root','autostart'}
 
 
 def offline_job(fn):
@@ -84,7 +84,7 @@ class HostEngine:
             return dict(version=VERSION,build=BUILD,state=state,runtime=runtime,events=events,event_id=self.event_id,jobs=[j for j in self.jobs.values() if j['status'] in ('queued','running')]+[j for j in self.jobs.values() if j['status'] not in ('queued','running')][-50:],console=self.redact(plain_terminal(self.console[-100000:])),steam_profile=self.steam_profile,service=self.service)
     def patch_state(self,changes):
         from server_schedule import next_restart
-        boolean={'auto_firewall','auto_update','start_after_install','update_game','scheduled_restart','maintenance_backup','crash_recovery','autostart'}
+        boolean={'auto_firewall','query_enabled','auto_update','start_after_install','update_game','scheduled_restart','maintenance_backup','crash_recovery','autostart'}
         prepared=[]
         with self.manager.lock:
             for change in changes:
@@ -94,7 +94,7 @@ class HostEngine:
                     if p.get(key)!=pair.get('before'):raise ValueError('Oppsettet er endret fra en annen klient. Last inn på nytt.')
                     if key in boolean and not isinstance(pair['after'],bool):raise ValueError(key+' må være av/på.')
                     candidate[key]=pair['after']
-                if any(k in {'name','root','steamcmd','steam_user','login_mode','workshop','config','profiles','port','mods','mission','auto_firewall'} for k in change['fields']) and (self.manager.running(p) or p['id'] in self.manager.busy):raise ValueError('Stopp serveren før du endrer serveroppsett.')
+                if any(k in {'name','root','steamcmd','steam_user','login_mode','workshop','config','profiles','port','mods','mission','auto_firewall','query_enabled'} for k in change['fields']) and (self.manager.running(p) or p['id'] in self.manager.busy):raise ValueError('Stopp serveren før du endrer serveroppsett.')
                 if candidate['root']:validate(candidate)
                 if candidate.get('restart_mode','clock') not in ('clock','interval'):raise ValueError('Ukjent restartplan.')
                 next_restart(candidate)
@@ -451,7 +451,8 @@ class HostEngine:
                 else:self.log(p['name']+': krasjgjenstart blokkert etter 3 forsøk på 15 minutter.')
         for p in self.manager.state['servers']:
             key=p['id'];running=self.manager.running(p);request=p.get('shutdown_request')
-            if running and now>=self.health_due.get(key,0):
+            if not p.get('query_enabled',True):self.health[key]={'responding':False,'disabled':True,'checked':now}
+            elif running and now>=self.health_due.get(key,0):
                 self.health_due[key]=now+15
                 from server_health import query
                 try:

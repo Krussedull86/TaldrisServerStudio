@@ -23,6 +23,7 @@ class SuiteStudio(OperationsStudio):
         for index,title in [(11,'RCon og spillere'),(12,'Discord / tjeneste')]:
             b=button(title,lambda checked=False,n=index:self.go(n),'nav');b.setCheckable(True);side.insertWidget(side.count()-4,b);self.nav.append(b)
         self.setStyleSheet('QPushButton#nav {padding-top:7px;padding-bottom:7px;}');self.load_host_settings()
+        self.stack.widget(10).layout().insertWidget(0,button('Installer programmet på denne PC-en',lambda:self.guard(self.install_application),'primary'))
         self.statusBar().showMessage('Tilkoblet bakgrunnsagent • Serverne styres uavhengig av programvinduet')
     def load(self):
         super().load()
@@ -76,6 +77,7 @@ class SuiteStudio(OperationsStudio):
         text='Bakgrunnsagent: '+('Windows-tjeneste' if self.manager.raw.get('service') else 'egen prosess (installer tjeneste for drift etter avlogging)')+'\n'+p['name']+' • '+('Prosess kjører' if runtime.get('running') else 'Stoppet')+' • RAM '+str(runtime.get('ram_mb','—'))+' MB • CPU '+str(runtime.get('cpu_percent','—'))+' % • Ledig disk '+str(runtime.get('disk_free_gb','—'))+' GB\nVedlikehold: '+p.get('maintenance_state','idle')
         health=runtime.get('health',{})
         if health.get('responding'):text+='\nSteam query svarer • '+str(health.get('players',0))+'/'+str(health.get('max_players','?'))+' spillere • '+health.get('map','')
+        elif not p.get('query_enabled',True):text+='\nLokal test • query-sjekk av • direkte tilkobling 127.0.0.1:'+str(p['port'])
         elif runtime.get('running'):text+='\nSteam query har ikke svart ennå / svar mangler.'
         if record.get('restart_due'):text+='\nNeste restart: '+time.strftime('%d.%m %H:%M',time.localtime(record['restart_due']))
         if p.get('shutdown_request'):text+='\nManuell nedtelling: '+str(p['shutdown_request'].get('phase'))
@@ -94,9 +96,10 @@ class SuiteStudio(OperationsStudio):
     def tick(self):
         try:
             super().tick();self.disconnected=False;health=self.manager.runtime.get(self.p['id'],{}).get('health',{})
-            if health.get('responding') and self.manager.running(self.p):self.server_status.setText('● STEAM QUERY SVARER');self.metrics[3].setText(str(health.get('players',0)))
+            if not self.p.get('query_enabled',True) and self.manager.running(self.p):self.server_status.setText('● LOKAL TEST / PROSESS KJØRER')
+            if self.p.get('query_enabled',True) and health.get('responding') and self.manager.running(self.p):self.server_status.setText('● STEAM QUERY SVARER');self.metrics[3].setText(str(health.get('players',0)))
             for row,p in enumerate(self.manager.state['servers']):
-                if self.manager.runtime.get(p['id'],{}).get('health',{}).get('responding') and self.manager.running(p):self.all_servers.item(row,1).setText('Query svarer')
+                if p.get('query_enabled',True) and self.manager.runtime.get(p['id'],{}).get('health',{}).get('responding') and self.manager.running(p):self.all_servers.item(row,1).setText('Query svarer')
         except (OSError,ValueError) as error:
             if not self.disconnected:self.events.put('Ingen kontakt med bakgrunnsagenten: '+str(error));self.disconnected=True
             self.statusBar().showMessage('Agenten er ikke tilgjengelig. DayZ-prosessene stoppes ikke av dette.')
@@ -168,6 +171,9 @@ class SuiteStudio(OperationsStudio):
     def install_windows_service(self):
         from windows_service import install_service
         self.run_task(lambda:install_service(self.manager.home),lambda result:(self.events.put(result),self.manager.refresh()),description='Windows-tjeneste')
+    def install_application(self):
+        from self_install import install
+        self.staged_exe=install(self.manager.home);self.events.put('Programmet er installert. Snarveier er opprettet på skrivebordet og i Start-menyen.');self.apply_update()
     def apply_update(self):
         dirty=bool(self.center.doc and self.center.doc.dirty) or any(layer['doc'].dirty for layer in self.workbench.layers)
         if dirty:

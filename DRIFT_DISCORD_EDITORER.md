@@ -132,3 +132,18 @@ Primærkilder brukt i implementasjonen:
 - https://community.bistudio.com/wiki/DayZ:Central_Economy_mission_files_modding
 - https://mhammond.github.io/pywin32/servicemanager.html
 - https://pyinstaller.org/en/stable/common-issues-and-pitfalls.html
+
+
+## Installasjon og oppgradering (0.7.1)
+
+Last ned **TaldrisServerStudio-Setup.exe** fra en GitHub-utgave og kjør den. Installasjonen gjelder Windows-brukeren og trenger ikke administrator. Den lager snarveier på skrivebordet og i Start-menyen, og en oppføring under Windows sine installerte apper. Vanlig EXE fra ZIP tilbyr installasjon eller portabel kjøring ved første start. Du kan også velge **Programoppdatering → Installer programmet på denne PC-en** senere.
+
+Programstarteren ligger i `%LOCALAPPDATA%/Programs/TaldrisServerStudio`. Innstillinger og egne programversjoner ligger fortsatt i datamappen `%LOCALAPPDATA%/TaldrisServerStudio` (eller din valgte `--home`). Servermappene flyttes ikke. Snarveien følger aktiv versjon etter oppgradering. Velg dev/stable og **Lagre og sjekk** for å laste ned, kontrollere og installere en nyere utgave. Programvinduet byttes; DayZ-prosessene stoppes ikke. Windows-tjenesten installeres fortsatt separat fra Discord/tjeneste-siden.
+
+Avinstallasjon fjerner programstarter, snarveier og Windows-oppføringen. Den stopper ikke agent, tjeneste eller DayZ og beholder datamappen, versjonsfiler og alle serverdata. Vil du avslutte driften, stopp serverne og fjern tjenesten separat før du sletter data.
+
+## Lokal test uten krav om Steam Query
+
+Stopp valgt server. Åpne **Innstillinger**, huk av **Lokal test – start uten krav om Steam Query**, og lagre. Programmet tillater da at `steamQueryPort` mangler, sender ingen A2S-query og viser prosessstatus i stedet for query-status. Automatisk brannmurregel inkluderer ikke en ekstra query-port i denne modusen. Koble direkte til `127.0.0.1:<spillport>` fra samme maskin.
+
+Dette slår av programmets query-krav og overvåking. Det deaktiverer ikke Steam-autentisering, BattlEye eller DayZ-motorens eventuelle interne standardport, og gjør ikke serveren privat eller bundet til localhost. Bruk brannmur/nettverksoppsett hvis tilgangen må begrenses. Konfigurasjonsfilen endres ikke av avhukingen. Fjern avhukingen for vanlig serverdrift med kontrollert query-port.

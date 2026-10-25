@@ -35,6 +35,8 @@ def mark_active(home):
     if not getattr(sys,'frozen',False) or not exe.is_relative_to(versions):return
     path=Path(home)/'active_program.json'; tmp=path.with_suffix('.tmp')
     tmp.write_text(json.dumps({'exe':str(exe)}),encoding='utf-8'); tmp.replace(path)
+    from self_install import refresh_version
+    refresh_version(home)
 
 
 def launch_handoff(exe,home):
