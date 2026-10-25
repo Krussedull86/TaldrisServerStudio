@@ -111,12 +111,13 @@ class Studio(QMainWindow):
         for title,foot in [('AKTIVE MODS','Valgt lastrekkefølge'),('KARTMARKØRER','Dine egne steder'),('SPILLPORT','Lokal serverprofil'),('SPILLERE','Live data ikke tilkoblet')]:
             f,c=card(title); value=label('—','metric'); c.addWidget(value); c.addWidget(label(foot,'muted')); metrics.addWidget(f); self.metrics.append(value)
         l.addLayout(metrics)
+        self.all_servers=QTableWidget(0,5); self.all_servers.setHorizontalHeaderLabels(['Server','Status','Spillport','Steam query','Mappe']); self.all_servers.setEditTriggers(QAbstractItemView.NoEditTriggers); self.all_servers.setSelectionBehavior(QAbstractItemView.SelectRows); self.all_servers.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch); self.all_servers.setMinimumHeight(145); self.all_servers.setMaximumHeight(170); self.all_servers.cellDoubleClicked.connect(lambda row,column:self.selector.setCurrentIndex(row)); l.addWidget(self.all_servers)
         row=QHBoxLayout(); quick,q=card('VEDLIKEHOLD','Oppdatering og backup krever at serveren er stoppet.')
         q.addWidget(button('↓  Oppdater server og Workshop',self.action(lambda:self.update_server())))
         q.addWidget(button('◇  Opprett sikkerhetskopi',self.action(lambda:self.manager.job(self.p,self.manager.backup))))
         q.addWidget(button('⚙  Åpne serveroppsett',lambda:self.go(7))); q.addStretch(); row.addWidget(quick,1)
         activity,a=card('HENDELSESSTRØM'); self.activity=QPlainTextEdit(); self.activity.setReadOnly(True); self.activity.setMaximumBlockCount(1000); self.activity.setPlaceholderText('Her vises oppstart, oppdateringer, backup og feilmeldinger.'); a.addWidget(self.activity); row.addWidget(activity,2); l.addLayout(row,1)
-        l.addWidget(label('Status gjelder prosesser startet i denne økten. Kontroller RPT for å bekrefte at DayZ er klar.','muted'))
+        l.addWidget(label('Dobbeltklikk på en server i tabellen for å velge den. Flere servere kan kjøre samtidig. Kontroller RPT for å bekrefte at DayZ er klar.','muted'))
     def map_page(self):
         l=self.page(); bar=QHBoxLayout(); bar.addWidget(label('Et arbeidskart for steder, baser og soner.','muted')); bar.addStretch(); bar.addWidget(button('Legg til kartbilde',self.map_file)); bar.addWidget(button('Tilpass visning',lambda:self.map.reset_view())); l.addLayout(bar)
         split=QSplitter(); self.map=MapView(self); split.addWidget(self.map); panel=QWidget(); panel.setMinimumWidth(250); pl=QVBoxLayout(panel); pl.addWidget(label('STEDER PÅ KARTET','eyebrow'))
@@ -272,6 +273,17 @@ class Studio(QMainWindow):
         running=self.manager.running(self.p); busy=self.p['id'] in self.manager.busy; self.server_status.setText('◌  JOBB PÅGÅR' if busy else '●  PROSESS KJØRER' if running else '○  STOPPET / IKKE ADMINISTRERT')
         self.start_btn.setEnabled(not running and not busy); self.stop_btn.setEnabled(running)
         for w,t in zip(self.metrics,[str(sum(m['enabled'] for m in self.p['mods'])),str(len(self.p['markers'])),str(self.p['port']),'—']):w.setText(t)
+        self.all_servers.setRowCount(len(self.manager.state['servers']))
+        for row,p in enumerate(self.manager.state['servers']):
+            status='Jobb pågår' if p['id'] in self.manager.busy else 'Prosess kjører' if self.manager.running(p) else 'Stoppet'
+            query='Ikke satt'
+            try:
+                from windows_firewall import mask_config
+                import re
+                text=mask_config(local_path(p['root'],p['config']).read_text('utf-8-sig')); values=re.findall(r'\bsteamQueryPort\s*=\s*(\d+)\s*;',text,re.I)
+                if len(values)==1:query=values[0]
+            except (OSError,ValueError):pass
+            for col,value in enumerate([p['name'],status,str(p['port']),query,p['root']]):self.all_servers.setItem(row,col,QTableWidgetItem(value))
         for p in self.manager.state['servers']:
             if p['auto_update'] and not getattr(self,'operations_ready',False):
                 due=self.deadlines.setdefault(p['id'],time.monotonic()+p['update_minutes']*60)

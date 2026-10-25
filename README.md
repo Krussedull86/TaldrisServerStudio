@@ -45,3 +45,6 @@ Ved manuell programoppdateringssjekk lastes en nyere utgave ned, SHA-256-verifis
 
 Bakgrunn for driftsvalgene: Bohemias servermeldinger og CFTools/BattleMetrics sine driftsfunksjoner. Ingen CFTools-tilgang kreves eller implementeres av disse funksjonene. RCon-spilleradministrasjon, Discord-varsling, tom-server-vinduer og vedvarende Windows-bakgrunnstjeneste er fortsatt ikke implementert. Ingen automatiske wipes.
 Kilder: https://community.bistudio.com/wiki/DayZ:Server_Messages ; https://cftools.com/title/dayz/hosting ; https://learn.battlemetrics.com/article/53-scheduler
+
+### 0.6.1 – Flere samtidige servere
+Bruk + Ny server for hver installasjon. Profilene foreslår ulike portblokker (2302, 2402, 2502 …); nye konfigurasjoner får Steam query-port +3. Bruk egne servermapper. Oversikt viser status, spillport, query-port og mappe for alle profiler; dobbeltklikk for å velge en server. Start/stopp gjelder bare den valgte profilen, og andre servere fortsetter. Spillportblokk og eksplisitt steamQueryPort kontrolleres mot andre kjørende profiler. Dette kontrollerer profilene i panelet, ikke alle eksterne programmer på maskinen. Mods, konfigurasjon, backup og automatisering er per server. SteamCMD-jobber deles i én køplass: en nedlasting om gangen; aktive DayZ-prosesser i andre mapper fortsetter.

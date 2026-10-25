@@ -3,7 +3,7 @@ import json, os, re, shutil, subprocess, threading, time, uuid, zipfile
 from pathlib import Path
 from server_diagnostics import snapshot,current_logs,error_excerpt,exit_label
 from windows_runtime import directx_issue
-from windows_firewall import ensure_firewall
+from windows_firewall import ensure_firewall,server_ports
 from server_schedule import prepare_messages
 from process_registry import save_processes,restore_processes,discover_processes
 
@@ -16,6 +16,16 @@ def local_path(root, relative):
     if not p.is_relative_to(Path(root).resolve()):
         raise ValueError('Stien må være inne i servermappen.')
     return p
+
+def reserved_ports(profile):
+    config=Path(profile['root'])/profile['config']
+    if config.is_file():
+        try:return set(server_ports(profile))
+        except ValueError as error:
+            if 'mangler' not in str(error):raise
+    game=int(profile['port'])
+    return {game,game+1,game+2,game+3}
+
 
 def mod_load_mode(m):
     return m.get('load_mode','server' if m.get('server',False) else 'client')
@@ -67,7 +77,14 @@ class Manager:
         restore_processes(self)
         discover_processes(self)
     def add(self):
-        p=json.loads(json.dumps(DEFAULT)); p.update(login_mode='anonymous',mission='dayzOffline.chernarusplus',max_players=40); p['id']=uuid.uuid4().hex; self.state['servers'].append(p); self.save(); return p
+        p=json.loads(json.dumps(DEFAULT))
+        used=set().union(*(reserved_ports(q) for q in self.state['servers'])) if self.state['servers'] else set()
+        port=2302
+        while port<=65532 and used.intersection(range(port,port+4)):port+=100
+        if port>65532:raise ValueError('Fant ingen ledig foreslått portblokk. Endre eksisterende profiler først.')
+        p['port']=port
+        if self.state['servers']:p['name']='DayZ-server '+str(len(self.state['servers'])+1)
+        p.update(login_mode='anonymous',mission='dayzOffline.chernarusplus',max_players=40); p['id']=uuid.uuid4().hex; self.state['servers'].append(p); self.save(); return p
     def save(self):
         tmp=self.file.with_suffix('.tmp'); tmp.write_text(json.dumps(self.state,indent=2,ensure_ascii=False),'utf-8'); tmp.replace(self.file)
     def running(self,p):
@@ -80,7 +97,9 @@ class Manager:
             for other in self.state['servers']:
                 if other['id']==p['id']:continue
                 if (self.running(other) or other['id'] in self.busy) and Path(other['root']).resolve()==Path(p['root']).resolve():raise ValueError('En annen aktiv profil bruker samme servermappe.')
-                if self.running(other) and int(other['port'])==int(p['port']):raise ValueError('En administrert server bruker allerede denne spillporten.')
+                if self.running(other):
+                    overlap=reserved_ports(p)&reserved_ports(other)
+                    if overlap:raise ValueError('Portkonflikt med '+other['name']+': UDP '+', '.join(map(str,sorted(overlap)))+'. Velg egne spill- og Steam query-porter.')
             args=command(p)
             if not Path(args[0]).is_file(): raise ValueError('Fant ikke DayZServer_x64.exe. Installer eller velg riktig mappe.')
             if not local_path(p['root'],p['config']).is_file(): raise ValueError('Serverkonfigurasjon mangler.')
