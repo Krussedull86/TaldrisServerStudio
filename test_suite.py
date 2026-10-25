@@ -127,7 +127,7 @@ class EditorUITests(unittest.TestCase):
             layer=dict(doc=doc,root=parse_xml(xml),visible=True,color='#62e5c3');workbench.layers=[layer];workbench.layer_choice.addItem('events.xml');workbench.render();workbench.choose_layer()
             point=next(i for i in workbench.view.scene().items() if isinstance(i,PointItem))
             workbench.checkpoint(layer);point.setPos(30,960)
-            self.assertEqual(point.radius_item.pos(),point.pos());self.assertEqual(coordinates(layer['root'])[0]['x'],300)
+            self.assertGreater(point.radius_item.zValue(),0);self.assertGreater(point.zValue(),point.radius_item.zValue());self.assertEqual(point.radius_item.pos(),point.pos());self.assertEqual(coordinates(layer['root'])[0]['x'],300)
             self.assertIn('custom="keep"',doc.text);self.assertIn('<!--keep-->',doc.text)
             workbench.history_step();self.assertEqual(coordinates(layer['root'])[0]['x'],100)
             workbench.history_step(True);self.assertEqual(coordinates(layer['root'])[0]['z'],400)

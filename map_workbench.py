@@ -28,7 +28,7 @@ def coordinates(root):
 class PointItem(QGraphicsEllipseItem):
     def __init__(self,workbench,layer,point,color):
         super().__init__(-5,-5,10,10);self.workbench=workbench;self.layer=layer;self.point=point;self.ready=False;self.radius_item=None;self.pending_drag=False
-        self.setBrush(QBrush(QColor(color)));self.setPen(QPen(QColor('#ffffff')));self.setFlags(QGraphicsItem.ItemIsSelectable|QGraphicsItem.ItemIsMovable|QGraphicsItem.ItemSendsGeometryChanges|QGraphicsItem.ItemIgnoresTransformations)
+        self.setZValue(2);self.setBrush(QBrush(QColor(color)));self.setPen(QPen(QColor('#ffffff')));self.setFlags(QGraphicsItem.ItemIsSelectable|QGraphicsItem.ItemIsMovable|QGraphicsItem.ItemSendsGeometryChanges|QGraphicsItem.ItemIgnoresTransformations)
         self.setPos(*workbench.world_to_scene(point['x'],point['z']));self.setToolTip(point['name']+f"\nX {point['x']:.2f} / Z {point['z']:.2f}");self.ready=True
     def mousePressEvent(self,event):
         self.pending_drag=self.layer is self.workbench.active_layer()
@@ -118,7 +118,7 @@ class MapWorkbench(QWidget):
                     try:
                         r=float(radius)/float(self.studio.p['map_size'])*1000
                         if r>0:
-                            x,y=self.world_to_scene(point['x'],point['z']);item.radius_item=scene.addEllipse(-r,-r,2*r,2*r,QPen(QColor(layer['color'])));item.radius_item.setPos(x,y);item.radius_item.setZValue(-.5)
+                            x,y=self.world_to_scene(point['x'],point['z']);item.radius_item=scene.addEllipse(-r,-r,2*r,2*r,QPen(QColor(layer['color'])));item.radius_item.setPos(x,y);item.radius_item.setZValue(1)
                     except ValueError:pass
         scene.setSceneRect(QRectF(-20,-20,1040,1040));self.fit()
     def fit(self):self.view.fitInView(self.view.sceneRect(),Qt.KeepAspectRatio)
