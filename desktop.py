@@ -85,7 +85,7 @@ class Studio(QMainWindow):
         left.addStretch(); left.addWidget(label('LOKAL VERT','eyebrow')); left.addWidget(label('Windows / DayZ Dedicated\nDine filer. Din server.','muted')); outer.addWidget(sidebar)
         main=QVBoxLayout(); main.setContentsMargins(28,25,28,20); main.setSpacing(20); outer.addLayout(main,1)
         header=QHBoxLayout(); headings=QVBoxLayout(); headings.addWidget(label('SERVER WORKSPACE','eyebrow')); self.heading=label('Oversikt','title'); headings.addWidget(self.heading); header.addLayout(headings); header.addStretch()
-        self.selector=QComboBox(); self.selector.setMinimumWidth(245); self.selector.currentIndexChanged.connect(self.select); header.addWidget(self.selector); header.addWidget(button('+ Ny server',self.new_server)); main.addLayout(header)
+        self.selector=QComboBox(); self.selector.setMinimumWidth(245); self.selector.currentIndexChanged.connect(self.select); header.addWidget(self.selector); header.addWidget(button('+ Ny server',self.new_server));self.server_controls=header; main.addLayout(header)
         self.stack=QStackedWidget(); main.addWidget(self.stack,1)
         self.overview(); self.map_page(); self.mods_page(); self.logs_page(); self.config_page(); self.backups_page(); self.automation_page(); self.settings_page()
         self.statusBar().showMessage('Lokal administrasjon • Ingen eksterne tjenester tilkoblet')

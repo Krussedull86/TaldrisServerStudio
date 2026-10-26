@@ -167,3 +167,17 @@ Profiler kan dele DayZServer_x64.exe og modfiler. Samtidige instanser må ha for
 Native restartplaner skriver til missionens `db/messages.xml`, så uavhengige native planer krever separate missionmapper. Filoppdateringer og backup av den delte servermappen utsettes mens en annen server bruker den. En vanlig restart kan starte serveren igjen uten slikt filvedlikehold. Ingen annen server stoppes automatisk.
 
 **Kom i gang → Mission / kart → Lagre kartvalg til CFG** skriver valgt navn direkte til den eksisterende CFG-filen med backup. Listen henter kart fra `mpmissions` og gjeldende CFG; egne navn kan fortsatt skrives inn. `dayzOffline.nasdara` er også med i standardlisten. BAT-importen leser mission fra CFG i stedet for å lagre et standardkart. Kartvalg kan lagres til en egen CFG i rotmappen mens en annen server bruker samme installasjon, men aldri til en CFG som brukes av en aktiv profil. Spillport og profiles endres under Innstillinger; `instanceId` endres i konfigurasjonseditoren. Ingen verdier endres automatisk til en ny verden.
+
+
+## Slette en serverprofil (0.7.4)
+
+Velg serveren og trykk **Slett server …** ved siden av **Ny server**. Bekreftelsen viser profilnavn og servermappe. Serveren må være stoppet, og ingen jobb for profilen kan være i kø eller under kjøring. Knappen fjerner profilen fra programmet; serverfiler, mods, CFG, verdensdata, backup og konfigurasjonshistorikk slettes ikke. Ulagrede editor-/kartendringer for den fjernede profilen forkastes ved bekreftelse. De andre serverprofilene fortsetter som før.
+
+Hvis siste profil slettes, opprettes en tom **Ny server**-profil. Den har ingen servermappe og starter ingenting. En gammel servermappe kan senere legges til igjen via BAT-import eller Innstillinger.
+
+
+## Panelet er oppdatert, men gammel startfeil vises
+
+Nederst i programvinduet vises **Panel** og **Agent** med hvert sitt versjons-/byggnummer. Hvis agenten er eldre, blokkerer den nye startknappen utsending til gammel startkode og viser hvordan agenten oppdateres. Under **Programoppdatering → Oppdater/reparer bakgrunnsagent** kan bakgrunnsagenten byttes ut separat. Kjørende DayZ-prosesser tvangsstoppes ikke. Vent til SteamCMD, backup og jobber i kø er ferdige. Windows-tjenesten oppdateres via samme eksplisitte knapp og kan be om administratorrettigheter.
+
+Et automatisk agentbytte som blir stående med en gammel vanlig bakgrunnsprosess, får et nytt forsøk etter omtrent 30 sekunder uten paneljobber. En gammel Windows-tjeneste som ikke byttes, repareres fra knappen. Når begge versjonsnumrene er oppdatert, prøv serverstart igjen. Port-, profiles- og verdensdata-konflikter må fortsatt rettes i serveroppsettet.

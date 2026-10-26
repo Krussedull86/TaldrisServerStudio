@@ -25,7 +25,27 @@ class SuiteStudio(OperationsStudio):
         self.setStyleSheet('QPushButton#nav {padding-top:7px;padding-bottom:7px;}');self.load_host_settings()
         self.stack.widget(10).layout().insertWidget(0,button('Installer programmet på denne PC-en',lambda:self.guard(self.install_application),'primary'))
         for page in (7,8):self.stack.widget(page).layout().insertWidget(0,button('Importer eksisterende server fra BAT / CMD …',lambda:self.guard(self.import_batch_file),'primary'))
+        self.agent_version_label=label('Panel / agent …','muted');self.statusBar().addPermanentWidget(self.agent_version_label)
+        self.stack.widget(10).layout().insertWidget(1,button('Oppdater/reparer bakgrunnsagent',lambda:self.guard(self.repair_background_agent)))
+        self.server_controls.addWidget(button('Slett server …',lambda:self.guard(self.delete_server_profile),'danger'))
         self.statusBar().showMessage('Tilkoblet bakgrunnsagent • Serverne styres uavhengig av programvinduet')
+    def repair_background_agent(self):
+        if getattr(self,'repair_in_progress',False):return
+        from agent_repair import repair
+        def done(message):self.manager.refresh();self.agent_upgrade_requested=False;self.events.put(message);self.update_message.setText(message)
+        self.repair_in_progress=True;before=set(self.tasks)
+        self.run_task(lambda:repair(self.manager.home,self.manager.client),done,description='Bakgrunnsagent')
+        for task in self.tasks-before:task.finished.connect(lambda:setattr(self,'repair_in_progress',False))
+    def delete_server_profile(self):
+        self.manager.refresh();p=self.p
+        if self.manager.running(p) or p['id'] in self.manager.busy:raise ValueError('Stopp serveren og vent til jobbene er ferdige før sletting.')
+        text='Fjerne serverprofilen «'+p['name']+'» fra programmet?\n\nServermappe: '+(p['root'] or '(ikke valgt)')+'\nServerfiler, mods, backup og verdensdata beholdes. Ulagrede editor-/kartendringer for denne profilen forkastes. Hvis dette er siste profil, opprettes en tom profil.'
+        if QMessageBox.question(self,'Slett serverprofil',text,QMessageBox.Yes|QMessageBox.Cancel,QMessageBox.Cancel)!=QMessageBox.Yes:return
+        next_profile=self.manager.remove_profile(p);identity=p['id'];self.config_cache.pop(identity,None);self.deadlines.pop(identity,None)
+        if self.center_server==identity:self.center.doc=None;self.center_server=None
+        if hasattr(self.workbench,'cache'):self.workbench.cache.pop(identity,None)
+        if self.workbench.server_id==identity:self.workbench.layers=[];self.workbench.server_id=None
+        self.p=next_profile;self.load();self.go(0);self.events.put('Serverprofil slettet. Serverfiler og verdensdata er beholdt.')
     def import_batch_file(self):
         path,_=QFileDialog.getOpenFileName(self,'Importer eksisterende server','','Startskript (*.bat *.cmd)')
         if not path:return
@@ -95,7 +115,8 @@ class SuiteStudio(OperationsStudio):
     def operations_tick(self):
         if not getattr(self,'operations_ready',False):return
         p=self.p;runtime=self.manager.runtime.get(p['id'],{});record=runtime.get('launch',{})
-        text='Bakgrunnsagent: '+('Windows-tjeneste' if self.manager.raw.get('service') else 'egen prosess (installer tjeneste for drift etter avlogging)')+'\n'+p['name']+' • '+('Prosess kjører' if runtime.get('running') else 'Stoppet')+' • RAM '+str(runtime.get('ram_mb','—'))+' MB • CPU '+str(runtime.get('cpu_percent','—'))+' % • Ledig disk '+str(runtime.get('disk_free_gb','—'))+' GB\nVedlikehold: '+p.get('maintenance_state','idle')
+        from release_info import VERSION,BUILD
+        text=f'Panel {VERSION} / bygg {BUILD} • Agent {self.manager.raw.get("version","?")} / bygg {self.manager.raw.get("build","?")}\n'+'Bakgrunnsagent: '+('Windows-tjeneste' if self.manager.raw.get('service') else 'egen prosess (installer tjeneste for drift etter avlogging)')+'\n'+p['name']+' • '+('Prosess kjører' if runtime.get('running') else 'Stoppet')+' • RAM '+str(runtime.get('ram_mb','—'))+' MB • CPU '+str(runtime.get('cpu_percent','—'))+' % • Ledig disk '+str(runtime.get('disk_free_gb','—'))+' GB\nVedlikehold: '+p.get('maintenance_state','idle')
         health=runtime.get('health',{})
         if health.get('responding'):text+='\nSteam query svarer • '+str(health.get('players',0))+'/'+str(health.get('max_players','?'))+' spillere • '+health.get('map','')
         elif not p.get('query_enabled',True):text+='\nLokal test • query-sjekk av • direkte tilkobling 127.0.0.1:'+str(p['port'])
@@ -108,15 +129,19 @@ class SuiteStudio(OperationsStudio):
         import sys
         from release_info import VERSION,BUILD
         if getattr(sys,'frozen',False) and not getattr(self,'agent_upgrade_requested',False) and not self.manager.busy and version_key(VERSION,BUILD)>version_key(self.manager.raw.get('version'),self.manager.raw.get('build')):
-            try:self.manager.client.call('upgrade',{'exe':sys.executable});self.agent_upgrade_requested=True
+            try:self.manager.client.call('upgrade',{'exe':sys.executable});self.agent_upgrade_requested=True;self.agent_upgrade_time=time.monotonic()
             except (OSError,ValueError):pass
+        if getattr(sys,'frozen',False) and getattr(self,'agent_upgrade_requested',False) and not self.manager.raw.get('service') and time.monotonic()-getattr(self,'agent_upgrade_time',time.monotonic())>30 and version_key(VERSION,BUILD)>version_key(self.manager.raw.get('version'),self.manager.raw.get('build')) and not self.manager.busy and not self.tasks:self.repair_background_agent()
         pending=self.manager.state.get('updates',{}).get('pending_exe')
         if pending and pending!=getattr(self,'last_pending',None):
             import sys
             if Path(pending).resolve()!=Path(sys.executable).resolve():self.last_pending=pending;self.staged_exe=pending;QTimer.singleShot(500,lambda:self.guard(self.apply_update))
     def tick(self):
         try:
-            super().tick();self.disconnected=False;health=self.manager.runtime.get(self.p['id'],{}).get('health',{})
+            super().tick();self.disconnected=False;
+            from release_info import VERSION,BUILD
+            if hasattr(self,'agent_version_label'):self.agent_version_label.setText(f'Panel {VERSION} b{BUILD} • Agent {self.manager.raw.get("version","?")} b{self.manager.raw.get("build","?")}')
+            health=self.manager.runtime.get(self.p['id'],{}).get('health',{})
             if not self.p.get('query_enabled',True) and self.manager.running(self.p):self.server_status.setText('● LOKAL TEST / PROSESS KJØRER')
             if self.p.get('query_enabled',True) and health.get('responding') and self.manager.running(self.p):self.server_status.setText('● STEAM QUERY SVARER');self.metrics[3].setText(str(health.get('players',0)))
             for row,p in enumerate(self.manager.state['servers']):

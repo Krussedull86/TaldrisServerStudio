@@ -78,6 +78,9 @@ class RemoteManager:
         self.refresh()
     def add(self):
         result=self.client.call('add');self.refresh();return next(p for p in self.state['servers'] if p['id']==result['id'])
+    def remove_profile(self,p):
+        from batch_import import fingerprint
+        result=self.client.call('remove_profile',{'server':p['id'],'expected':fingerprint(p)});self.refresh();return next(q for q in self.state['servers'] if q['id']==result['selected'])
     def import_batch(self,profile,target=None,expected=None):
         result=self.client.call('import_batch',{'profile':profile,'target':target,'expected':expected});self.refresh();return next(p for p in self.state['servers'] if p['id']==result['id'])
     def running(self,p):return self.runtime.get(p['id'],{}).get('running',False)
@@ -85,7 +88,12 @@ class RemoteManager:
         if time.monotonic()-self.last_poll>1:self.refresh()
         return []
     def enqueue(self,action,p=None,data=None):return self.client.call('enqueue',{'action':action,'server':p['id'] if p else '', 'data':data or {}})
-    def start(self,p):return self.enqueue('start',p)
+    def start(self,p):
+        from release_info import VERSION,BUILD
+        if getattr(sys,'frozen',False):
+            self.refresh()
+            if version_key(self.raw.get('version'),self.raw.get('build'))<version_key(VERSION,BUILD):raise ValueError(f'Bakgrunnsagenten er eldre enn panelet ({self.raw.get("version")} / {self.raw.get("build")}). Velg Programoppdatering → Oppdater/reparer bakgrunnsagent før start.')
+        return self.enqueue('start',p)
     def force_stop(self,p):return self.enqueue('force_stop',p)
     def job(self,p,fn):return self.enqueue('backup' if fn.__name__=='backup' else 'steam',p,{'kind':'all'})
     def backup(self,p):return self.enqueue('backup',p)

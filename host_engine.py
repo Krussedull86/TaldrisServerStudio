@@ -103,7 +103,30 @@ class HostEngine:
             for p,candidate in prepared:p.update(candidate)
             self.manager.save()
         return True
+    def remove_profile(self,key,expected):
+        from batch_import import fingerprint
+        from core import DEFAULT
+        with self.manager.lock,self.pending_lock:
+            p=self.profile(key)
+            if fingerprint(p)!=expected:raise ValueError('Profilen er endret. Last inn profilen på nytt før sletting.')
+            if self.manager.running(p) or key in self.manager.busy or self.steam_profile==key:raise ValueError('Stopp serveren og vent til jobbene er ferdige før profilen slettes.')
+            if any(j.get('server')==key and j.get('status') in ('queued','running') for j in self.jobs.values()):raise ValueError('Profilen har jobber i kø eller under kjøring. Vent til de er ferdige.')
+            original=self.manager.state;state=dict(original);state['servers']=[q for q in original['servers'] if q['id']!=key]
+            if not state['servers']:
+                blank=copy.deepcopy(DEFAULT);blank.update(id=uuid.uuid4().hex,name='Ny server',login_mode='anonymous',mission='dayzOffline.chernarusplus',max_players=40);state['servers'].append(blank)
+            if 'discord' in state:state['discord']=copy.deepcopy(state['discord']);state['discord'].get('server_roles',{}).pop(key,None)
+            self.manager.state=state
+            try:self.manager.save()
+            except Exception:self.manager.state=original;raise
+            for mapping in (self.manager.procs,self.manager.launches,self.check_due,self.retries,self.crashes,self.health,self.health_due,self.rcon_locks):mapping.pop(key,None)
+            try:save_processes(self.manager)
+            except OSError as error:self.log('Prosessregisteret kunne ikke oppdateres etter profilsletting: '+str(error))
+            self.log('Windows-panel: serverprofil slettet • '+p['name']+' • '+key+'. Serverfiler, mods, backup og verdensdata er beholdt.')
+            return {'selected':state['servers'][0]['id'],'removed':key}
     def enqueue(self,action,server='',params=None,actor='Windows-panel'):
+        with self.manager.lock:return self._enqueue(action,server,params,actor)
+    def _enqueue(self,action,server='',params=None,actor='Windows-panel'):
+
         if self.stop_event.is_set() or getattr(self,'upgrade_pending',False):raise ValueError('Agenten avsluttes eller oppdateres. Prøv igjen om litt.')
         if self.queue.qsize()>50:raise ValueError('Jobbkøen er full.')
         p=self.profile(server) if server else None;key=(action,p['id'] if p else '')
