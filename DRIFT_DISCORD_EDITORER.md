@@ -158,3 +158,12 @@ Filen leses uten å kjøres. Vanlige `set`-variabler, `%~dp0`, `%cd%`, `cd /d`, 
 Alle mods fra BAT registreres som **lokale kilder**, også mapper med Workshop-ID i navnet. Dermed lastes de ikke ned eller overskrives automatisk. En mod i begge lastelistene importeres én gang med lastemåten begge. Importen flytter ikke filer, endrer ikke CFG eller verdensdata og starter ikke serveren. EXE og konfigurasjon må finnes i valgt servermappe; profiles/CFG utenfor servermappen må tilpasses manuelt. Stopp serveren og vent til jobber er ferdige før en eksisterende profil oppdateres.
 
 Ekstra startvalg finnes også under Innstillinger. Støttede valg er `-name`, `-cpuCount`, `-maxMem`, `-limitFPS`, `-BEpath`, `-filePatching`, `-netlog`, `-doSimulate`, `-noSound`, `-noSplash`, `-noPause` og `-scrAllowFileWrite`. Øvrige valg rapporteres i forhåndsvisningen i stedet for å legges til ubemerket. Mods, konfigurasjon, port og profiles styres av egne felt. Standardvalgene `-dologs`, `-adminlog` og `-freezecheck` legges fortsatt til av programmet.
+
+
+## Flere servere fra samme servermappe (0.7.3)
+
+Profiler kan dele DayZServer_x64.exe og modfiler. Samtidige instanser må ha forskjellige spill-/query-porter og separate profiles-mapper. De må også bruke ulike missionmapper eller ulike `instanceId` i hver sin CFG, slik at de ikke skriver til samme `storage_<instanceId>`. Programmet gir nå en konkret konfliktmelding i stedet for å avvise selve servermappen. Én kjørende prosess registreres bare på én profil.
+
+Native restartplaner skriver til missionens `db/messages.xml`, så uavhengige native planer krever separate missionmapper. Filoppdateringer og backup av den delte servermappen utsettes mens en annen server bruker den. En vanlig restart kan starte serveren igjen uten slikt filvedlikehold. Ingen annen server stoppes automatisk.
+
+**Kom i gang → Mission / kart → Lagre kartvalg til CFG** skriver valgt navn direkte til den eksisterende CFG-filen med backup. Listen henter kart fra `mpmissions` og gjeldende CFG; egne navn kan fortsatt skrives inn. `dayzOffline.nasdara` er også med i standardlisten. BAT-importen leser mission fra CFG i stedet for å lagre et standardkart. Kartvalg kan lagres til en egen CFG i rotmappen mens en annen server bruker samme installasjon, men aldri til en CFG som brukes av en aktiv profil. Spillport og profiles endres under Innstillinger; `instanceId` endres i konfigurasjonseditoren. Ingen verdier endres automatisk til en ny verden.

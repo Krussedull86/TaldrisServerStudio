@@ -240,7 +240,8 @@ class HostEngine:
             else:p['mods'].insert(max(0,min(len(p['mods'])-1,int(params['position']))),p['mods'].pop(i))
             self.manager.save();return 'Modlisten er lagret.'
         if action=='document_save':
-            self.editable(p);doc=Document(p,params['file'],self.home)
+            from mission_settings import check_config_edit
+            check_config_edit(self.manager,p,params['file']);doc=Document(p,params['file'],self.home)
             if digest(doc.original)!=params['base']:raise ValueError('Filen er endret av en annen klient.')
             doc.text=params['text'];warnings=doc.warnings();doc.save();return {'file':doc.relative,'warnings':warnings}
         if action=='list_add':
@@ -336,7 +337,13 @@ class HostEngine:
         if any(c in value for c in '\r\n\x00'):raise ValueError('Send én linje om gangen.')
         self.secrets.append(value);self.pty.write(value+'\r\n')
     def maintenance(self,p,restart):
-        self.editable(p);p.update(maintenance_state='backup',maintenance_error='');self.manager.save()
+        with self.manager.lock:
+            shared=any(q['id']!=p['id'] and self.manager.running(q) and Path(q['root']).resolve()==Path(p['root']).resolve() for q in self.manager.state['servers'])
+            if shared:
+                if self.manager.running(p) or p['id'] in self.manager.busy:raise ValueError('Stopp denne serveren før vedlikehold.')
+                if restart:self.manager.start(p)
+                p.update(maintenance_state='idle',maintenance_deferred=True);self.manager.save();self.log(p['name']+': backup og filoppdateringer er utsatt fordi en annen server bruker samme mappe. Andre servere stoppes ikke.');return 'Filvedlikehold utsatt; serveren er startet igjen.' if restart else 'Filvedlikehold utsatt til de andre serverne er stoppet.'
+        self.editable(p);p['maintenance_deferred']=False;p.update(maintenance_state='backup',maintenance_error='');self.manager.save()
         try:
             if p.get('maintenance_backup',True):
                 self.backup(p);files=sorted((self.home/'backups'/p['id']).glob('*.zip'),key=lambda f:f.stat().st_mtime)

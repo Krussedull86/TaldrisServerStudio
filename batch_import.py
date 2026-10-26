@@ -171,6 +171,9 @@ def apply_profile(manager,data,target_id=None,expected=None):
         if 'maxPlayers' in fields:
             try:candidate['max_players']=int(fields['maxPlayers'])
             except (ValueError,TypeError):pass
+        from mission_settings import configured_mission
+        actual=configured_mission(candidate)
+        if actual:candidate['mission']=actual
         # The CFG stays authoritative, and is neither regenerated nor overwritten.
         if old is None:manager.state['servers'].append(candidate)
         else:old.update(candidate)

@@ -204,7 +204,10 @@ class ConfigCenter(QWidget):
         self.set_text(text);self.rebuild()
     def save(self):
         if not self.doc:raise ValueError('Åpne en fil først.')
-        self.sync();self.studio.editable_profile(self.doc.profile);warnings=self.doc.warnings()
+        self.sync()
+        if hasattr(self.studio,'editable_document'):self.studio.editable_document(self.doc)
+        else:self.studio.editable_profile(self.doc.profile)
+        warnings=self.doc.warnings()
         if not self.doc.dirty:return
         dialog=QDialog(self);dialog.setWindowTitle('Kontroller endringer – '+self.doc.relative);dialog.resize(1000,700);layout=QVBoxLayout(dialog)
         if warnings:layout.addWidget(label('\n'.join(warnings[:20]),'muted'))

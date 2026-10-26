@@ -148,10 +148,10 @@ class IntegratedStudio(Studio):
             form.addRow(title,row)
         self.login=QComboBox(); self.login.addItems(['Anonym','Steam-konto']); self.login.currentIndexChanged.connect(lambda i:self.setup_user.setEnabled(i==1)); form.addRow('Innlogging',self.login); form.addRow('Steam-brukernavn',self.setup_user)
         self.player_slots=QLineEdit('40'); form.addRow('Spillerplasser',self.player_slots)
-        self.mission=QComboBox(); self.mission.setEditable(True); self.mission.addItems(['dayzOffline.chernarusplus','dayzOffline.enoch','dayzOffline.sakhal']); form.addRow('Mission / kart',self.mission)
+        self.mission=QComboBox(); self.mission.setEditable(True); self.mission.addItems(['dayzOffline.chernarusplus','dayzOffline.enoch','dayzOffline.sakhal','dayzOffline.nasdara']); mission_row=QHBoxLayout();mission_row.addWidget(self.mission,1);mission_row.addWidget(button('Lagre kartvalg til CFG',self.action(self.save_mission_choice),'primary'));form.addRow('Mission / kart',mission_row)
         self.start_after=QCheckBox('Start serveren etter vellykket installasjon og klargjøring'); self.start_after.setChecked(True); c.addWidget(self.start_after)
         self.setup_status=label('Velg mapper for å begynne.','eyebrow'); c.addWidget(self.setup_status)
-        buttons=QHBoxLayout(); buttons.addWidget(button('↓ Last ned SteamCMD',self.action(self.bootstrap))); buttons.addWidget(button('Test innlogging',self.action(self.login_test))); buttons.addWidget(button('Installer og klargjør',self.action(self.install_server),'primary')); c.addLayout(buttons)
+        buttons=QHBoxLayout();buttons.addWidget(button('Lagre oppsett',self.action(self.save_setup_and_map))); buttons.addWidget(button('↓ Last ned SteamCMD',self.action(self.bootstrap))); buttons.addWidget(button('Test innlogging',self.action(self.login_test))); buttons.addWidget(button('Installer og klargjør',self.action(self.install_server),'primary')); c.addLayout(buttons)
         form_outer.addWidget(f); form_outer.addWidget(label('Anonym er førstevalg. Steam bestemmer tilgangen: DayZ Server og særlig Workshop kan kreve Steam-konto med nødvendig tilgang. Passord/Steam Guard sendes i fanen SteamCMD-konsoll, ikke i oppsettfilen.','muted')); form_outer.addStretch(); scroll=QScrollArea(); scroll.setWidgetResizable(True); scroll.setWidget(install); tabs.addTab(scroll,'Oppstartsveiviser')
         console=QWidget(); cl=QVBoxLayout(console); self.console_status=label('Ingen SteamCMD-jobb kjører.','eyebrow'); cl.addWidget(self.console_status); self.progress=QProgressBar(); self.progress.setRange(0,100); self.progress.setValue(0); self.progress.setFormat('Nedlasting / kontroll: %p%'); self.progress.setToolTip('Bevegelse uten prosent betyr bare at prosessen kjører. Nedlasting er først bekreftet når Steam rapporterer den.'); cl.addWidget(self.progress)
         self.terminal_detail=label('Ingen nedlasting er bekreftet.','muted'); cl.addWidget(self.terminal_detail)
@@ -166,7 +166,26 @@ class IntegratedStudio(Studio):
         if p:(self.setup_root if kind=='root' else self.setup_steam).setText(p)
     def load_setup(self):
         p=self.p; self.setup_name.setText(p['name']); self.setup_root.setText(p['root'] or str(self.manager.home/'servers'/p['id'][:8])); self.setup_steam.setText(str(Path(p['steamcmd']).parent) if p['steamcmd'] else str(self.manager.home/'SteamCMD'))
-        self.login.setCurrentIndex(1 if p.get('login_mode')=='account' else 0); self.setup_user.setText(p['steam_user']); self.setup_user.setEnabled(self.login.currentIndex()==1); self.player_slots.setText(str(p.get('max_players',40))); self.mission.setCurrentText(p.get('mission','dayzOffline.chernarusplus'))
+        self.login.setCurrentIndex(1 if p.get('login_mode')=='account' else 0); self.setup_user.setText(p['steam_user']); self.setup_user.setEnabled(self.login.currentIndex()==1); self.player_slots.setText(str(p.get('max_players',40))); self.refresh_mission_choices()
+    def refresh_mission_choices(self):
+        from mission_settings import choices
+        items,current=choices(self.p);self.mission.clear();self.mission.addItems(items);self.mission.setCurrentText(current)
+    def save_mission_choice(self):
+        from mission_settings import save_mission
+        from config_documents import Document,digest
+        if Path(self.setup_root.text()).resolve()!=Path(self.p['root']).resolve():raise ValueError('Lagre serveroppsettet først hvis servermappen er endret.')
+        mission=self.mission.currentText().strip();doc=Document(self.p,self.p['config'],self.manager.home)
+        if hasattr(self,'center'):
+            self.center.sync()
+            if self.center.doc and self.center.doc.path==doc.path and self.center.doc.dirty:raise ValueError('Lagre eller forkast ulagrede endringer i konfigurasjonseditoren først.')
+        if getattr(self.manager,'remote',False):result=self.manager.client.call('mission_save',{'server':self.p['id'],'mission':mission,'base':digest(doc.original)});self.manager.refresh()
+        else:result=save_mission(self.manager,self.p,mission,digest(doc.original))
+        if hasattr(self,'center') and self.center.doc and self.center.doc.path==doc.path:self.center.doc=None;self.config_cache.pop(self.p['id'],None)
+        self.load();self.setup_status.setText('Kartvalg lagret til CFG med backup: '+mission+(' • Missionmappen mangler ennå.' if not result['folder_exists'] else ''));self.events.put('Kartvalg lagret: '+mission)
+    def save_setup_and_map(self):
+        mission=self.mission.currentText().strip();self.save_setup()
+        if (Path(self.p['root'])/self.p['config']).is_file():self.mission.setCurrentText(mission);self.save_mission_choice()
+        else:self.setup_status.setText('Oppsett lagret. Kartvalget brukes når konfigurasjonen opprettes.')
     def save_setup(self):
         self.editable(); p=dict(self.p); p.update(name=self.setup_name.text().strip(),root=self.setup_root.text().strip(),steamcmd=str(Path(self.setup_steam.text().strip())/'steamcmd.exe'),steam_user=self.setup_user.text().strip(),login_mode='anonymous' if self.login.currentIndex()==0 else 'account',max_players=int(self.player_slots.text()),mission=self.mission.currentText().strip())
         if not p['name']:raise ValueError('Oppgi servernavn.')

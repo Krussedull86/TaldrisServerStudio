@@ -71,6 +71,9 @@ class SuiteStudio(OperationsStudio):
         self.center.discover()
         if self.center.doc:self.center.rebuild()
         elif self.p['root'] and (Path(self.p['root'])/self.p['config']).is_file():self.center.open_path(self.p['config'])
+    def editable_document(self,doc):
+        from mission_settings import check_config_edit
+        check_config_edit(self.manager,doc.profile,doc.relative)
     def save_config(self):self.center.save()
     def create_config_for(self,p):
         path=Path(p['root'])/p['config']

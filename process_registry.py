@@ -49,10 +49,12 @@ def restore_processes(manager):
     if not path.exists():return
     try:records=json.loads(path.read_text('utf-8'))
     except (ValueError,OSError):manager.log('Prosessregisteret kunne ikke leses. Ingen prosess tas over.'); return
+    claimed=set()
     for profile in manager.state['servers']:
         saved=records.get(profile['id'])
         if not saved:continue
         try:
+            if int(saved['pid']) in claimed:raise ValueError('Prosessen tilhører allerede en annen profil.')
             proc=psutil.Process(int(saved['pid']))
             if not matches(saved,proc):raise ValueError('Prosessidentiteten stemmer ikke.')
             if Path(saved['exe']).resolve()!=(Path(profile['root'])/'DayZServer_x64.exe').resolve():raise ValueError('Servermappe er endret.')
@@ -60,13 +62,14 @@ def restore_processes(manager):
             if attached.poll() is not None:continue
             from server_diagnostics import snapshot
             record=dict(saved,proc=attached,baseline=snapshot(saved['profiles']),started=time.monotonic()-max(0,time.time()-saved['started_wall']),state='running')
-            manager.procs[profile['id']]=attached; manager.launches[profile['id']]=record
+            manager.procs[profile['id']]=attached; manager.launches[profile['id']]=record;claimed.add(proc.pid)
             manager.log(profile['name']+': koblet til eksisterende serverprosess, PID '+str(proc.pid)+'. Serveren er ikke restartet.')
         except (psutil.Error,OSError,ValueError,KeyError,TypeError):manager.log(profile['name']+': tidligere serverprosess kunne ikke bekreftes. Ingen prosess tas over.')
 
 
 def discover_processes(manager):
     """Migration from older panels: require exact executable/config/profile/port."""
+    claimed={proc.pid for proc in manager.procs.values() if proc.poll() is None}
     for profile in manager.state['servers']:
         if profile['id'] in manager.procs or not profile['root']:continue
         root=Path(profile['root']).resolve(); exe=root/'DayZServer_x64.exe'
@@ -74,6 +77,7 @@ def discover_processes(manager):
         candidates=[]
         for proc in psutil.process_iter(['pid','name']):
             try:
+                if proc.pid in claimed:continue
                 if (proc.info.get('name') or '').casefold()!='dayzserver_x64.exe':continue
                 if Path(proc.exe()).resolve()!=exe:continue
                 args=proc.cmdline()
@@ -87,6 +91,6 @@ def discover_processes(manager):
         from server_diagnostics import snapshot
         started=proc.create_time(); profiles=str((root/profile['profiles']).resolve()); attached=AttachedProcess(proc)
         record=dict(name=profile['name'],exe=str(exe),args=args,cwd=str(root),profiles=profiles,pid=proc.pid,proc=attached,baseline=snapshot(profiles),started_wall=started,started=time.monotonic()-max(0,time.time()-started),state='running',expected_stop=False,restart_due=None)
-        manager.procs[profile['id']]=attached; manager.launches[profile['id']]=record
+        manager.procs[profile['id']]=attached; manager.launches[profile['id']]=record;claimed.add(proc.pid)
         manager.log(profile['name']+': fant og overtok eksisterende DayZ-prosess med bekreftet EXE, konfigurasjon, profiles og port. PID '+str(proc.pid)+'.')
     save_processes(manager)

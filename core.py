@@ -102,12 +102,17 @@ class Manager:
             self.poll_processes()
             if p['id'] in self.busy: raise ValueError('En jobb pågår for denne serveren.')
             if self.running(p): raise ValueError('Serveren kjører allerede.')
+            shared_mission=False;sharing=[]
             for other in self.state['servers']:
                 if other['id']==p['id']:continue
-                if (self.running(other) or other['id'] in self.busy) and Path(other['root']).resolve()==Path(p['root']).resolve():raise ValueError('En annen aktiv profil bruker samme servermappe.')
+                same_root=Path(other['root']).resolve()==Path(p['root']).resolve()
+                if same_root and other['id'] in self.busy:raise ValueError('En annen profil utfører filvedlikehold i samme servermappe. Vent til jobben er ferdig.')
                 if self.running(other):
                     overlap=reserved_ports(p)&reserved_ports(other)
                     if overlap:raise ValueError('Portkonflikt med '+other['name']+': UDP '+', '.join(map(str,sorted(overlap)))+'. Velg egne spill- og Steam query-porter.')
+                    if same_root:
+                        from shared_servers import check_shared
+                        shared_mission=check_shared(p,other,self.launches.get(other['id'])) or shared_mission;sharing.append(other['name'])
             args=command(p)
             if not Path(args[0]).is_file(): raise ValueError('Fant ikke DayZServer_x64.exe. Installer eller velg riktig mappe.')
             if not local_path(p['root'],p['config']).is_file(): raise ValueError('Serverkonfigurasjon mangler.')
@@ -134,7 +139,8 @@ class Manager:
             for i,arg in enumerate(args):
                 if arg.startswith('-config='):args[i]='-config='+str(local_path(root,p['config']))
                 if arg.startswith('-profiles='):args[i]='-profiles='+str(profiles)
-            restart_due=prepare_messages(p,self.log)
+            restart_due=None if shared_mission else prepare_messages(p,self.log)
+            if sharing:self.log('Delt servermappe med '+', '.join(sharing)+'. Separate porter, profiles og verdensdata er kontrollert.')
             if not p.get('query_enabled',True):self.log('Lokal test: Steam Query er ikke påkrevd og overvåkes ikke. Koble direkte til 127.0.0.1:'+str(p['port'])+'. Dette sperrer ikke nettverkstilgang.')
             ensure_firewall(p,self.log)
             record=dict(name=p['name'],exe=args[0],cwd=str(root),profiles=str(profiles),args=list(args),restart_due=restart_due,baseline=snapshot(profiles),started=time.monotonic(),started_wall=time.time(),expected_stop=False,state='starting')
