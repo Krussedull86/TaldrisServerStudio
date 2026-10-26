@@ -37,6 +37,9 @@ class AgentAPI:
         if method=='patch':return e.patch_state(params['changes'])
         if method=='add':
             with e.manager.lock:return e.manager.add()
+        if method=='import_batch':
+            from batch_import import apply_profile
+            result=apply_profile(e.manager,params['profile'],params.get('target'),params.get('expected'));e.log('Windows-panel: BAT-profil importert • '+result['name']);return result
         if method=='updates':
             with e.manager.lock:
                 settings=e.manager.state.setdefault('updates',{})

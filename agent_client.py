@@ -78,6 +78,8 @@ class RemoteManager:
         self.refresh()
     def add(self):
         result=self.client.call('add');self.refresh();return next(p for p in self.state['servers'] if p['id']==result['id'])
+    def import_batch(self,profile,target=None,expected=None):
+        result=self.client.call('import_batch',{'profile':profile,'target':target,'expected':expected});self.refresh();return next(p for p in self.state['servers'] if p['id']==result['id'])
     def running(self,p):return self.runtime.get(p['id'],{}).get('running',False)
     def poll_processes(self):
         if time.monotonic()-self.last_poll>1:self.refresh()

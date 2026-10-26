@@ -55,6 +55,8 @@ def validate(p):
     local_path(p['root'], p['profiles'])
     if not 1 <= float(p['map_size']) <= 1000000: raise ValueError('Ugyldig kartstørrelse.')
     if int(p['update_minutes']) < 5: raise ValueError('Oppdateringsintervall: minst 5 minutter.')
+    from launch_options import validate_extra
+    validate_extra(p.get('extra_args',[]))
     for m in p['mods']:validate_mod(m)
 
 def command(p):
@@ -64,6 +66,7 @@ def command(p):
     for server, flag in [(False,'-mod='),(True,'-serverMod=')]:
         folders=[str(mod_path(p,m)) if m.get('source')=='local' else m['folder'] for m in p['mods'] if m.get('enabled',True) and mod_load_mode(m) in (('server','both') if server else ('client','both'))]
         if folders: args.append(flag+';'.join(folders))
+    args.extend(p.get('extra_args',[]))
     return args
 
 class Manager:

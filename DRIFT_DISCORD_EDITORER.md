@@ -147,3 +147,14 @@ Avinstallasjon fjerner programstarter, snarveier og Windows-oppføringen. Den st
 Stopp valgt server. Åpne **Innstillinger**, huk av **Lokal test – start uten krav om Steam Query**, og lagre. Programmet tillater da at `steamQueryPort` mangler, sender ingen A2S-query og viser prosessstatus i stedet for query-status. Automatisk brannmurregel inkluderer ikke en ekstra query-port i denne modusen. Koble direkte til `127.0.0.1:<spillport>` fra samme maskin.
 
 Dette slår av programmets query-krav og overvåking. Det deaktiverer ikke Steam-autentisering, BattlEye eller DayZ-motorens eventuelle interne standardport, og gjør ikke serveren privat eller bundet til localhost. Bruk brannmur/nettverksoppsett hvis tilgangen må begrenses. Konfigurasjonsfilen endres ikke av avhukingen. Fjern avhukingen for vanlig serverdrift med kontrollert query-port.
+
+
+## Importer en eksisterende server fra BAT / CMD (0.7.2)
+
+Velg **Kom i gang** eller **Innstillinger → Importer eksisterende server fra BAT / CMD**. Velg startskriptet, og velg riktig serverstart hvis filen inneholder flere. Forhåndsvisningen lar deg rette servermappe, konfigurasjon, profiles, spillport, ekstra startvalg og lokale modstier. Du kan velge `mod`, `serverMod` eller begge for hver mod, og deaktivere mods som mangler. Velg ny profil eller en eksisterende profil som skal oppdateres, og bekreft importen.
+
+Filen leses uten å kjøres. Vanlige `set`-variabler, `%~dp0`, `%cd%`, `cd /d`, `start` med tittel og `/D`, direkte EXE-start, `call` direkte til EXE og fortsettelse med `^` støttes. Uløste variabler, ukjente startvalg og skript som krever dynamisk tolkning vises som merknader. Betingelser, eksterne skript, pipe/omdirigering, `&&`, forsinket `!variabel!`-utvidelse og batchens stopp-/restartløkker overtas ikke. Bruk Automatisering til planlagt drift etter import.
+
+Alle mods fra BAT registreres som **lokale kilder**, også mapper med Workshop-ID i navnet. Dermed lastes de ikke ned eller overskrives automatisk. En mod i begge lastelistene importeres én gang med lastemåten begge. Importen flytter ikke filer, endrer ikke CFG eller verdensdata og starter ikke serveren. EXE og konfigurasjon må finnes i valgt servermappe; profiles/CFG utenfor servermappen må tilpasses manuelt. Stopp serveren og vent til jobber er ferdige før en eksisterende profil oppdateres.
+
+Ekstra startvalg finnes også under Innstillinger. Støttede valg er `-name`, `-cpuCount`, `-maxMem`, `-limitFPS`, `-BEpath`, `-filePatching`, `-netlog`, `-doSimulate`, `-noSound`, `-noSplash`, `-noPause` og `-scrAllowFileWrite`. Øvrige valg rapporteres i forhåndsvisningen i stedet for å legges til ubemerket. Mods, konfigurasjon, port og profiles styres av egne felt. Standardvalgene `-dologs`, `-adminlog` og `-freezecheck` legges fortsatt til av programmet.

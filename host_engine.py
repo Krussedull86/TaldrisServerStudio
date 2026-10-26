@@ -10,7 +10,7 @@ from steam_status import plain_terminal
 from process_registry import save_processes
 from rcon_client import server_command
 
-EDITABLE={'name','root','steamcmd','steam_user','login_mode','workshop','config','profiles','port','mods','markers','map_size','map_image','auto_firewall','query_enabled','auto_update','update_minutes','mission','max_players','start_after_install','update_game','scheduled_restart','restart_mode','restart_times','restart_interval','maintenance_backup','backup_keep','crash_recovery','rcon_config','local_scan_root','autostart'}
+EDITABLE={'name','root','steamcmd','steam_user','login_mode','workshop','config','profiles','port','mods','markers','map_size','map_image','extra_args','auto_firewall','query_enabled','auto_update','update_minutes','mission','max_players','start_after_install','update_game','scheduled_restart','restart_mode','restart_times','restart_interval','maintenance_backup','backup_keep','crash_recovery','rcon_config','local_scan_root','autostart'}
 
 
 def offline_job(fn):
@@ -94,7 +94,7 @@ class HostEngine:
                     if p.get(key)!=pair.get('before'):raise ValueError('Oppsettet er endret fra en annen klient. Last inn på nytt.')
                     if key in boolean and not isinstance(pair['after'],bool):raise ValueError(key+' må være av/på.')
                     candidate[key]=pair['after']
-                if any(k in {'name','root','steamcmd','steam_user','login_mode','workshop','config','profiles','port','mods','mission','auto_firewall','query_enabled'} for k in change['fields']) and (self.manager.running(p) or p['id'] in self.manager.busy):raise ValueError('Stopp serveren før du endrer serveroppsett.')
+                if any(k in {'name','root','steamcmd','steam_user','login_mode','workshop','config','profiles','port','mods','mission','extra_args','auto_firewall','query_enabled'} for k in change['fields']) and (self.manager.running(p) or p['id'] in self.manager.busy):raise ValueError('Stopp serveren før du endrer serveroppsett.')
                 if candidate['root']:validate(candidate)
                 if candidate.get('restart_mode','clock') not in ('clock','interval'):raise ValueError('Ukjent restartplan.')
                 next_restart(candidate)

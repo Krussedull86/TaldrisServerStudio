@@ -24,7 +24,25 @@ class SuiteStudio(OperationsStudio):
             b=button(title,lambda checked=False,n=index:self.go(n),'nav');b.setCheckable(True);side.insertWidget(side.count()-4,b);self.nav.append(b)
         self.setStyleSheet('QPushButton#nav {padding-top:7px;padding-bottom:7px;}');self.load_host_settings()
         self.stack.widget(10).layout().insertWidget(0,button('Installer programmet på denne PC-en',lambda:self.guard(self.install_application),'primary'))
+        for page in (7,8):self.stack.widget(page).layout().insertWidget(0,button('Importer eksisterende server fra BAT / CMD …',lambda:self.guard(self.import_batch_file),'primary'))
         self.statusBar().showMessage('Tilkoblet bakgrunnsagent • Serverne styres uavhengig av programvinduet')
+    def import_batch_file(self):
+        path,_=QFileDialog.getOpenFileName(self,'Importer eksisterende server','','Startskript (*.bat *.cmd)')
+        if not path:return
+        from batch_import_ui import BatchImportDialog
+        dialog=BatchImportDialog(self,path)
+        if dialog.exec() and dialog.result_profile:
+            identity=dialog.result_profile['id'];self.config_cache.pop(identity,None)
+            if self.center_server==identity:self.center.doc=None;self.center_server=None
+            if hasattr(self.workbench,'cache'):self.workbench.cache.pop(identity,None)
+            if self.workbench.server_id==identity:self.workbench.layers=[];self.workbench.server_id=None
+            self.p=dialog.result_profile;self.load();self.go(7);self.events.put('Eksisterende serverprofil importert fra BAT. Ingen serverfiler er endret.')
+    def check_import_target(self,identity):
+        if not identity:return
+        self.center.sync();docs=[self.config_cache.get(identity)]
+        if self.center_server==identity:docs.append(self.center.doc)
+        layers=self.workbench.layers if self.workbench.server_id==identity else getattr(self.workbench,'cache',{}).get(identity,[])
+        if any(doc and doc.dirty for doc in docs) or any(layer['doc'].dirty for layer in layers):raise ValueError('Lagre eller forkast kart- og konfigurasjonsendringer for denne profilen før import.')
     def load(self):
         super().load()
         if hasattr(self,'rcon_path'):self.rcon_path.setText(self.p.get('rcon_config',''))

@@ -1,5 +1,5 @@
 """Taldris Server Studio — native Qt desktop interface."""
-import sys, os, json, queue, time, shutil, uuid
+import sys, os, json, queue, time, shutil, uuid, subprocess
 from pathlib import Path
 from PySide6.QtCore import Qt, QTimer, QRectF
 from PySide6.QtGui import QColor, QPainter, QPen, QBrush, QPixmap, QDesktopServices, QFont
@@ -234,6 +234,7 @@ class Studio(QMainWindow):
             row=QWidget(); r=QHBoxLayout(row); r.setContentsMargins(0,0,0,0); v=QLineEdit(); self.fields[key]=v; r.addWidget(v)
             if key in ['root','steamcmd','workshop']:r.addWidget(button('Velg …',lambda checked=False,k=key:self.browse(k)))
             form.addRow(title,row)
+        self.extra_start_args=QLineEdit();form.addRow('Ekstra startvalg',self.extra_start_args)
         self.firewall_auto=QCheckBox('Opprett Windows-brannmurregler automatisk ved serverstart'); form.addRow('',self.firewall_auto)
         self.local_test=QCheckBox('Lokal test – start uten krav om Steam Query');form.addRow('',self.local_test)
         form.addRow('',label('Hopper over krav om query-port og query-overvåking. Koble direkte til spillporten. Dette sperrer ikke nettverkstilgang.','muted'))
@@ -246,11 +247,14 @@ class Studio(QMainWindow):
         self.editable(); candidate=dict(self.p)
         for k,v in self.fields.items():candidate[k]=v.text().strip()
         for k in ['port','map_size']:candidate[k]=int(candidate[k])
+        from batch_import import tokenize
+        candidate['extra_args']=[value for value,_ in tokenize(self.extra_start_args.text())]
         candidate['auto_firewall']=self.firewall_auto.isChecked();candidate['query_enabled']=not self.local_test.isChecked()
         validate(candidate); self.p.update(candidate); self.manager.save(); self.load(); self.events.put('Serveroppsett lagret.')
     def load(self):
         self.selector.blockSignals(True); self.selector.clear(); self.selector.addItems([p['name'] for p in self.manager.state['servers']]); self.selector.setCurrentIndex(self.manager.state['servers'].index(self.p)); self.selector.blockSignals(False)
         for k,v in self.fields.items():v.setText(str(self.p[k]))
+        self.extra_start_args.setText(subprocess.list2cmdline(self.p.get('extra_args',[])))
         self.firewall_auto.setChecked(self.p.get('auto_firewall',True));self.local_test.setChecked(not self.p.get('query_enabled',True))
         self.auto.setChecked(self.p['auto_update']); self.interval.setText(str(self.p['update_minutes'])); self.server_title.setText(self.p['name']); self.refresh_mods(); self.refresh_map(); self.guard(self.read_config); self.refresh_backups(); self.tick()
     def select(self,i):
