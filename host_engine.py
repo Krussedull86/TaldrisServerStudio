@@ -212,6 +212,18 @@ class HostEngine:
             result=self.rcon(p,text)
             if action in ('ban','unban'):self.rcon(p,'writeBans')
             return result or 'RCon bekreftet kommandoen.'
+        if action in ('program_start','program_stop','program_restart'):
+            with self.manager.lock:
+                if p['id'] in self.manager.busy:raise ValueError('Vent til serverjobben er ferdig.')
+                program=next((copy.deepcopy(x) for x in p.get('programs',[]) if x['id']==params.get('program_id')),None)
+                if program is None:raise ValueError('Programmet finnes ikke i denne serverprofilen. Lagre EXE-listen først.')
+                self.manager.busy.add(p['id'])
+            try:
+                self.log('EXE '+action+' • '+p['name']+' • '+program['path'])
+                result=self.companions.control(program,action.removeprefix('program_'),self.log,self.stop_event)
+                self.program_runtime[p['id']]=self.companions.statuses(p.get('programs',[]));return result
+            finally:
+                with self.manager.lock:self.manager.busy.discard(p['id'])
         if action=='program_status':
             result=self.companions.statuses(p.get('programs',[]));self.program_runtime[p['id']]=result;return result
         if action=='rotate_logs':return self.rotate_logs(p)

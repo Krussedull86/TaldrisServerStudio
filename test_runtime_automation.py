@@ -49,6 +49,19 @@ class CompanionTests(unittest.TestCase):
             self.supervisor.ensure([self.p],'start',lambda s:None,self.stop);spawn.assert_not_called()
             with self.assertRaises(ValueError):self.supervisor.ensure([self.p],'restart',lambda s:None,self.stop)
             self.p['required']=False;self.supervisor.ensure([self.p],'restart',lambda s:None,self.stop)
+    def test_manual_stop_revalidates_full_identity(self):
+        process=Mock();process.exe.return_value=self.p['path'];process.cmdline.return_value=[self.p['path'],'--config','file with spaces.json']
+        with patch.object(self.supervisor,'inspect',return_value=dict(id='tool',name='Bridge',status='running',pids=[99])),patch('companion_programs.psutil.Process',return_value=process):
+            self.supervisor.control(self.p,'stop',lambda s:None,self.stop)
+        process.terminate.assert_called_once();process.wait.assert_called_once_with(timeout=15)
+        process.reset_mock();process.exe.return_value=str(self.root/'other.exe')
+        with patch.object(self.supervisor,'inspect',return_value=dict(id='tool',name='Bridge',status='running',pids=[99])),patch('companion_programs.psutil.Process',return_value=process):
+            with self.assertRaises(ValueError):self.supervisor.control(self.p,'stop',lambda s:None,self.stop)
+        process.terminate.assert_not_called()
+    def test_manual_start_overrides_automatic_disable(self):
+        with patch.object(self.supervisor,'ensure') as ensure,patch.object(self.supervisor,'inspect',return_value=dict(status='stopped',pids=[])):
+            self.supervisor.control(dict(self.p,enabled=False,on_start=False),'start',lambda s:None,self.stop)
+        self.assertTrue(ensure.call_args.args[0][0]['enabled']);self.assertTrue(ensure.call_args.args[0][0]['on_start'])
     def test_validation_rejects_shell_or_relative_executable(self):
         with self.assertRaises(ValueError):validate_runtime({'programs':[dict(self.p,path='relative.exe')]})
         with self.assertRaises(ValueError):validate_runtime({'programs':[dict(self.p,path=str(self.root/'cmd.bat'))]})
@@ -100,7 +113,7 @@ class RuntimeUITests(unittest.TestCase):
         from PySide6.QtCore import Qt
         from runtime_tools_ui import RuntimeTools,ProgramDialog
         with tempfile.TemporaryDirectory() as folder:
-            root=Path(folder).resolve();studio=QWidget();studio.p={'id':'p'};widget=RuntimeTools(studio);widget.load(dict(id='p',programs=[program(root)]));widget.table.item(0,0).setCheckState(Qt.Unchecked);widget.update_status([dict(id='tool',status='running',pids=[42])]);self.assertFalse(widget.values()['programs'][0]['enabled']);self.assertIn('42',widget.table.item(0,4).text())
+            root=Path(folder).resolve();studio=QWidget();studio.p={'id':'p','name':'Test'};studio.manager=Mock();studio.manager.state={'servers':[studio.p]};studio.guard=lambda fn:fn();widget=RuntimeTools(studio);widget.load(dict(id='p',programs=[program(root)]));widget.table.item(0,0).setCheckState(Qt.Unchecked);widget.update_status([dict(id='tool',status='running',pids=[42])]);self.assertFalse(widget.values()['programs'][0]['enabled']);self.assertIn('42',widget.table.item(0,4).text())
             dialog=ProgramDialog(widget)
             with patch.object(QFileDialog,'getOpenFileName',return_value=(str(root/'Bridge.exe'),'')):dialog.choose_exe()
             self.assertEqual(dialog.values()['path'],str(root/'Bridge.exe'));widget.deleteLater();dialog.deleteLater();studio.deleteLater()
@@ -112,7 +125,7 @@ class WindowsCompanionIntegrationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             p=program(Path(folder).resolve());p.update(path=sys.executable,args='-c "import time; time.sleep(20)"');supervisor=CompanionPrograms()
             try:
-                supervisor.ensure([p],'start',lambda s:None,threading.Event());first=list(supervisor.launched.values());self.assertEqual(len(first),1);supervisor.ensure([p],'restart',lambda s:None,threading.Event());self.assertEqual(len(supervisor.launched),1);self.assertIs(list(supervisor.launched.values())[0],first[0]);self.assertIsNone(first[0].poll())
+                supervisor.ensure([p],'start',lambda s:None,threading.Event());first=list(supervisor.launched.values());self.assertEqual(len(first),1);supervisor.ensure([p],'restart',lambda s:None,threading.Event());self.assertEqual(len(supervisor.launched),1);self.assertIs(list(supervisor.launched.values())[0],first[0]);self.assertIsNone(first[0].poll());supervisor.control(p,'restart',lambda s:None,threading.Event());self.assertIsNotNone(first[0].poll());self.assertEqual(supervisor.inspect(p)['status'],'running');supervisor.control(p,'stop',lambda s:None,threading.Event());self.assertEqual(supervisor.inspect(p)['status'],'stopped')
             finally:
                 for proc in supervisor.launched.values():
                     if proc.poll() is None:proc.terminate();proc.wait(timeout=10)
