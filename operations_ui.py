@@ -5,7 +5,7 @@ from pathlib import Path
 import time
 import psutil
 from PySide6.QtCore import QTimer
-from PySide6.QtWidgets import QCheckBox,QLineEdit,QComboBox,QScrollArea,QWidget,QVBoxLayout,QFormLayout
+from PySide6.QtWidgets import QCheckBox,QLineEdit,QComboBox,QScrollArea,QWidget,QVBoxLayout,QFormLayout,QSpinBox
 from desktop import card,label,button
 from integration import Task
 from update_ui import ReleaseStudio
@@ -28,7 +28,9 @@ class OperationsStudio(ReleaseStudio):
         f,c=card('MODS OG SERVEROPPDATERINGER','Workshop sjekkes mens serveren kjører. Oppdateringer installeres etter planlagt avslutning eller når serveren allerede er stoppet. Lokale utviklermods lastes aldri ned fra Workshop.')
         self.auto=QCheckBox('Aktiver automatiske Steam-oppdateringer (Workshop-mods)'); c.addWidget(self.auto)
         self.op_game=QCheckBox('Oppdater også DayZ-serverfiler i vedlikeholdet'); c.addWidget(self.op_game)
-        form=QFormLayout(); self.interval=QLineEdit('30'); form.addRow('Sjekkintervall, minutter',self.interval); c.addLayout(form); inner.addWidget(f)
+        form=QFormLayout(); self.interval=QLineEdit('30'); form.addRow('Sjekkintervall, minutter',self.interval);self.mod_restart=QCheckBox('Varslet restart når en Workshop-mod får oppdatering');form.addRow('',self.mod_restart);self.mod_grace=QSpinBox();self.mod_grace.setRange(1,1440);self.mod_grace.setValue(15);form.addRow('Ventetid før modrestart, minutter',self.mod_grace); c.addLayout(form); inner.addWidget(f)
+        from runtime_tools_ui import RuntimeTools
+        self.runtime_tools=RuntimeTools(self);inner.addWidget(self.runtime_tools)
         f,c=card('RESTARTPLAN','DayZ bruker messages.xml til spillervarsler, lagring og avslutning. Planendringer gjelder fra neste serverstart. Klokkeslett følger Windows sin lokale tid.')
         self.op_schedule=QCheckBox('Aktiver planlagt restart'); c.addWidget(self.op_schedule)
         form=QFormLayout(); self.op_mode=QComboBox(); self.op_mode.addItems(['Faste klokkeslett','Intervall fra serverstart']); form.addRow('Plan',self.op_mode)
@@ -40,7 +42,7 @@ class OperationsStudio(ReleaseStudio):
         c.addWidget(button('Lagre driftsoppsett',self.action(self.save_operations),'primary')); inner.addWidget(f)
         inner.addWidget(button('Kjør vedlikehold nå (server må være stoppet)',self.action(self.manual_maintenance)))
         self.op_status=label('Ingen driftshendelser registrert.','muted'); inner.addWidget(self.op_status)
-        inner.addWidget(label('Panelet må kjøre for automatisk oppstart og vedlikehold. Steam kan kreve ny innlogging eller Steam Guard. Ved oppdateringsfeil forblir serveren stoppet, og feilen vises i loggen. Ingen automatisk tvungen stopp eller wipe.','muted'))
+        inner.addWidget(label('Bakgrunnsagenten utfører vedlikehold og restart uten åpent programvindu. Steam kan kreve ny innlogging eller Steam Guard. Ved oppdateringsfeil forblir serveren stoppet, og feilen vises i loggen. Ingen automatisk tvungen stopp eller wipe.','muted'))
         inner.addStretch(); scroll.setWidget(content); layout.addWidget(scroll)
     def manual_maintenance(self):
         if self.manager.running(self.p):raise ValueError('Serveren kjører. Vent til planlagt restart for trygg avslutning.')
@@ -50,12 +52,15 @@ class OperationsStudio(ReleaseStudio):
         super().load()
         if hasattr(self,'op_schedule'):self.load_operations()
     def load_operations(self):
-        p=self.p; self.op_game.setChecked(p.get('update_game',True)); self.op_schedule.setChecked(p.get('scheduled_restart',False)); self.op_mode.setCurrentIndex(0 if p.get('restart_mode','clock')=='clock' else 1)
+        p=self.p;self.mod_restart.setChecked(p.get('mod_restart_enabled',False));self.mod_grace.setValue(p.get('mod_grace_minutes',15));self.runtime_tools.load(p); self.op_game.setChecked(p.get('update_game',True)); self.op_schedule.setChecked(p.get('scheduled_restart',False)); self.op_mode.setCurrentIndex(0 if p.get('restart_mode','clock')=='clock' else 1)
         self.op_times.setText(p.get('restart_times','00:00, 06:00, 12:00, 18:00')); self.op_minutes.setText(str(p.get('restart_interval',240))); self.op_backup.setChecked(p.get('maintenance_backup',True)); self.op_keep.setText(str(p.get('backup_keep',10))); self.op_recover.setChecked(p.get('crash_recovery',False))
     def save_operations(self):
         p=self.p
         if p['id'] in self.manager.busy:raise ValueError('Vent til vedlikeholdet er ferdig.')
-        candidate=dict(p,auto_update=self.auto.isChecked(),update_minutes=int(self.interval.text()),update_game=self.op_game.isChecked(),scheduled_restart=self.op_schedule.isChecked(),restart_mode='clock' if self.op_mode.currentIndex()==0 else 'interval',restart_times=self.op_times.text().strip(),restart_interval=int(self.op_minutes.text()),maintenance_backup=self.op_backup.isChecked(),backup_keep=int(self.op_keep.text()),crash_recovery=self.op_recover.isChecked())
+        candidate=dict(p,auto_update=self.auto.isChecked(),update_minutes=int(self.interval.text()),update_game=self.op_game.isChecked(),scheduled_restart=self.op_schedule.isChecked(),restart_mode='clock' if self.op_mode.currentIndex()==0 else 'interval',restart_times=self.op_times.text().strip(),restart_interval=int(self.op_minutes.text()),maintenance_backup=self.op_backup.isChecked(),backup_keep=int(self.op_keep.text()),crash_recovery=self.op_recover.isChecked(),mod_restart_enabled=self.mod_restart.isChecked(),mod_grace_minutes=self.mod_grace.value())
+        candidate.update(self.runtime_tools.values())
+        from runtime_tools import validate_runtime
+        validate_runtime(candidate)
         if not 5<=candidate['update_minutes']<=10080:raise ValueError('Oppdateringssjekk må være 5–10080 minutter.')
         if not 1<=candidate['backup_keep']<=100:raise ValueError('Behold 1–100 automatiske backuper.')
         restart_times(candidate['restart_times']); next_restart(candidate)

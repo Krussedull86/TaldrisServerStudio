@@ -5,7 +5,7 @@ from host_security import load_secrets
 
 PERMISSIONS={
  'status':'read','players':'read','bans':'moderate','start':'control','stop':'control','restart':'control','cancel_restart':'control','lock':'control','unlock':'control','say':'moderate','kick':'moderate','ban':'moderate','unban':'moderate',
- 'mods':'read','backups':'maintenance','files':'owner','file_history':'owner','file_restore':'owner','logs':'read','schedule_set':'config','workshop_search':'read','local_mod_scan':'owner','local_mod_add':'owner','mod_collection':'config','backup':'maintenance','restore':'owner','rollback_mods':'maintenance','maintenance':'maintenance','steam':'maintenance','check_mods':'read','mod_add':'config','mod_remove':'config','mod_mode':'config','mod_move':'config','document_save':'owner','list_add':'config','clone':'owner','force_stop':'owner','program_prepare':'owner'}
+ 'mods':'read','backups':'maintenance','files':'owner','file_history':'owner','file_restore':'owner','logs':'read','schedule_set':'config','workshop_search':'read','local_mod_scan':'owner','local_mod_add':'owner','mod_collection':'config','backup':'maintenance','restore':'owner','rollback_mods':'maintenance','maintenance':'maintenance','steam':'maintenance','check_mods':'read','mod_add':'config','mod_remove':'config','mod_mode':'config','mod_move':'config','document_save':'owner','list_add':'config','clone':'owner','force_stop':'owner','program_prepare':'owner','program_status':'read','rotate_logs':'maintenance'}
 DANGEROUS={'file_restore','restore','force_stop','rollback_mods','ban','unban','document_save','mod_remove','clone','program_prepare'}
 
 

@@ -10,7 +10,7 @@ from steam_status import plain_terminal
 from process_registry import save_processes
 from rcon_client import server_command
 
-EDITABLE={'name','root','steamcmd','steam_user','login_mode','workshop','config','profiles','port','mods','markers','map_size','map_image','extra_args','auto_firewall','query_enabled','auto_update','update_minutes','mission','max_players','start_after_install','update_game','scheduled_restart','restart_mode','restart_times','restart_interval','maintenance_backup','backup_keep','crash_recovery','rcon_config','local_scan_root','autostart'}
+EDITABLE={'name','root','steamcmd','steam_user','login_mode','workshop','config','profiles','port','mods','markers','map_size','map_image','extra_args','auto_firewall','query_enabled','auto_update','update_minutes','mission','max_players','start_after_install','update_game','scheduled_restart','restart_mode','restart_times','restart_interval','maintenance_backup','backup_keep','crash_recovery','rcon_config','local_scan_root','autostart','programs','log_rotation_enabled','log_keep_days','log_keep_archives','log_max_mb','mod_restart_enabled','mod_grace_minutes'}
 
 
 def offline_job(fn):
@@ -29,7 +29,9 @@ def offline_job(fn):
 class HostEngine:
     def __init__(self,home,service=False):
         self.home=Path(home);self.home.mkdir(parents=True,exist_ok=True);self.service=service;self.events=deque(maxlen=1000);self.event_id=0;self.event_lock=threading.RLock();self.secrets=[];self.manager=Manager(self.home,self.log)
-        self.jobs={};self.queue=queue.Queue();self.stop_event=threading.Event();self.worker=None;self.schedule_thread=None;self.console='';self.pty=None;self.secrets=[];self.steam_profile=None;self.check_due={};self.retries={};self.crashes={};self.health={};self.health_due={};self.metric_procs={};self.rcon_locks={};self.pending_upgrade_exe=None;self.fast_threads=[];self.pending_keys=set();self.pending_lock=threading.Lock();self.discord=None
+        self.jobs={};self.queue=queue.Queue();self.stop_event=threading.Event();self.worker=None;self.schedule_thread=None;self.console='';self.pty=None;self.secrets=[];self.steam_profile=None;self.check_due={};self.retries={};self.crashes={};self.health={};self.health_due={};self.metric_procs={};self.rcon_locks={};self.pending_upgrade_exe=None;self.fast_threads=[];self.program_due={};self.program_runtime={};self.pending_keys=set();self.pending_lock=threading.Lock();self.discord=None
+        from companion_programs import CompanionPrograms
+        self.companions=CompanionPrograms()
         for p in self.manager.state['servers']:
             if p['root'] and (Path(p['root'])/'.taldris-restore.json').exists():
                 try:
@@ -66,7 +68,7 @@ class HostEngine:
         with self.manager.lock:
             runtime={}
             for p in self.manager.state['servers']:
-                record=self.manager.launches.get(p['id']);running=self.manager.running(p);entry=dict(running=running,busy=p['id'] in self.manager.busy,health=self.health.get(p['id'],{}))
+                record=self.manager.launches.get(p['id']);running=self.manager.running(p);entry=dict(running=running,busy=p['id'] in self.manager.busy,health=self.health.get(p['id'],{}),programs=self.program_runtime.get(p['id'],[]))
                 if record:
                     entry['launch']={k:v for k,v in record.items() if k not in ('proc','baseline')}
                     if entry['health'].get('checked',0)<record['started_wall']:entry['health']={'responding':False}
@@ -84,7 +86,7 @@ class HostEngine:
             return dict(version=VERSION,build=BUILD,state=state,runtime=runtime,events=events,event_id=self.event_id,jobs=[j for j in self.jobs.values() if j['status'] in ('queued','running')]+[j for j in self.jobs.values() if j['status'] not in ('queued','running')][-50:],console=self.redact(plain_terminal(self.console[-100000:])),steam_profile=self.steam_profile,service=self.service)
     def patch_state(self,changes):
         from server_schedule import next_restart
-        boolean={'auto_firewall','query_enabled','auto_update','start_after_install','update_game','scheduled_restart','maintenance_backup','crash_recovery','autostart'}
+        boolean={'auto_firewall','query_enabled','auto_update','start_after_install','update_game','scheduled_restart','maintenance_backup','crash_recovery','autostart','log_rotation_enabled','mod_restart_enabled'}
         prepared=[]
         with self.manager.lock:
             for change in changes:
@@ -95,12 +97,18 @@ class HostEngine:
                     if key in boolean and not isinstance(pair['after'],bool):raise ValueError(key+' må være av/på.')
                     candidate[key]=pair['after']
                 if any(k in {'name','root','steamcmd','steam_user','login_mode','workshop','config','profiles','port','mods','mission','extra_args','auto_firewall','query_enabled'} for k in change['fields']) and (self.manager.running(p) or p['id'] in self.manager.busy):raise ValueError('Stopp serveren før du endrer serveroppsett.')
+                from runtime_tools import validate_runtime
+                validate_runtime(candidate)
+                if 'programs' in change['fields'] and p['id'] in self.manager.busy:raise ValueError('Vent til serverjobben er ferdig før EXE-listen endres.')
                 if candidate['root']:validate(candidate)
                 if candidate.get('restart_mode','clock') not in ('clock','interval'):raise ValueError('Ukjent restartplan.')
                 next_restart(candidate)
                 if not 1<=int(candidate.get('backup_keep',10))<=100:raise ValueError('Behold 1–100 backuper.')
                 prepared.append((p,candidate))
-            for p,candidate in prepared:p.update(candidate)
+            for p,candidate in prepared:
+                p.update(candidate)
+                request=p.get('shutdown_request')
+                if request and request.get('source')=='mod_update' and request['phase']=='countdown' and (not p.get('auto_update') or not p.get('mod_restart_enabled')):p.pop('shutdown_request',None);p['mod_restart_note']='Automatisk modrestart slått av.';self.log(p['name']+': automatisk modrestart avbrutt fordi innstillingen ble slått av.')
             self.manager.save()
         return True
     def remove_profile(self,key,expected):
@@ -118,7 +126,7 @@ class HostEngine:
             self.manager.state=state
             try:self.manager.save()
             except Exception:self.manager.state=original;raise
-            for mapping in (self.manager.procs,self.manager.launches,self.check_due,self.retries,self.crashes,self.health,self.health_due,self.rcon_locks):mapping.pop(key,None)
+            for mapping in (self.manager.procs,self.manager.launches,self.check_due,self.retries,self.crashes,self.health,self.health_due,self.rcon_locks,self.program_runtime,self.program_due):mapping.pop(key,None)
             try:save_processes(self.manager)
             except OSError as error:self.log('Prosessregisteret kunne ikke oppdateres etter profilsletting: '+str(error))
             self.log('Windows-panel: serverprofil slettet • '+p['name']+' • '+key+'. Serverfiler, mods, backup og verdensdata er beholdt.')
@@ -135,7 +143,7 @@ class HostEngine:
             self.pending_keys.add(key)
         job=dict(id=uuid.uuid4().hex,action=action,server=p['id'] if p else '',actor=str(actor),status='queued',created=time.time())
         self.jobs[job['id']]=job
-        if action in {'start','force_stop','restart','stop','cancel_restart','players','bans','lock','unlock','say','kick','ban','unban'}:
+        if action in {'start','force_stop','restart','stop','cancel_restart','players','bans','lock','unlock','say','kick','ban','unban','program_status'}:
             thread=threading.Thread(target=self.perform,args=(job,params or {},key),daemon=True);self.fast_threads=[t for t in self.fast_threads if t.is_alive()];self.fast_threads.append(thread);thread.start()
         else:self.queue.put((job,params or {},key))
         return copy.deepcopy(job)
@@ -176,7 +184,7 @@ class HostEngine:
     def execute(self,action,server,params):
         p=self.profile(server) if server else None
         if action=='start':
-            self.retries.pop(p['id'],None);self.manager.start(p);p['desired_running']=True;self.manager.save();return 'Serverprosess startet. Kontroller serverstatus og RPT.'
+            self.retries.pop(p['id'],None);self.start_server(p,params.get('reason','start'));p['desired_running']=True;self.manager.save();return 'Serverprosess startet. Kontroller serverstatus og RPT.'
         if action=='force_stop':
             p['desired_running']=False;p.pop('shutdown_request',None);self.retries.pop(p['id'],None);self.manager.force_stop(p);self.manager.save();return 'Tvungen stopp sendt.'
         if action in ('restart','stop'):
@@ -190,7 +198,9 @@ class HostEngine:
             with self.rcon_locks.setdefault(p['id'],threading.RLock()):
                 request=p.get('shutdown_request')
                 if not request or request['phase']!='countdown':raise ValueError('Ingen nedtelling kan avbrytes.')
-                self.rcon(p,'say -1 Scheduled restart/shutdown cancelled.');p.pop('shutdown_request',None);self.manager.save();return 'Nedtelling avbrutt.'
+                self.rcon(p,'say -1 Scheduled restart/shutdown cancelled.');
+                if request.get('source')=='mod_update':p['mod_restart_snooze_until']=time.time()+max(5,int(p['update_minutes']))*60;p['mod_restart_note']='Modrestart avbrutt; vurderes ved en senere modsjekk.'
+                p.pop('shutdown_request',None);self.manager.save();return 'Nedtelling avbrutt.'
         if action in ('players','bans','lock','unlock','say','kick','ban','unban'):
             text={'players':'players','bans':'bans','lock':'#lock','unlock':'#unlock'}.get(action)
             if action=='say':text='say -1 '+str(params.get('message',''))
@@ -202,6 +212,9 @@ class HostEngine:
             result=self.rcon(p,text)
             if action in ('ban','unban'):self.rcon(p,'writeBans')
             return result or 'RCon bekreftet kommandoen.'
+        if action=='program_status':
+            result=self.companions.statuses(p.get('programs',[]));self.program_runtime[p['id']]=result;return result
+        if action=='rotate_logs':return self.rotate_logs(p)
         if action=='mods':return [{'index':i,**{key:m.get(key) for key in ('folder','id','title','enabled','load_mode','source','installed_updated','remote_updated')}} for i,m in enumerate(p['mods'])]
         if action=='backups':return [{'archive':f.name,'size_mb':round(f.stat().st_size/1024**2,2),'created':f.stat().st_mtime} for f in sorted((self.home/'backups'/p['id']).glob('*.zip'),reverse=True)]
         if action=='files':return catalog(p)
@@ -220,7 +233,7 @@ class HostEngine:
             path=max(files,key=lambda f:f.stat().st_mtime)
             with path.open('rb') as file:file.seek(max(0,path.stat().st_size-16000));return self.redact(file.read().decode('utf-8',errors='replace'))
         if action=='schedule_set':
-            allowed={'scheduled_restart','restart_mode','restart_times','restart_interval','auto_update','update_minutes','update_game','crash_recovery','maintenance_backup','backup_keep','autostart'}
+            allowed={'scheduled_restart','restart_mode','restart_times','restart_interval','auto_update','update_minutes','update_game','crash_recovery','maintenance_backup','backup_keep','autostart','mod_restart_enabled','mod_grace_minutes','log_rotation_enabled','log_keep_days','log_keep_archives','log_max_mb'}
             if set(params)-allowed:raise ValueError('Ukjent driftsinnstilling.')
             self.patch_state([{'id':p['id'],'fields':{k:{'before':p.get(k),'after':v} for k,v in params.items()}}]);return 'Driftsoppsettet er lagret. Native restartplaner gjelder fra neste serverstart.'
         if action=='workshop_search':
@@ -285,6 +298,50 @@ class HostEngine:
             if params.get('install',True):self.pending_upgrade_exe=exe
             return 'Programutgaven er klargjort. Agenten installerer den når jobbene er ferdig, uten å stoppe DayZ. Tilkoblede paneler bytter også utgave.'
         raise ValueError('Ukjent handling: '+action)
+    def start_server(self,p,reason='start'):
+        if reason not in ('start','restart'):raise ValueError('Ukjent oppstartstype.')
+        from runtime_tools import validate_runtime
+        validate_runtime(p)
+        hooks=p.get('log_rotation_enabled') or any(x.get('enabled',True) and x.get('on_restart' if reason=='restart' else 'on_start',True) for x in p.get('programs',[]))
+        if not hooks:self.manager.start(p);p.pop('shutdown_request',None);return
+        with self.manager.lock:
+            if self.manager.running(p) or p['id'] in self.manager.busy:raise ValueError('Serveren kjører eller har en jobb på gang.')
+            if not (Path(p['root'])/'DayZServer_x64.exe').is_file() or not local_path(p['root'],p['config']).is_file():raise ValueError('Serverens EXE eller konfigurasjon mangler.')
+            self.manager.busy.add(p['id'])
+        try:
+            if p.get('log_rotation_enabled'):self.rotate_logs(p,starting=True)
+            self.companions.ensure(p.get('programs',[]),reason,self.log,self.stop_event)
+            if self.stop_event.is_set():raise ValueError('Agenten avsluttes. Serverstart avbrutt.')
+            with self.manager.lock:
+                self.manager.busy.discard(p['id']);self.manager.start(p);p.pop('shutdown_request',None)
+        finally:
+            with self.manager.lock:self.manager.busy.discard(p['id'])
+    def rotate_logs(self,p,starting=False):
+        from log_rotation import rotate
+        from shared_servers import overlaps
+        with self.manager.lock:
+            if not p.get('root'):raise ValueError('Velg servermappe først.')
+            if self.manager.running(p) or (p['id'] in self.manager.busy and not starting):raise ValueError('Stopp serveren og vent til jobben er ferdig før loggrotasjon.')
+            source=local_path(p['root'],p['profiles'])
+            if any(q['id']!=p['id'] and self.manager.running(q) and q.get('root') and overlaps(source,local_path(q['root'],q['profiles'])) for q in self.manager.state['servers']):raise ValueError('En annen aktiv server bruker loggmappen.')
+            if not starting:self.manager.busy.add(p['id'])
+        try:return rotate(p,self.home,self.log)
+        finally:
+            if not starting:
+                with self.manager.lock:self.manager.busy.discard(p['id'])
+    def maybe_mod_restart(self,p,titles):
+        if not titles or not p.get('auto_update') or not p.get('mod_restart_enabled') or not self.manager.running(p):return
+        now=time.time()
+        if now<p.get('mod_restart_snooze_until',0):return
+        with self.rcon_locks.setdefault(p['id'],threading.RLock()):
+            if p.get('shutdown_request') or not p.get('auto_update') or not p.get('mod_restart_enabled'):return  # Never replace/reset an existing countdown.
+            record=self.manager.launches.get(p['id'],{});minutes=p.get('mod_grace_minutes',15)
+            if record.get('restart_due') and record['restart_due']<=now+minutes*60:return
+            shared=any(q['id']!=p['id'] and self.manager.running(q) and Path(q['root']).resolve()==Path(p['root']).resolve() for q in self.manager.state['servers'])
+            if shared:p['mod_restart_note']='Modoppdatering venter: en annen server bruker samme installasjon.';self.log(p['name']+': '+p['mod_restart_note']);return
+            try:self.rcon(p,'say -1 Workshop mod update available. Server restart in '+str(minutes)+' minutes. Please find a safe place.')
+            except (OSError,ValueError) as error:p['mod_restart_note']='Automatisk modrestart venter på fungerende RCon.';self.log(p['name']+': '+p['mod_restart_note']+' '+self.redact(error));return
+            p['shutdown_request']=dict(deadline=now+minutes*60,restart=True,phase='countdown',announced=[minutes],source='mod_update');p['mod_restart_note']='Modrestart varslet.';self.log(p['name']+': modoppdatering funnet. Varslet restart om '+str(minutes)+' minutter.')
     @offline_job
     def bootstrap(self,p):
         from steam_services import install_steamcmd
@@ -301,7 +358,8 @@ class HostEngine:
                     if mod.get('id')==item['id']:
                         mod['remote_updated']=item['updated']
                         if not mod.get('installed_updated') or item['updated']>mod['installed_updated']:new.append(item['title'])
-            p['mods_pending']=bool(new);self.manager.save()
+            p['mods_pending']=bool(new);p['mods_pending_titles']=list(dict.fromkeys(new))
+        self.maybe_mod_restart(p,new);self.manager.save()
         return new
     def steam(self,p,kind='all',ids=None,chained=False,backup=True):
         self.editable(p)
@@ -364,7 +422,7 @@ class HostEngine:
             shared=any(q['id']!=p['id'] and self.manager.running(q) and Path(q['root']).resolve()==Path(p['root']).resolve() for q in self.manager.state['servers'])
             if shared:
                 if self.manager.running(p) or p['id'] in self.manager.busy:raise ValueError('Stopp denne serveren før vedlikehold.')
-                if restart:self.manager.start(p)
+                if restart:self.start_server(p,'restart')
                 p.update(maintenance_state='idle',maintenance_deferred=True);self.manager.save();self.log(p['name']+': backup og filoppdateringer er utsatt fordi en annen server bruker samme mappe. Andre servere stoppes ikke.');return 'Filvedlikehold utsatt; serveren er startet igjen.' if restart else 'Filvedlikehold utsatt til de andre serverne er stoppet.'
         self.editable(p);p['maintenance_deferred']=False;p.update(maintenance_state='backup',maintenance_error='');self.manager.save()
         try:
@@ -378,8 +436,8 @@ class HostEngine:
             if p.get('auto_update'):
                 kind='all' if p.get('update_game',True) else 'mods'
                 if kind=='all' or any(m.get('id') and m.get('enabled',True) for m in p['mods']):p['maintenance_state']='steam';self.steam(p,kind,backup=False)
-            p.update(maintenance_state='idle',mods_pending=False);self.manager.save()
-            if restart:self.manager.start(p)
+            p.update(maintenance_state='idle',mods_pending=False,mods_pending_titles=[],mod_restart_note='');self.manager.save()
+            if restart:self.start_server(p,'restart')
             return 'Vedlikehold fullført.'
         except Exception as error:p.update(maintenance_state='failed',maintenance_error=self.redact(error));self.manager.save();raise
     @offline_job
@@ -481,6 +539,8 @@ class HostEngine:
                 else:self.log(p['name']+': krasjgjenstart blokkert etter 3 forsøk på 15 minutter.')
         for p in self.manager.state['servers']:
             key=p['id'];running=self.manager.running(p);request=p.get('shutdown_request')
+            if p.get('programs') and now>=self.program_due.get(key,0):
+                self.program_due[key]=now+15;self.program_runtime[key]=self.companions.statuses(p['programs'])
             if not p.get('query_enabled',True):self.health[key]={'responding':False,'disabled':True,'checked':now}
             elif running and now>=self.health_due.get(key,0):
                 self.health_due[key]=now+15
@@ -500,11 +560,11 @@ class HostEngine:
                             try:self.rcon(p,'#shutdown');self.log(p['name']+': ordentlig avslutning sendt via RCon.')
                             except (OSError,ValueError) as error:self.log(p['name']+': avslutning er forespurt, men RCon-svaret er ubekreftet. Følger prosessen: '+str(error))
                         elif remaining in (30,15,10,5,2,1) and remaining not in request['announced']:
-                            self.rcon(p,'say -1 Server maintenance in '+str(remaining)+' minutes.');request['announced'].append(remaining)
+                            self.rcon(p,'say -1 '+('Workshop mod update: server restart' if request.get('source')=='mod_update' else 'Server maintenance')+' in '+str(remaining)+' minutes.');request['announced'].append(remaining)
                     elif request['phase']=='stopping' and now-request['sent']>180:
                         self.log(p['name']+': serveren avsluttet ikke etter RCon-kommandoen. Ingen automatisk tvungen stopp.');request.update(phase='failed');self.manager.launches[key]['expected_stop']=False;self.manager.save()
             if key in self.retries and now>=self.retries[key] and not running and key not in self.manager.busy:
-                self.retries.pop(key);self.enqueue('start',key,actor='Krasjgjenstart')
+                self.retries.pop(key);self.enqueue('start',key,{'reason':'restart'},actor='Krasjgjenstart')
             if p.get('auto_update') and key not in self.manager.busy and now>=self.check_due.get(key,0):
                 self.check_due[key]=now+max(5,int(p['update_minutes']))*60
                 if running:self.enqueue('check_mods',key,actor='Automatisk Workshop-sjekk')

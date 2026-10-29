@@ -55,6 +55,8 @@ def validate(p):
     local_path(p['root'], p['profiles'])
     if not 1 <= float(p['map_size']) <= 1000000: raise ValueError('Ugyldig kartstørrelse.')
     if int(p['update_minutes']) < 5: raise ValueError('Oppdateringsintervall: minst 5 minutter.')
+    from runtime_tools import validate_runtime
+    validate_runtime(p)
     from launch_options import validate_extra
     validate_extra(p.get('extra_args',[]))
     for m in p['mods']:validate_mod(m)

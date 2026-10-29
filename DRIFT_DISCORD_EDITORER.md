@@ -181,3 +181,30 @@ Hvis siste profil slettes, opprettes en tom **Ny server**-profil. Den har ingen 
 Nederst i programvinduet vises **Panel** og **Agent** med hvert sitt versjons-/byggnummer. Hvis agenten er eldre, blokkerer den nye startknappen utsending til gammel startkode og viser hvordan agenten oppdateres. Under **Programoppdatering → Oppdater/reparer bakgrunnsagent** kan bakgrunnsagenten byttes ut separat. Kjørende DayZ-prosesser tvangsstoppes ikke. Vent til SteamCMD, backup og jobber i kø er ferdige. Windows-tjenesten oppdateres via samme eksplisitte knapp og kan be om administratorrettigheter.
 
 Et automatisk agentbytte som blir stående med en gammel vanlig bakgrunnsprosess, får et nytt forsøk etter omtrent 30 sekunder uten paneljobber. En gammel Windows-tjeneste som ikke byttes, repareres fra knappen. Når begge versjonsnumrene er oppdatert, prøv serverstart igjen. Port-, profiles- og verdensdata-konflikter må fortsatt rettes i serveroppsettet.
+
+
+## Loggrotasjon, tilleggsprogrammer og modrestart (0.8.0)
+
+Alle valgene ligger under **Automatisering** og gjelder valgt server. Trykk **Lagre driftsoppsett** etter endringer.
+
+### Loggrotasjon
+
+Fanen **Loggrotasjon** kan arkivere avsluttede `.RPT`, `.LOG` og `.ADM` fra profiles-mappens toppnivå før serverstart og restart. Filene pakkes i ZIP i datamappens `log_archives/<profil-ID>`. Etter vellykket arkivering fjernes uendrede originaler fra profiles. Endrede, låste og utilgjengelige filer beholdes; symlenker følges ikke. Aktiv server eller deling av en aktiv loggmappe blokkerer manuell rotasjon. Det utføres ingen trunkering av aktive logger.
+
+Velg antall dager, maksimalt antall ZIP-arkiver og samlet arkivplass i MB. Grensene brukes når rotasjon kjøres, og det nyeste arkivet beholdes alltid, selv om én stor økt overskrider plassgrensen. Bare arkivfiler opprettet i denne funksjonens navneformat ryddes; andre filer beholdes. **Arkiver logger nå** virker på stoppet server, og **Åpne loggarkiv** åpner mappen. Aktivering er valgfri og er av som standard.
+
+### EXE-programmer
+
+Velg **EXE-programmer → Legg til EXE** og bruk **Bla gjennom**. Du kan angi navn, argumenter og arbeidsmappe. Tom arbeidsmappe bruker EXE-filens mappe. Velg om kontrollen gjelder vanlig serverstart, restart/krasjgjenstart eller begge. Programmet starter bare hvis det ikke allerede kjører med samme fulle filsti og, når argumenter er oppgitt, samme argumenter. En annen fil med samme navn teller ikke som treff.
+
+**Påkrevd** avbryter serverstart hvis programmet ikke kan startes eller avslutter under den valgte ventetiden. For valgfrie programmer logges feilen og serverstart fortsetter. Ventetiden er 0–120 sekunder etter ny prosessstart. Prosessstatus/PID bekrefter at prosessen kjører, ikke at dens API er klar. Status vises i listen og kan hentes med **Sjekk kjørende programmer**. Programkontrollen ved serverstart gjelder også automatiske restarter og krasjgjenstart. Programmer som avslutter senere, startes ikke automatisk på nytt før en ny serverstart/restart. Programmene stoppes ikke automatisk sammen med DayZ, ved profilsletting eller ved agentbytte.
+
+Ved drift som Windows-tjeneste kjører også tilleggsprogrammene i tjenestens konto/sesjon. GUI-vinduer vises da ikke på brukerens skrivebord. Bruk egnet tjeneste-/bakgrunnsprogram og eksplisitte argumenter/konfigurasjonsstier hvis programmet ellers velger kontoavhengige innstillinger. Påloggingsavhengige eller administratorbeskyttede prosesser kan rapporteres som ukjent i stedet for å startes en ekstra gang.
+
+### Automatisk modoppdatering med ventetid
+
+Aktiver **automatiske Steam-oppdateringer**, sett **sjekkintervall**, og huk av **Varslet restart når en Workshop-mod får oppdatering**. Sett ventetiden i minutter (1–1440). Eksempel: sjekk hvert 15. minutt og gi spillerne 10 minutter før restart. Ingen automatisk modrestart aktiveres for gamle profiler uten denne avhukingen.
+
+Når en oppdatering oppdages, varsles spillerne via fungerende BattlEye RCon. Den eksisterende nedtellingen sender flere varsler, ber DayZ avslutte normalt og venter på at serverprosessen faktisk er avsluttet. Deretter kjøres valgt backup, SteamCMD-nedlasting og bekreftet installasjon, loggrotasjon og programkontroll før ny start. Ved oppdateringsfeil forblir serveren stoppet. Lokale utviklermods blir ikke lastet ned eller tatt med i Workshop-sjekken.
+
+En eksisterende nedtelling overskrives ikke og fristen skyves ikke frem av nye modsjekker. En planlagt native restart som allerede kommer innen ventetiden, brukes i stedet. **Avbryt nedtelling** utsetter ny automatisk vurdering minst ett sjekkintervall. Slås automatisk modrestart eller autooppdatering av mens modnedtellingen pågår, avbrytes den lokalt før shutdown. Manglende RCon gir en ventemelding, ingen tvungen stopp. Hvis en annen kjørende server bruker samme installasjonsmappe, utsettes modrestarten: felles EXE-/modfiler kan ikke oppdateres mens den andre bruker dem. Du må koordinere vedlikeholdet for disse profilene.

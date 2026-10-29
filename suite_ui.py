@@ -117,6 +117,9 @@ class SuiteStudio(OperationsStudio):
         p=self.p;runtime=self.manager.runtime.get(p['id'],{});record=runtime.get('launch',{})
         from release_info import VERSION,BUILD
         text=f'Panel {VERSION} / bygg {BUILD} • Agent {self.manager.raw.get("version","?")} / bygg {self.manager.raw.get("build","?")}\n'+'Bakgrunnsagent: '+('Windows-tjeneste' if self.manager.raw.get('service') else 'egen prosess (installer tjeneste for drift etter avlogging)')+'\n'+p['name']+' • '+('Prosess kjører' if runtime.get('running') else 'Stoppet')+' • RAM '+str(runtime.get('ram_mb','—'))+' MB • CPU '+str(runtime.get('cpu_percent','—'))+' % • Ledig disk '+str(runtime.get('disk_free_gb','—'))+' GB\nVedlikehold: '+p.get('maintenance_state','idle')
+        self.runtime_tools.update_status(runtime.get('programs',[]))
+        if p.get('mods_pending'):text+='\nModoppdatering venter: '+', '.join(p.get('mods_pending_titles',[]))
+        if p.get('mod_restart_note'):text+='\n'+p['mod_restart_note']
         health=runtime.get('health',{})
         if health.get('responding'):text+='\nSteam query svarer • '+str(health.get('players',0))+'/'+str(health.get('max_players','?'))+' spillere • '+health.get('map','')
         elif not p.get('query_enabled',True):text+='\nLokal test • query-sjekk av • direkte tilkobling 127.0.0.1:'+str(p['port'])
