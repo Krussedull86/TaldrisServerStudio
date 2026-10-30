@@ -106,7 +106,7 @@ class Studio(QMainWindow):
         l=self.page(); hero,h=card('SERVERKONTROLL'); self.server_title=label('Din DayZ-server','title'); h.addWidget(self.server_title)
         self.server_status=label('STOPPET','eyebrow'); h.addWidget(self.server_status); self.launch_detail=label('Ingen serveroppstart er registrert i denne økten.','muted'); h.addWidget(self.launch_detail); h.addWidget(label('Start, følg og vedlikehold serveren fra ett sted.','muted'))
         actions=QHBoxLayout(); self.start_btn=button('▶  Start server',self.action(lambda:self.manager.start(self.p)),'primary'); self.stop_btn=button('■  Tvungen stopp',self.stop,'danger')
-        actions.addWidget(self.start_btn); actions.addWidget(self.stop_btn); actions.addWidget(button('Vis oppstartslogg',self.action(self.show_launch_log))); actions.addWidget(button('↗  Koble til lokalt',lambda:QDesktopServices.openUrl(QUrl('steam://connect/127.0.0.1:'+str(self.p['port']))))); actions.addStretch(); h.addLayout(actions); l.addWidget(hero)
+        actions.addWidget(self.start_btn); actions.addWidget(self.stop_btn); actions.addWidget(button('Vis oppstartslogg',self.action(self.show_launch_log))); actions.addWidget(button('↗  Koble til lokalt',self.action(self.connect_local))); actions.addStretch(); h.addLayout(actions); l.addWidget(hero)
         metrics=QHBoxLayout(); self.metrics=[]
         for title,foot in [('AKTIVE MODS','Valgt lastrekkefølge'),('KARTMARKØRER','Dine egne steder'),('SPILLPORT','Lokal serverprofil'),('SPILLERE','Live data ikke tilkoblet')]:
             f,c=card(title); value=label('—','metric'); c.addWidget(value); c.addWidget(label(foot,'muted')); metrics.addWidget(f); self.metrics.append(value)
@@ -263,6 +263,9 @@ class Studio(QMainWindow):
     def new_server(self):self.p=self.manager.add(); self.load(); self.go(7)
     def stop(self):
         if QMessageBox.question(self,'Tvungen stopp','Dette kan miste ulagrede spilldata. Bruk DayZ sin graceful shutdown når mulig. Terminere prosessen?',QMessageBox.Yes|QMessageBox.No,QMessageBox.No)==QMessageBox.Yes:self.guard(lambda:self.manager.force_stop(self.p))
+    def connect_local(self):
+        from client_launch_ui import connect_local
+        connect_local(self)
     def show_launch_log(self):
         record=self.manager.launches.get(self.p['id'])
         if not record:raise ValueError('Start serveren først for å finne logg fra akkurat denne oppstarten.')

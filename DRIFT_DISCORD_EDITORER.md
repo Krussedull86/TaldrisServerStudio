@@ -212,3 +212,11 @@ En eksisterende nedtelling overskrives ikke og fristen skyves ikke frem av nye m
 
 ### EXE-styring (0.8.1)
 Velg serverprofil rett over EXE-listen. Listen følger denne profilen; legg samme EXE til i flere profiler dersom flere servere bruker den. Legg til, rediger, fjern og aktivering lagres automatisk. Høyreklikk en rad for Start, Restart eller Stopp, også mens DayZ kjører. Start gjenbruker en identisk prosess. Stopp/restart avslutter prosesser med samme fulle EXE-sti og konfigurerte argumenter, og kan derfor påvirke andre profiler som bruker prosessen. Ingen automatisk stopp av tilleggsprogrammer ved DayZ-stopp. Ved Windows-tjenestedrift kjører programmer i tjenesteøkten uten synlige skrivebordsvinduer. Se host.log for feilmeldinger og PID.
+
+
+### Lokal DayZ-klient (0.8.2)
+«Koble til lokalt» åpner klientoppsett med valgt serverprofil og spillport. Velg DayZ-klientens mappe (DayZ_x64.exe og DayZ_BE.exe), ikke servermappen. Steam-biblioteker oppdages automatisk når tilgjengelig. Start skjer på skrivebordet gjennom DayZ_BE.exe med Steam-app 221100, -connect=127.0.0.1, -port og én -mod-liste med absolutte stier. Ingen Steam Query er nødvendig.
+
+Aktiverte mod/begge tas med i profilrekkefølge; servermod og deaktiverte mods utelates. Lokale utviklermods bruker kildemappen. Workshop-mods finnes i serverinstallasjonen, Steam-bibliotekets Workshop-mappe eller DayZ/!Workshop. Dobbeltklikk modraden for å overstyre lokal sti. Manglende mods blokkerer start og vises i listen; de lastes ikke automatisk ned eller abonneres på. Klientens mappevalg lagres lokalt og styres ikke av Windows-tjenesten.
+
+Steam må være innlogget med tilgang til DayZ. En åpen DayZ-klient må lukkes før ny modliste kan lastes. PID i loggen bekrefter prosessstart, ikke vellykket innlogging eller kompatible modversjoner. Serverpassord oppgis i spillet. 127.0.0.1 gjelder server på samme PC; ved RDP er det PC-en som kjører panelet/spillet.
