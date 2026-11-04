@@ -45,6 +45,12 @@ def register_windows(root,home,launcher):
         for name in ('NoModify','NoRepair'):winreg.SetValueEx(key,name,0,winreg.REG_DWORD,1)
     del shell
     pythoncom.CoUninitialize()
+    try:
+        from shell_identity import refresh_shortcuts
+        refresh_shortcuts(root,home,launcher)
+    except Exception as error:
+        import warnings
+        warnings.warn('Could not refresh CDS taskbar shortcuts: '+str(error),RuntimeWarning)
 
 def install(home):
     if sys.platform!='win32' or not getattr(sys,'frozen',False):raise ValueError('Installer fra den nedlastede Windows-EXE-filen.')
@@ -74,8 +80,16 @@ def install(home):
 
 
 def refresh_version(home):
-    if sys.platform!='win32' or not read_install(home):return
+    info=read_install(home)
+    if sys.platform!='win32' or not info:return
     import winreg
     try:
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER,REGKEY,0,winreg.KEY_SET_VALUE) as key:winreg.SetValueEx(key,'DisplayVersion',0,winreg.REG_SZ,f'{VERSION} (bygg {BUILD})')
     except OSError:pass
+    try:
+        from shell_identity import refresh_shortcuts
+        launcher=Path(info['launcher']);refresh_shortcuts(launcher.parent,home,launcher)
+    except Exception as error:
+        # Shell customization must not prevent the panel from opening.
+        import warnings
+        warnings.warn('Could not refresh CDS taskbar shortcuts: '+str(error),RuntimeWarning)

@@ -37,7 +37,8 @@ def main():
     QApplication.setAttribute(Qt.AA_ShareOpenGLContexts)
     if sys.platform=='win32':
         import ctypes
-        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('CruzDoodelZ.ServerStudio')
+        from shell_identity import APP_ID
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(APP_ID)
     app=QApplication(sys.argv);app.setStyle('Fusion');app.setStyleSheet(STYLE)
     from PySide6.QtGui import QIcon
     app.setWindowIcon(QIcon(str(Path(__file__).resolve().parent/'assets/cds.ico')))
@@ -60,6 +61,6 @@ def main():
     if not lock.tryLock(0):QMessageBox.information(None,'CruzDoodelZ Server Studio','Kontrollpanelet kjører allerede for denne datamappen.');return 1
     try:window=SuiteStudio(home)
     except Exception as error:QMessageBox.critical(None,'CruzDoodelZ – startup',str(error));return 1
-    window.show();mark_active(home);return app.exec()
+    window.setWindowIcon(app.windowIcon());window.show();mark_active(home);return app.exec()
 
 if __name__=='__main__':sys.exit(main())
