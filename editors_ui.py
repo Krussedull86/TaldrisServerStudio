@@ -211,7 +211,7 @@ class ConfigCenter(QWidget):
         if not self.doc.dirty:return
         dialog=QDialog(self);dialog.setWindowTitle('Kontroller endringer – '+self.doc.relative);dialog.resize(1000,700);layout=QVBoxLayout(dialog)
         if warnings:layout.addWidget(label('\n'.join(warnings[:20]),'muted'))
-        view=QPlainTextEdit(self.doc.diff());view.setReadOnly(True);layout.addWidget(view);row=QHBoxLayout();row.addWidget(button('Avbryt',dialog.reject));row.addWidget(button('Lagre med backup',dialog.accept,'primary'));layout.addLayout(row)
+        view=QPlainTextEdit(self.doc.diff());view.setReadOnly(True);layout.addWidget(view);row=QHBoxLayout();row.addWidget(button('Cancel',dialog.reject));row.addWidget(button('Lagre med backup',dialog.accept,'primary'));layout.addLayout(row)
         if dialog.exec()!=QDialog.Accepted:return
         if hasattr(self.studio.manager,'save_document'):self.studio.manager.save_document(self.doc)
         else:self.doc.save()

@@ -1,4 +1,4 @@
-# Taldris Server Studio
+# CruzDoodelZ Server Studio
 
 Et moderne Windows-program for installasjon og administrasjon av DayZ-servere.
 
@@ -53,3 +53,7 @@ Bruk + Ny server for hver installasjon. Profilene foreslår ulike portblokker (2
 Ny separat bakgrunnsagent med autentisert loopback-API og Windows-tjeneste, Discord-bot med roller per server og slash-/knappestyring, RCon og spillermoderering, avbrytbar restartnedtelling, kontroll av Steam query-svar, gjenoppretting av backup med transaksjonsjournal, modrollback og testserverkloning. Konfigurasjonssenter med visuell CFG/JSON/XML-editor, types-tabell/import/masseendring, rå tekst, diff og historikk. Kartverksted for redigering av X/Z-punkter i flere XML-lag.
 
 Se [DRIFT_DISCORD_EDITORER.md](DRIFT_DISCORD_EDITORER.md) for oppsett, kommandoer, filformater og konkrete begrensninger. Discord må kobles til med egen bot og eier-ID; Windows-tjenesten installeres eksplisitt fra panelet. Dette er en dev-utgave. Ekte Discord-/Steam-/DayZ-integrasjon er ikke bekreftet bare ved at de automatiske testene passerer.
+
+
+## 0.9 fusion
+Integrated DZSA Loot Editor with active-mission types editing, import/export, local revisions and guarded mission saves. See [FUSION_0.9.md](FUSION_0.9.md). Existing installations keep their profiles, service and update channel.

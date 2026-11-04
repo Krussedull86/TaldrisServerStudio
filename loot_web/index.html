@@ -1,0 +1,701 @@
+
+<!-- Header -->
+<!DOCTYPE html>
+<html lang="en">
+<head><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' qrc: 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'none'">
+
+	<!-- Meta tags -->
+	<title>DZSA Loot Editor</title>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta name="description" content="Manage your DayZ loot table with ease using our intuitive web admin tool. Customize and organize loot items efficiently.">
+	<meta name="keywords" content="DayZ, loot table, admin tool, game management, zombie survival, dzsa, dayz standalone">
+
+	<!-- Open Graph Tags: These tags improve how your page looks when shared on social media. -->
+	<meta property="og:title" content="DayZ Standalone Tools">
+	<meta property="og:description" content="Manage your DayZ loot table with ease.">
+	<meta property="og:image" content="/assets/images/logo_small.png">
+	<meta property="og:url" content="https://dzsa.tools">
+
+	<!-- Twitter Card Tags: If your website content is shared on Twitter, these tags help create a rich media preview. -->
+	<meta name="twitter:card" content="summary_large_image">
+	<meta name="twitter:title" content="DayZ Standalone Tools">
+	<meta name="twitter:description" content="Manage your DayZ loot table.">
+	<meta name="twitter:image" content="/assets/images/logo_small.png">
+
+	<!-- JSON-LD structure. Improve your site's visibility with rich snippets in search results -->
+	<script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "DayZ Standalone Tools",
+      "url": "https://dzsa.tools",
+      "description": "Manage and customize DayZ loot tables efficiently.",
+      "author": {
+        "@type": "Person",
+        "name": "NIXON"
+      }
+    }
+    </script>
+
+	<!-- Set favicon -->
+	<link rel="icon" type="image/png" href="assets/images/logo_small.png" />
+
+	<!-- Preload fonts -->
+	<link rel="preload" href="assets/fonts/Montserrat.ttf" as="font" type="font/ttf" />
+	<link rel="preload" href="assets/fonts/SourceCodePro.ttf" as="font" type="font/ttf" />
+	<link rel="preload" href="assets/fonts/FiraCode.ttf" as="font" type="font/ttf" />
+
+	<!-- Preload library css files -->
+	<link rel="preload" href="lib/css/bootstrap.min.css?v=5.3.3"                as="style" onload="this.onload=null;this.rel='stylesheet'" /> <!-- Bootstrap 5.3.3    -->
+	<link rel="preload" href="lib/css/tabulator_site_dark.min.css?v=6.3.0"      as="style" onload="this.onload=null;this.rel='stylesheet'" /> <!-- Tabulator 6.3.0    -->
+	<link rel="preload" href="lib/css/leaflet.css?v=1.9.4"                      as="style" onload="this.onload=null;this.rel='stylesheet'" /> <!-- Leaflet 1.9.4      -->
+	<link rel="preload" href="assets/fonts/fontawesome/css/fontawesome.css?v=6.6.0" as="style" onload="this.onload=null;this.rel='stylesheet'" /> <!-- Font Awesome 6.6.0 -->
+	<link rel="preload" href="assets/fonts/fontawesome/css/regular.css?v=6.6.0"     as="style" onload="this.onload=null;this.rel='stylesheet'" /> <!-- Font Awesome 6.6.0 -->
+	<link rel="preload" href="assets/fonts/fontawesome/css/solid.css?v=6.6.0"       as="style" onload="this.onload=null;this.rel='stylesheet'" /> <!-- Font Awesome 6.6.0 -->
+	<link rel="preload" href="assets/fonts/fontawesome/css/brands.css?v=6.6.0"      as="style" onload="this.onload=null;this.rel='stylesheet'" /> <!-- Font Awesome 6.6.0 -->
+
+	<!-- Preload custom css files -->
+	<link rel="preload" href="static/css/globals.css?v=1.0"    as="style" onload="this.onload=null;this.rel='stylesheet'" />
+	<link rel="preload" href="static/css/main_style.css?v=1.0" as="style" onload="this.onload=null;this.rel='stylesheet'" />
+	<link rel="preload" href="static/css/editor.css?v=1.0"     as="style" onload="this.onload=null;this.rel='stylesheet'" />
+	<link rel="preload" href="static/css/map.css?v=1.0"        as="style" onload="this.onload=null;this.rel='stylesheet'" />
+
+	<!-- Fallback CSS -->
+	<noscript> <!-- Ensure CSS is applied for users with JavaScript disabled -->
+
+		<link rel="stylesheet" href="lib/css/bootstrap.min.css?v=5.3.3" />                <!-- Bootstrap 5.3.3 -->
+		<link rel="stylesheet" href="lib/css/tabulator_site_dark.min.css?v=6.3.0" />      <!-- Tabulator 6.3.0 -->
+		<link rel="stylesheet" href="lib/css/leaflet.css?v=1.9.4" />                      <!-- Leaflet 1.9.4 -->
+		<link rel="stylesheet" href="assets/fonts/fontawesome/css/fontawesome.css?v=6.6.0" /> <!-- Font Awesome 6.6.0 -->
+		<link rel="stylesheet" href="assets/fonts/fontawesome/css/regular.css?v=6.6.0" />     <!-- Font Awesome 6.6.0 -->
+		<link rel="stylesheet" href="assets/fonts/fontawesome/css/solid.css?v=6.6.0" />       <!-- Font Awesome 6.6.0 -->
+		<link rel="stylesheet" href="assets/fonts/fontawesome/css/brands.css?v=6.6.0" />      <!-- Font Awesome 6.6.0 -->
+
+		<link rel="stylesheet" href="static/css/globals.css?v=1.0" />
+		<link rel="stylesheet" href="static/css/main_style.css?v=1.0" />
+		<link rel="stylesheet" href="static/css/editor.css?v=1.0" />
+		<link rel="stylesheet" href="static/css/map.css?v=1.0" />
+
+	</noscript>
+
+<link rel="stylesheet" href="desktop.css"></head>
+<body>
+
+<header class="desktop-header"><div class="desktop-brand">DZSA <span>Loot Editor</span><small>DESKTOP 1.2.1</small></div><nav><button id="desktop-open">Open XML…</button><button id="desktop-export">Export XML…</button><button id="desktop-validate">Check XML…</button><select id="desktop-map" aria-label="New file from map"><option value="">New from map…</option><option value="chernarus">Chernarus</option><option value="livonia">Livonia</option><option value="sakhal">Sakhal</option><option value="nasdara">Nasdara</option></select><select id="desktop-channel" aria-label="Update channel"><option value="stable">Stable</option><option value="dev">Dev</option></select><button id="desktop-updates">Updates…</button></nav></header>
+<div class="offcanvas offcanvas-end text-bg-dark" tabindex="-1" id="offcanvasRight" aria-labelledby="offcanvasRightLabel">
+	<div class="offcanvas-header">
+		<h5 class="offcanvas-title" id="offcanvasRightLabel">Saved files</h5>
+		<button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+	</div>
+	<div class="offcanvas-body">
+		<div class="accordion dz_accordian" id="accordionExample">
+
+			<div class="accordion-item">
+				<h2 class="accordion-header">
+					<button id="dz_listVersions" class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="true" aria-controls="collapseTwo">
+					Versions of the loaded file (Chernarus)
+					</button>
+				</h2>
+				<div id="collapseTwo" class="accordion-collapse collapse show" data-bs-parent="#accordionExample">
+					<div class="accordion-body">
+						<table id="all_versions" class="table table-sm table-dark dz_table">
+							<thead class="dz_table_head">
+								<tr>
+									<th scope="col">ID</th>
+									<th scope="col">Name</th>
+									<th scope="col">Date</th>
+									<th scope="col">Ver</th>
+									<th scope="col">Actions</th>
+								</tr>
+							</thead>
+							<tbody class="dz_table_body">
+								<!-- Populated from backend -->
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+
+			<div class="accordion-item">
+				<h2 class="accordion-header">
+					<button id="dz_listAllFiles" class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
+					All your files
+					</button>
+				</h2>
+
+				<div id="collapseOne" class="accordion-collapse collapse" data-bs-parent="#accordionExample">
+					<div class="accordion-body">
+						<table id="all_files" class="table table-sm table-dark dz_table">
+							<thead class="dz_table_head">
+								<tr>
+									<th scope="col">ID</th>
+									<th scope="col">Name</th>
+									<th scope="col">Date</th>
+									<th scope="col">Ver</th>
+									<th scope="col">Actions</th>
+								</tr>
+							</thead>
+							<tbody class="dz_table_body">
+								<!-- Populated from backend -->
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+
+			<div class="accordion-item">
+				<h2 class="accordion-header">
+					<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
+					Editor activity log
+					</button>
+				</h2>
+				<div id="collapseThree" class="accordion-collapse collapse" data-bs-parent="#accordionExample">
+					<div class="accordion-body">
+						This feature is comming soon
+					</div>
+				</div>
+			</div>
+
+		</div>
+	</div>
+</div>
+
+
+<!-- Modal -->
+<div class="modal fade" id="msgModal" tabindex="-1" aria-labelledby="msgModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content text-bg-dark">
+
+			<div class="modal-header">
+				<h1 class="modal-title fs-5" id="msgModalLabel">{NO_TITLE_SET}</h1>
+				<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+
+			<div class="modal-body">
+				<p>{NO_MESSAGE_SET}</p>
+			</div>
+
+			<div class="modal-footer">
+				<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+			</div>
+		</div>
+	</div>
+</div>
+<script src="qrc:///qtwebchannel/qwebchannel.js"></script><script src="studio_bridge.js"></script><script src="desktop.js"></script>
+<!-- Main -->
+<main>
+
+    <!-- File title -->
+    <div class="container-fluid px-0 mb-1 top-margin-editor">
+        <span id="fileName">
+            <!-- Populated from backend -->
+        </span>
+    </div>
+
+    <!-- Editor toolbar -->
+	<div class="container-fluid px-0 mx-0 dz_bulkToolbarContainer">
+
+        <div class="row flex-nowrap dz_bulkToolbarRow py-2 m-0">
+
+            <div class="col col-sm-2 align-middle d-flex justify-content-start dz_bulkToolbarColumn">
+
+                <div class="form-check form-switch">
+                    <input class="form-check-input dz_ToggleSwitch" type="checkbox" role="switch" id="flexSwitchCheckDefault" checked>
+                    <label class="form-check-label dz_ToggleSwitchLabel" for="flexSwitchCheckDefault">Autosave ( 1 min )</label>
+                </div>
+
+            </div>
+
+            <div class="col px-0 mx-0 d-flex justify-content-start dz_bulkToolbarColumn">
+
+                <span 
+                    data-bs-toggle="offcanvas"
+                    data-bs-target="#offcanvasRight"
+                    aria-controls="offcanvasRight">
+                    <button
+                        id="btn_download"
+                        type="button"
+                        class="btn btn-dzsa-primary-toolbar dz_btnEditorTopbar"
+                        data-bs-toggle="tooltip"
+                        data-bs-placement="bottom"
+                        data-bs-custom-class="dzsa-tooltip-default"
+                        data-bs-title="Open file manager"
+                        data-bs-animation="true"
+                        data-bs-delay='{"show":50,"hide":100}'>
+                        <i class="fa-solid fa-bars"></i>
+                        Saved files
+                    </button>
+                </span>
+
+                <button
+                    id="btn_save"
+                    type="button"
+                    class="btn btn-dzsa-primary-toolbar dz_btnEditorTopbar"
+                    data-bs-toggle="tooltip"
+                    data-bs-placement="bottom"
+                    data-bs-custom-class="dzsa-tooltip-default"
+                    data-bs-title="CTRL+S"
+                    data-bs-animation="true"
+                    data-bs-delay='{"show":50,"hide":100}'>
+                    <i class="fa-solid fa-floppy-disk"></i>
+                    Save changes
+                </button>
+
+                <button
+                    id="btn_filterClear"
+                    type="button"
+                    class="btn btn-dzsa-primary-toolbar dz_btnEditorTopbar"
+                    data-bs-toggle="tooltip"
+                    data-bs-placement="bottom"
+                    data-bs-custom-class="dzsa-tooltip-default"
+                    data-bs-title="Clear all filters"
+                    data-bs-animation="true"
+                    data-bs-delay='{"show":50,"hide":100}'>
+                    <i class="fa-solid fa-filter-circle-xmark"></i>
+                    Clear filters
+                </button>
+
+                <button
+                    id="btn_undo"
+                    type="button"
+                    class="btn btn-dzsa-primary-toolbar dz_btnEditorTopbar"
+                    data-bs-toggle="tooltip"
+                    data-bs-placement="bottom"
+                    data-bs-custom-class="dzsa-tooltip-default"
+                    data-bs-title="(CTRL+Z)"
+                    data-bs-animation="true"
+                    data-bs-delay='{"show":50,"hide":100}'>
+                    <i class="fa-solid fa-reply"></i>
+                    Undo
+                </button>
+
+                <button
+                    id="btn_redo"
+                    type="button"
+                    class="btn btn-dzsa-primary-toolbar dz_btnEditorTopbar"
+                    data-bs-toggle="tooltip"
+                    data-bs-placement="bottom"
+                    data-bs-custom-class="dzsa-tooltip-default"
+                    data-bs-title="Redo - (step 1 save forward)"
+                    data-bs-animation="true"
+                    data-bs-delay='{"show":50,"hide":100}'>
+                    <i class="fa-solid fa-share"></i>
+                    Redo
+                </button>
+
+                <button
+                    id="btn_remove"
+                    type="button"
+                    class="btn btn-dzsa-primary-toolbar-warning dz_btnEditorTopbar"
+                    data-bs-toggle="tooltip"
+                    data-bs-placement="bottom"
+                    data-bs-custom-class="dzsa-tooltip-warning"
+                    data-bs-title="Removes selected rows"
+                    data-bs-animation="true"
+                    data-bs-delay='{"show":50,"hide":100}'>
+                    <i class="fa-solid fa-trash"></i>
+                    Remove
+                </button>
+
+                <button
+                    id="btn_test"
+                    type="button"
+                    class="btn btn-dzsa-primary-toolbar dz_btnEditorTopbar dz_card_success position-relative"
+                    data-bs-toggle="tooltip"
+                    data-bs-placement="bottom"
+                    data-bs-custom-class="dzsa-tooltip-default"
+                    data-bs-title="How to use the desktop editor"
+                    data-bs-animation="true"
+                    data-bs-delay='{"show":50,"hide":100}'>
+                    <i class="fa-solid fa-circle-info"></i>
+                    Help
+                </button>
+
+                <button
+                    id="btn_tierMaps"
+                    type="button"
+                    class="btn btn-dzsa-primary-toolbar dz_btnEditorTopbar position-relative"
+                    data-bs-toggle="tooltip"
+                    data-bs-placement="bottom"
+                    data-bs-custom-class="dzsa-tooltip-default"
+                    data-bs-title="View tier maps"
+                    data-bs-animation="true"
+                    data-bs-delay='{"show":50,"hide":100}'>
+                    <i class="fa-solid fa-layer-group"></i>
+                    Tier maps
+                    
+                </button>
+
+                <button
+                    id="btn_min2max"
+                    type="button"
+                    class="btn btn-dzsa-primary-toolbar dz_btnEditorTopbar position-relative"
+                    data-bs-toggle="tooltip"
+                    data-bs-placement="bottom"
+                    data-bs-custom-class="dzsa-tooltip-default"
+                    data-bs-title="Copies values of min and applies them to nominal for all selected rows"
+                    data-bs-animation="true"
+                    data-bs-delay='{"show":50,"hide":100}'>
+                    <i class="fa-solid fa-clone"></i>
+                    Sync Min to Nominal
+                </button>
+
+                <button
+                    id="btn_max2min"
+                    type="button"
+                    class="btn btn-dzsa-primary-toolbar dz_btnEditorTopbar position-relative"
+                    data-bs-toggle="tooltip"
+                    data-bs-placement="bottom"
+                    data-bs-custom-class="dzsa-tooltip-default"
+                    data-bs-title="Copies values of nominal and applies to min for all selected rows"
+                    data-bs-animation="true"
+                    data-bs-delay='{"show":50,"hide":100}'>
+                    <i class="fa-solid fa-clone"></i>
+                    Sync Nominal to Min
+                </button>
+
+            </div>
+        </div>
+        
+        <!-- BULK TOOLS CONTAINER -->
+        <div id="bulkContainer" class="dz_bulkContainer bulkmode-inactive p-0 m-0">
+
+            <!-- BULK TOOLS ROW 1 -->
+             
+            <div class="row flex-nowrap dz_bulkToolbarRow_1 p-0 m-0 align-middle">
+
+                <div class="col col-sm-auto align-middle d-flex justify-content-start dz_bulkToolbarColumn">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input dz_ToggleSwitch" type="checkbox" role="switch" id="bulkSwitch" checked>
+                        <label class="form-check-label dz_ToggleSwitchLabel" for="bulkSwitch">Bulk mode</label>
+                    </div>
+                </div>
+
+                <div class="col col-sm-auto d-flex justify-content-start dz_bulkToolbarColumn dz_bulkHeaderBorderRight">
+
+                    <div class="form-check form-switch p-0">
+                        <input id="bulk_toggle_nonEmpty" class="form-check-input dz_ToggleSwitch dz_toggleMarginZero" type="checkbox" role="switch" /> 
+                        <label id="label_nonEmpty" class="form-check-label dz_ToggleSwitchLabel dz_fixedAbsoluteDisabled" for="bulk_toggle_nonEmpty"> Skip empty / zero cells</label>
+                    </div>
+
+                </div>
+
+                <div class="col col-sm-auto d-flex justify-content-start dz_bulkToolbarColumn dz_bulkHeaderBorderRight">
+
+                    <div id="label_percentageValue" class="dz_ToggleSwitchLabel dz_fixedAbsoluteDisabled">
+                        Adjust selected by <span class="dz_emphasis">%</span>: 
+                        <input
+                            id="bulk_btn_percent"
+                            class="bulk_input dz_inputShort"
+                            type="number"
+                            placeholder="0"
+                            min="-100"
+                            max="100"
+                            step="5"
+                            disabled
+                            data-bs-toggle="tooltip"
+                            data-bs-placement="bottom"
+                            data-bs-custom-class="dzsa-tooltip-default"
+                            data-bs-title="To subtract, put a minus sign infront of your number. Example: (-50)"
+                            data-bs-animation="true"
+                            data-bs-delay='{"show":50,"hide":100}'
+                        />
+                        <button id="bulk_btn_plusPercent" type="button" class="btn btn-dzsa-primary-toolbar dz_btnEditorTopbar" disabled><i class="fa-solid fa-left-long"></i> Apply</button>
+                    </div>
+
+                </div>
+
+                <div class="col d-flex justify-content-start dz_bulkToolbarColumn">
+
+                    <div id="label_fixedValue" class="dz_ToggleSwitchLabel dz_fixedAbsoluteDisabled">
+                        Adjust selected by <span class="dz_emphasis">value</span>: 
+                        <input
+                            id="bulk_btn_value"
+                            class="bulk_input dz_inputShort"
+                            type="number"
+                            placeholder="0"
+                            min="-1000"
+                            max="1000"
+                            step="5"
+                            disabled
+                            data-bs-toggle="tooltip"
+                            data-bs-placement="bottom"
+                            data-bs-custom-class="dzsa-tooltip-default"
+                            data-bs-title="To subtract, put a minus sign infront of your number. Example: (-50)"
+                            data-bs-animation="true"
+                            data-bs-delay='{"show":50,"hide":100}'
+                        />
+                        <button id="bulk_btn_plusValue" type="button" class="btn btn-dzsa-primary-toolbar dz_btnEditorTopbar" disabled><i class="fa-solid fa-left-long"></i> Apply</button>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- BULK TOOLS ROW 2 -->
+            <div id="bulk-columns-scroll"><div class="row flex-nowrap dz_bulkToolbarRow p-0 m-0">
+                <!-- not editable -->
+                <div class="bulk_header" style="left: 0px; width: 29px;"></div>
+
+                <div id="name" class="bulk_header dz_bulkHeaderBorderRight">
+                    <button id="bulk_btn_applyBulkChange" type="button" class="btn btn-dzsa-primary-toolbar dz_btnEditorTopbar dz_vm" disabled>Apply <i class="fa-solid fa-right-long"></i></button>
+                </div>
+
+                <!-- editable -->
+                <div id="nominal" class="bulk_header dz_bulkHeaderBorderRight dz_activeColumn">
+                    <div class="row">
+                        <div class="form-check form-switch">
+                            <input id="bulk_toggle_nominal" class="form-check-input dz_ToggleSwitch" type="checkbox" role="switch" disabled/>
+                            <label id="bulk_toggle_label_nominal" class="form-check-label dz_ToggleSwitchLabel" for="bulk_toggle_nominal">Inactive</label>
+                        </div>
+                    </div>
+                    <div class="row p-0 m-0">
+                        <input id="bulk_input_nominal" class="bulk_input" type="number" placeholder="0" list="numberOptions" min="0" max="1000" step="5" disabled/>
+                    </div>
+                </div>
+
+                <div id="lifetime" class="bulk_header dz_bulkHeaderBorderRight">
+                    <div class="row">
+                        <div class="form-check form-switch">
+                            <input id="bulk_toggle_lifetime" class="form-check-input dz_ToggleSwitch" type="checkbox" role="switch" disabled/>
+                            <label id="bulk_toggle_label_lifetime" class="form-check-label dz_ToggleSwitchLabel" for="bulk_toggle_lifetime">Inactive</label>
+                        </div>
+                    </div>
+                    <div class="row p-0 m-0">
+                        <input id="bulk_input_lifetime" class="bulk_input" type="number" placeholder="0" list="secondsOptions" min="0" max="5000000" step="60" disabled/>
+                    </div>
+                </div>
+
+                <div id="restock" class="bulk_header dz_bulkHeaderBorderRight">
+                    <div class="row">
+                        <div class="form-check form-switch">
+                            <input id="bulk_toggle_restock" class="form-check-input dz_ToggleSwitch" type="checkbox" role="switch" disabled/>
+                            <label id="bulk_toggle_label_restock" class="form-check-label dz_ToggleSwitchLabel" for="bulk_toggle_restock">Inactive</label>
+                        </div>
+                    </div>
+                    <div class="row p-0 m-0">
+                        <input id="bulk_input_restock" class="bulk_input" type="number" placeholder="0" list="secondsOptions" min="0" max="5000000" step="60" disabled/>
+                    </div>
+                </div>
+
+                <div id="min" class="bulk_header dz_bulkHeaderBorderRight">
+                    <div class="row">
+                        <div class="form-check form-switch">
+                            <input id="bulk_toggle_min" class="form-check-input dz_ToggleSwitch" type="checkbox" role="switch" disabled/>
+                            <label id="bulk_toggle_label_min" class="form-check-label dz_ToggleSwitchLabel" for="bulk_toggle_min">Inactive</label>
+                        </div>
+                    </div>
+                    <div class="row p-0 m-0">
+                        <input id="bulk_input_min" class="bulk_input" type="number" placeholder="0" list="numberOptions" min="0" max="1000" step="5" disabled/>
+                    </div>
+                </div>
+
+                <div id="quantmin" class="bulk_header dz_bulkHeaderBorderRight">
+                    <div class="row">
+                        <div class="form-check form-switch">
+                            <input id="bulk_toggle_quantmin" class="form-check-input dz_ToggleSwitch" type="checkbox" role="switch" disabled/>
+                            <label id="bulk_toggle_label_quantmin" class="form-check-label dz_ToggleSwitchLabel" for="bulk_toggle_quantmin">Inactive</label>
+                        </div>
+                    </div>
+                    <div class="row p-0 m-0">
+                        <input id="bulk_input_quantmin" class="bulk_input" type="number" placeholder="0" min="-1" max="100" disabled/>
+                    </div>
+                </div>
+
+                <div id="quantmax" class="bulk_header dz_bulkHeaderBorderRight">
+                    <div class="row">
+                        <div class="form-check form-switch">
+                            <input id="bulk_toggle_quantmax" class="form-check-input dz_ToggleSwitch" type="checkbox" role="switch" disabled/>
+                            <label id="bulk_toggle_label_quantmax" class="form-check-label dz_ToggleSwitchLabel" for="bulk_toggle_quantmax">Inactive</label>
+                        </div>
+                    </div>
+                    <div class="row p-0 m-0">
+                        <input id="bulk_input_quantmax" class="bulk_input" type="number" placeholder="0" min="-1" max="100" disabled/>
+                    </div>
+                </div>
+
+                <div id="cost" class="bulk_header dz_bulkHeaderBorderRight">
+                    <div class="row">
+                        <div class="form-check form-switch">
+                            <input id="bulk_toggle_cost" class="form-check-input dz_ToggleSwitch" type="checkbox" role="switch" disabled/>
+                            <label id="bulk_toggle_label_cost" class="form-check-label dz_ToggleSwitchLabel" for="bulk_toggle_cost">Inactive</label>
+                        </div>
+                    </div>
+                    <div class="row p-0 m-0">
+                        <input id="bulk_input_cost" class="bulk_input" type="number" placeholder="0" list="numberOptions" min="0" max="1000" step="5" disabled/>
+                    </div>
+                </div>
+
+                <div id="category" class="bulk_header dz_bulkHeaderBorderRight">
+                    <div class="row">
+                        <div class="form-check form-switch">
+                            <input id="bulk_toggle_category" class="form-check-input dz_ToggleSwitch" type="checkbox" role="switch" disabled/>
+                            <label id="bulk_toggle_label_category" class="form-check-label dz_ToggleSwitchLabel" for="bulk_toggle_category">Inactive</label>
+                        </div>
+                    </div>
+                    <div class="row p-0 m-0">
+                        <input id="bulk_input_category" class="bulk_input" type="text" readonly disabled/>
+                    </div>
+                </div>
+
+                <div id="tag" class="bulk_header dz_bulkHeaderBorderRight">
+                    <div class="row">
+                        <div class="form-check form-switch">
+                            <input id="bulk_toggle_tag" class="form-check-input dz_ToggleSwitch" type="checkbox" role="switch" disabled/>
+                            <label id="bulk_toggle_label_tag" class="form-check-label dz_ToggleSwitchLabel" for="bulk_toggle_tag">Inactive</label>
+                        </div>
+                    </div>
+                    <div class="row p-0 m-0">
+                        <input id="bulk_input_tag" class="bulk_input" type="text" readonly disabled/>
+                    </div>
+                </div>
+
+                <div id="usage" class="bulk_header dz_bulkHeaderBorderRight">
+                    <div class="row">
+                        <div class="form-check form-switch">
+                            <input id="bulk_toggle_usage" class="form-check-input dz_ToggleSwitch" type="checkbox" role="switch" disabled/>
+                            <label id="bulk_toggle_label_usage" class="form-check-label dz_ToggleSwitchLabel" for="bulk_toggle_usage">Inactive</label>
+                        </div>
+                    </div>
+                    <div class="row p-0 m-0">
+                        <input id="bulk_input_usage" class="bulk_input" type="text" readonly disabled/>
+                    </div>
+                </div>
+
+                <div id="value" class="bulk_header" style="border-right: 1px solid #1a1d2c">
+                    <div class="row">
+                        <div class="form-check form-switch">
+                            <input id="bulk_toggle_value" class="form-check-input dz_ToggleSwitch" type="checkbox" role="switch" disabled/>
+                            <label id="bulk_toggle_label_value" class="form-check-label dz_ToggleSwitchLabel" for="bulk_toggle_value">Inactive</label>
+                        </div>
+                    </div>
+                    <div class="row p-0 m-0">
+                        <input id="bulk_input_value" class="bulk_input" type="text" readonly disabled/>
+                    </div>
+                </div>
+            </div></div>
+        </div>
+	</div>
+
+    <!-- Editor table -->
+    <div class="container-fluid px-0 dz_bulkToolbarContainer">
+        <div class="row dz_vh">
+            <div id="tabulator-table" class="d-inline-block"></div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal fade" id="tutorialModal" tabindex="-1" aria-labelledby="tutorialModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content text-bg-dark">
+        <div class="modal-header">
+            <h1 class="modal-title fs-5" id="tutorialModalLabel"><i class="fa-solid fa-circle-info"></i> Tutorial</h1>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+            <p class="lead"><span class="dz_emphasis"><i class="fa-solid fa-circle-info"></i> Please take a moment to watch this instructional video to learn how to use the editor effectively. Proficiency is essential.</span></p><br />
+            <span id="videoContainer" class="videoContainer"></span>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            <button id='btn_dismissCookie' type="button" class="btn btn-secondary" data-bs-dismiss="modal">Don't show again</button>
+        </div>
+        </div>
+    </div>
+    </div>
+
+    <!-- Tier maps -->
+	<div id="draggableDiv" class="draggable hidden">
+		<div class="header">
+			Tier maps (Draggable window)
+			<button class="closeButton"><i class="fa-regular fa-circle-xmark"></i></button>
+		</div>
+		<div class="content">
+			<label for="imageSelector">Select a map:</label>
+			<select id="imageSelector">
+				<option value="assets/images/tier_maps/chernarus.png">Chernarus</option>
+				<option value="assets/images/tier_maps/livonia.png">Livonia</option>
+				<option value="assets/images/tier_maps/sakhal.png">Sakhal</option>
+                <option value="assets/images/tier_maps/deerisle.png">Deer Isle</option>
+			</select>
+			<div class="imageContainer">
+				<img id="displayImage" src="assets/images/tier_maps/chernarus.png" alt="Selected Image">
+			</div>
+		</div>
+	</div>
+
+    <datalist id="numberOptions">
+        <option value="5">
+        <option value="10">
+        <option value="20">
+        <option value="30">
+        <option value="50">
+    </datalist>
+
+    <datalist id="secondsOptions">
+        <option value="900">
+        <option value="1800">
+        <option value="7200">
+        <option value="14400">
+        <option value="28800">
+    </datalist>
+
+</main>
+
+<!-- Footer -->
+
+<footer class="footer"><div>CruzDoodelz &amp; NoSignal <span style="float:right">DZSA Loot Editor · CruzDoodelZ Server Studio</span></div></footer>
+
+
+
+
+<!-- Corner popup -->
+<div class="toast-container position-fixed bottom-0 end-0 p-5">
+
+    <!-- Corner popup : User inputs -->
+    <div id="toastTools" class="toast align-items-center text-bg-primary dz_toast" data-bs-delay="5000" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body">
+            </div>
+            <button type="button" class="btn-close btn-close-black me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+    </div>
+
+    <!-- Corner popup : Save progress -->
+    <div id="toastSave" class="toast align-items-center text-bg-primary dz_toast" data-bs-delay="5000" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body">
+            </div>
+            <button type="button" class="btn-close btn-close-black me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+    </div>
+
+    <!-- Corner popup : Error -->
+    <div id="toastError" class="toast align-items-center text-bg-primary dz_toast_error" data-bs-delay="5000" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body">
+            </div>
+            <button type="button" class="btn-close btn-close-black me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+    </div>
+
+</div>
+
+<!-- Import libraries -->
+<script src="lib/js/bootstrap.bundle.min.js?v=5.3.3"></script> <!-- Bootstrap 5.3.3 -->
+<script src="lib/js/tabulator.min.js?v=6.3.0"></script>        <!-- Tabulator 6.3.0 -->
+<script src="lib/js/leaflet.js?v=1.9.4"></script>              <!-- Leaflet 1.9.4   -->
+
+<!-- Import custom javascript -->
+<script src="static/js/index.js?v=1.1"></script>
+<script src="static/js/validate.js?v=1.0"></script>
+<script src="static/js/editor.js?v=1.4" type="module"></script>
+<script src="static/js/tierMaps.js?v=1.0"></script>
+<script src="static/js/map.js?v=1.0"></script>
+
+<!-- Initialize globals -->
+<script src="static/js/globals.js?v=1.1"></script>
+
+</body>
+</html>

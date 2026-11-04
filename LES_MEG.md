@@ -1,4 +1,4 @@
-# Taldris Server Studio 0.5.3
+# CruzDoodelZ Server Studio 0.5.3
 
 Windows-program for å installere og administrere en lokal DayZ Dedicated Server eller en Windows-VPS. Nytt: SteamCMD-nedlasting, integrert SteamCMD-konsoll, oppstartsveiviser og direkte Steam Workshop-søk.
 

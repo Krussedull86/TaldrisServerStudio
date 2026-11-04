@@ -4,7 +4,7 @@ from pathlib import Path
 from release_info import VERSION,BUILD
 from windows_firewall import ps_quote
 
-NAME='Taldris Server Studio'
+NAME='CruzDoodelZ Server Studio'
 REGKEY=r'Software\Microsoft\Windows\CurrentVersion\Uninstall\TaldrisServerStudio'
 
 def read_install(home):
@@ -27,6 +27,11 @@ def register_windows(root,home,launcher):
     pythoncom.CoInitialize()
     shell=win32com.client.Dispatch('WScript.Shell')
     links=[Path(shell.SpecialFolders('Programs'))/NAME/(NAME+'.lnk'),Path(shell.SpecialFolders('Desktop'))/(NAME+'.lnk')]
+    legacy=[Path(shell.SpecialFolders('Programs'))/'Taldris Server Studio'/'Taldris Server Studio.lnk',Path(shell.SpecialFolders('Desktop'))/'Taldris Server Studio.lnk']
+    for old in legacy:
+        if old.is_file():
+            previous=shell.CreateShortcut(str(old))
+            if Path(previous.TargetPath).resolve()==Path(launcher).resolve():old.unlink()
     for path in links:
         path.parent.mkdir(parents=True,exist_ok=True);shortcut=shell.CreateShortcut(str(path));shortcut.TargetPath=str(launcher);shortcut.Arguments='--home "'+str(home)+'"';shortcut.WorkingDirectory=str(root);shortcut.IconLocation=str(launcher)+',0';shortcut.Save()
     powershell=Path(os.environ.get('SystemRoot',r'C:\Windows'))/'System32/WindowsPowerShell/v1.0/powershell.exe'
@@ -35,7 +40,7 @@ def register_windows(root,home,launcher):
     # settings and DayZ data stay outside this folder and are never stopped.
     script.write_text("$ErrorActionPreference='Stop'\n"+'\n'.join('Remove-Item -LiteralPath '+ps_quote(p)+' -Force -ErrorAction SilentlyContinue' for p in links)+"\nRemove-Item -LiteralPath 'HKCU:\\"+REGKEY+"' -Recurse -Force -ErrorAction SilentlyContinue\nRemove-Item -LiteralPath "+ps_quote(Path(home)/'installation.json')+" -Force -ErrorAction SilentlyContinue\nSet-Location $env:TEMP\nRemove-Item -LiteralPath "+ps_quote(root)+" -Recurse -Force\n",encoding='utf-8-sig')
     with winreg.CreateKey(winreg.HKEY_CURRENT_USER,REGKEY) as key:
-        values={'DisplayName':NAME,'DisplayVersion':f'{VERSION} (bygg {BUILD})','Publisher':'Taldris','InstallLocation':str(root),'DisplayIcon':str(launcher),'UninstallString':f'"{powershell}" -NoProfile -ExecutionPolicy Bypass -File "{script}"'}
+        values={'DisplayName':NAME,'DisplayVersion':f'{VERSION} (bygg {BUILD})','Publisher':'CruzDoodelZ','InstallLocation':str(root),'DisplayIcon':str(launcher),'UninstallString':f'"{powershell}" -NoProfile -ExecutionPolicy Bypass -File "{script}"'}
         for name,value in values.items():winreg.SetValueEx(key,name,0,winreg.REG_SZ,value)
         for name in ('NoModify','NoRepair'):winreg.SetValueEx(key,name,0,winreg.REG_DWORD,1)
     del shell

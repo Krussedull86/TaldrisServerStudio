@@ -1,0 +1,285 @@
+/*
+*
+*   Tabulator Style
+*
+*/
+
+/* Global */
+
+.dz_vh {
+    height: 75vh !important;
+}
+
+.tabulator {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    background-color: var(--tab-table-bg);
+    line-height: 1.2;
+    border: none !important;
+}
+
+.tabulator-table {
+    font-family: 'Fira Code' !important;
+    font-size: 12px;
+    font-weight: 400;
+    width: 100%;
+}
+
+.bulkmode-inactive {
+    border: 1px solid var(--tab-header-border) !important;
+}
+
+.bulkmode-active {
+    border: 1px solid var(--colorAccent) !important;
+}
+
+.tabulator-frozen-left {
+    font-size: 11px; /* Adjust font size to your preference */
+    font-weight: 600 !important; /* Optional: Use 400 (regular), 600 (semi-bold), or 700 (bold) */
+    color: #404040 !important; /* Dark Gray Text Color */
+    text-align: center !important;
+}
+
+/* Toolbar */
+
+/* Header sort active color  */
+[aria-sort="descending"] .tabulator-arrow,
+[aria-sort="ascending"] .tabulator-arrow {
+    border-bottom-color: var(--colorAccent) !important;
+    border-top-color: var(--colorAccent) !important;
+}
+
+/* Header sort inactive color  */
+[aria-sort="none"] .tabulator-arrow {
+    border-bottom-color: #4b4b4b !important;
+    border-top-color: #4b4b4b !important;
+}
+
+.top-margin-editor { margin-top: 63px; }
+
+.bulk_header {
+    font-size: 14px;
+
+    /* border-left: 1px solid #383838; */
+
+    padding-top: 3px;
+
+    box-sizing: border-box;
+    display: inline-flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    overflow: hidden;
+    position: relative;
+    text-align: left;
+    vertical-align: bottom;
+    background-color: var(--tab-row-header);
+}
+
+.bulk_input {
+
+    margin-top: 7px;
+    margin-bottom: 7px;
+    margin-left: auto;
+    margin-right: auto;
+    color: #fff;
+    /* background-color: #1f1f1f; */
+    border: 1px solid #4b4b4b;
+    border-radius: 2px;
+    outline: none;
+    line-height: normal;
+    box-sizing: border-box;
+    position: relative;
+    width: 100%;
+
+    padding: 4px;
+
+    background-color: var(--colorBackground) !important;
+    border-color: var(--tab-header-input) !important;
+    font-family: 'Fira Code';
+    font-size: 12px;
+}
+.bulk_input:disabled {
+    border-color: var(--tab-header-input-disabled) !important;
+    color:#1f1f1f !important;
+    background-color: #090909;
+}
+
+.bulk_input:focus { border-color: var(--colorAccent); };
+
+.bulk_input::-webkit-input-placeholder { color: var(--tab-header-input); }
+.bulk_input:-moz-placeholder { color: var(--tab-header-input); }
+.bulk_input::-moz-placeholder { color: var(--tab-header-input); }
+.bulk_input:-ms-input-placeholder { color: var(--tab-header-input); }
+
+.bulk_input:disabled::-webkit-input-placeholder { color:#1f1f1f; }
+.bulk_input:disabled:-moz-placeholder { color:#1f1f1f; }
+.bulk_input:disabled::-moz-placeholder { color:#1f1f1f; }
+.bulk_input:disabled:-ms-input-placeholder { color:#1f1f1f; }
+
+.subheader {
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--color8);
+}
+
+.tabulator-headers {
+    background: var(--tab-row-header);
+}
+
+.tabulator-header {
+    border-top: none !important;
+    border-bottom: 2px solid var(--tab-header-input) !important;
+}
+.tabulator-header .tabulator-col { background: var(--tab-row-header); }
+.tabulator-header .tabulator-col input {
+    background-color: var(--colorBackground) !important;
+    border-color: var(--tab-header-input) !important;
+    font-family: 'Fira Code';
+    font-size: 12px;
+}
+.tabulator-header .tabulator-col input::placeholder { color: var(--tab-header-input) !important; }
+.tabulator-header .tabulator-col input:focus { border-color: var(--colorAccent) !important; }
+.tabulator-header .tabulator-col { border-right-color: var(--tab-header-border) !important; }
+
+.tabulator .tabulator-header .tabulator-col {
+    background: var(--tab-row-header);
+}
+
+.dz_ToggleSwitchLabel {
+    font-size: 12px !important;
+    margin-top: auto;
+    margin-bottom: auto;
+
+}
+.dz_ToggleSwitch {
+    background-color: #00d8e72a !important;
+    border-color: #00d8e72a !important;
+}
+.dz_ToggleSwitch:checked {
+    background-color: #00d8e72a !important;
+    border-color: #00d8e7 !important;
+}
+
+.dz_bulkContainer {
+    /* border: 1px solid var(--colorAccent); */
+}
+.dz_bulkToolbarContainer { background: #080808 !important; }
+.dz_bulkToolbarRow {
+    /* border-bottom: 1px solid var(--tab-header-border); */
+
+}
+.dz_bulkToolbarRow_1 {
+    height: 41px;
+    border-bottom: 1px solid var(--tab-header-border);
+    background-color: var(--tab-row-header);
+}
+
+.dz_bulkToolbarColumn {
+    /* border-left: 1px solid #383838; */
+}
+
+.dz_bulkToolbarColumn_1 {
+    font-size: 12px;
+    /* border-left: 1px solid #383838; */
+}
+
+/* Table */
+
+.tabulator-row-even { background-color: var(--tab-row-even) !important; }
+.tabulator-row-even.tabulator-selected { background-color: var(--tab-row-even-selected) !important; }
+
+.tabulator-row-odd { background-color: var(--tab-row-odd) !important; }
+.tabulator-row-odd.tabulator-selected { background-color: var(--tab-row-odd-selected) !important; }
+
+.tabulator-row.tabulator-selected:hover { background-color: #000 !important; }
+
+.tabulator-row-even:hover, .tabulator-row-odd:hover { background-color: #000 !important; }
+
+.tabulator-row .tabulator-cell {
+    border-right-color: var(--tab-header-border);
+}
+
+.tabulator-cell { color: var(--tab-cell-text) !important; }
+.tabulator-cell.tabulator-editing {
+    border: 1px solid var(--colorAccent) !important;
+    background-color: var(--colorAccentMutedSolid) !important;
+}
+.tabulator-cell.tabulator-row-header { background: var(--tab-row-header) !important; }
+
+.tabulator-col-title {
+    font-size: 13px !important;
+    color: var(--color14) !important;
+}
+
+/* Footer */
+.tabulator-footer {
+    border-top: 1px solid #aaa !important;
+    background-color: var(--colorDarker) !important;
+}
+
+.dz_editorTitle {
+    font-size: 14px;
+    background: black;
+}
+
+#fileName {
+    color: var(--color13);
+    font-size: 18px;
+    padding: 5px;
+    background-color: var(--colorAccentMutedSolid);
+}
+
+.dz_btnSquareEditor {
+    width: 35px !important;
+    height: 30px !important;
+    padding: 0px;
+    font-size: 16px;
+}
+
+.dz_inputShort {
+    width: 100px;
+}
+
+.dz_btnEditorTopbar {
+    padding-left: 8px;
+    padding-right: 8px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+    margin-right: 5px;
+    font-size: 12px;
+}
+
+.dz_toggleMarginZero {
+    margin-left: -1.5em !important;
+}
+
+.dz_bulkHeaderBorderRight {
+    border-right: 1px solid var(--tab-header-border);
+}
+
+.dz_activeColumn {
+    background: var(--colorAccentMutedSolid) !important;
+}
+
+.dz_fixedAbsoluteDisabled {
+    color: var(--colorDisabledText);
+    opacity: 1 !important;
+}
+
+.dz_vm {
+    margin-top: auto;
+    margin-bottom: auto;
+}
+/* Keep toolbar actions reachable without scrolling the entire page. */
+.dz_bulkToolbarRow { flex-wrap: wrap !important; gap: 6px; }
+.dz_bulkToolbarColumn { flex-wrap: wrap; gap: 4px; min-width: 0; }
+.dz_bulkToolbarColumn:first-child { flex: 0 0 auto; width: auto; padding-right: 16px; }
+.dz_bulkContainer { max-width: 100%; overflow-x: auto; }
+.tabulator { max-width: 100%; }
+@media(max-width: 767px) {
+ .dz_bulkToolbarRow_1 { height: auto; flex-wrap: wrap !important; }
+ .dz_bulkToolbarColumn_1 { flex: 1 0 260px; padding: 6px; }
+ .top-margin-editor { margin-top: 100px; }
+ .footer { position: static !important; }
+}

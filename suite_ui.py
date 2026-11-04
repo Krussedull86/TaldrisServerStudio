@@ -18,17 +18,22 @@ class SuiteStudio(OperationsStudio):
         # Replace the temporary local Steam wrapper before any job is started.
         self.steam.deleteLater();self.steam=RemoteSteamSession(self.manager,self);self.steam.output.connect(self.terminal_output);self.steam.completed.connect(self.steam_done);self.steam.active.connect(self.steam_active);self.steam.progress.connect(self.set_progress);self.steam.detail.connect(self.terminal_detail.setText)
         self.op_timer.stop();self.op_timer.timeout.disconnect();self.op_timer.timeout.connect(self.operations_tick);self.op_timer.start(3000)
-        self.page_names+=['RCon og spillere','Discord og tjeneste'];self.rcon_page();self.host_page()
+        self.page_names+=['RCon & players','Discord & service'];self.rcon_page();self.host_page()
         side=self.nav[0].parentWidget().layout()
-        for index,title in [(11,'RCon og spillere'),(12,'Discord / tjeneste')]:
+        for index,title in [(11,'RCon & players'),(12,'Discord / service')]:
             b=button(title,lambda checked=False,n=index:self.go(n),'nav');b.setCheckable(True);side.insertWidget(side.count()-4,b);self.nav.append(b)
         self.setStyleSheet('QPushButton#nav {padding-top:7px;padding-bottom:7px;}');self.load_host_settings()
-        self.stack.widget(10).layout().insertWidget(0,button('Installer programmet på denne PC-en',lambda:self.guard(self.install_application),'primary'))
-        for page in (7,8):self.stack.widget(page).layout().insertWidget(0,button('Importer eksisterende server fra BAT / CMD …',lambda:self.guard(self.import_batch_file),'primary'))
+        self.stack.widget(10).layout().insertWidget(0,button('Install this application',lambda:self.guard(self.install_application),'primary'))
+        for page in (7,8):self.stack.widget(page).layout().insertWidget(0,button('Import existing server from BAT / CMD …',lambda:self.guard(self.import_batch_file),'primary'))
         self.agent_version_label=label('Panel / agent …','muted');self.statusBar().addPermanentWidget(self.agent_version_label)
-        self.stack.widget(10).layout().insertWidget(1,button('Oppdater/reparer bakgrunnsagent',lambda:self.guard(self.repair_background_agent)))
-        self.server_controls.addWidget(button('Slett server …',lambda:self.guard(self.delete_server_profile),'danger'))
-        self.statusBar().showMessage('Tilkoblet bakgrunnsagent • Serverne styres uavhengig av programvinduet')
+        self.stack.widget(10).layout().insertWidget(1,button('Update / repair background agent',lambda:self.guard(self.repair_background_agent)))
+        self.server_controls.addWidget(button('Delete server …',lambda:self.guard(self.delete_server_profile),'danger'))
+        self.statusBar().showMessage('Connected to background agent • Servers run independently of this window')
+        from loot_workspace import LootWorkspace
+        self.page_names.append('DZSA Loot Editor');layout=self.page();self.loot=LootWorkspace(self);layout.addWidget(self.loot);b=button('DZSA Loot Editor',lambda:self.go(13),'nav');b.setCheckable(True);side.insertWidget(side.count()-4,b);self.nav.append(b)
+        transfer=QHBoxLayout();transfer.addWidget(button('Export profile …',lambda:self.guard(self.export_server_profile)));transfer.addWidget(button('Import profile …',lambda:self.guard(self.import_server_profile)));self.stack.widget(7).layout().insertLayout(0,transfer)
+        self.stack.widget(0).layout().addWidget(button('Fix dependencies …',lambda:self.guard(self.fix_dependencies)))
+        self.stage_label=label('Stage: Idle','eyebrow');self.terminal_detail.parentWidget().layout().insertWidget(0,self.stage_label)
     def repair_background_agent(self):
         if getattr(self,'repair_in_progress',False):return
         from agent_repair import repair
@@ -65,14 +70,15 @@ class SuiteStudio(OperationsStudio):
         if any(doc and doc.dirty for doc in docs) or any(layer['doc'].dirty for layer in layers):raise ValueError('Lagre eller forkast kart- og konfigurasjonsendringer for denne profilen før import.')
     def load(self):
         super().load()
+        if hasattr(self,'loot'):self.loot.update_target()
         if hasattr(self,'rcon_path'):self.rcon_path.setText(self.p.get('rcon_config',''))
     def overview(self):
         super().overview()
         hero_layout=self.start_btn.parentWidget().layout();actions=hero_layout.itemAt(hero_layout.count()-1).layout()
-        actions.insertWidget(2,button('Restart …',lambda:self.guard(lambda:self.countdown('restart'))));actions.insertWidget(3,button('Trygg stopp …',lambda:self.guard(lambda:self.countdown('stop'))))
+        actions.insertWidget(2,button('Restart …',lambda:self.guard(lambda:self.countdown('restart'))));actions.insertWidget(3,button('Graceful stop …',lambda:self.guard(lambda:self.countdown('stop'))))
         from PySide6.QtWidgets import QLabel
         for widget in self.stack.widget(0).findChildren(QLabel):
-            if widget.text()=='Live data ikke tilkoblet':widget.setText('Siste svar fra Steam query')
+            if widget.text()=='Live data not connected':widget.setText('Last Steam query response')
     def backups_page(self):
         super().backups_page();page=self.stack.widget(5);page.layout().addWidget(button('Gjenopprett valgt backup …',lambda:self.guard(self.restore_backup),'primary'))
         from PySide6.QtWidgets import QLabel
@@ -97,15 +103,16 @@ class SuiteStudio(OperationsStudio):
     def save_config(self):self.center.save()
     def create_config_for(self,p):
         path=Path(p['root'])/p['config']
-        if path.exists():self.events.put('Beholder eksisterende serverkonfigurasjon: '+str(path));return
+        if path.exists():self.events.put('Keeping existing server config: '+str(path));return
         self.manager.wait_job(self.manager.enqueue('create_config',p))
     def bootstrap(self,after=None):
         self.save_setup();p=self.p;self.setup_status.setText('Agenten henter SteamCMD fra Valve …');job=self.manager.enqueue('bootstrap',p)
         def ready(exe):
             self.manager.refresh();self.setup_status.setText('SteamCMD er klar.')
             if after:after(p)
-        self.run_task(lambda:self.manager.wait_job(job,timeout=90),ready,description='SteamCMD-nedlasting')
+        self.run_task(lambda:self.manager.wait_job(job,timeout=90),ready,description='SteamCMD download')
     def steam_done(self,data):
+        if hasattr(self,'stage_label'):self.stage_label.setText('Stage: '+('Done' if data['ok'] else 'Failed / cancelled'))
         self.events.put(data['message']);self.console_status.setText(data['message']);self.setup_status.setText(data['message']);self.terminal_detail.setText(data['message']);self.manager.refresh();self.refresh_mods()
         if data['ok'] and data['chained'] and data['profile'].get('start_after_install'):self.manager.start(data['profile'])
     def begin_maintenance(self,p,restart):
@@ -224,7 +231,7 @@ class SuiteStudio(OperationsStudio):
         from self_install import install
         self.staged_exe=install(self.manager.home);self.events.put('Programmet er installert. Snarveier er opprettet på skrivebordet og i Start-menyen.');self.apply_update()
     def apply_update(self):
-        dirty=bool(self.center.doc and self.center.doc.dirty) or any(layer['doc'].dirty for layer in self.workbench.layers)
+        dirty=bool(self.center.doc and self.center.doc.dirty) or any(layer['doc'].dirty for layer in self.workbench.layers) or (hasattr(self,'loot') and self.loot.dirty)
         if dirty:
             self.update_message.setText('Oppdateringen er klar. Lagre eller forkast editor-/kartendringer før du installerer.');return
         if self.manager.busy or self.steam.running() or self.tasks:
@@ -236,8 +243,32 @@ class SuiteStudio(OperationsStudio):
         # Background jobs and DayZ continue; only panel-owned network tasks block close.
         if self.tasks:QMessageBox.information(self,'Paneljobb pågår','Vent til paneljobben er ferdig. Serverdriften skjer i bakgrunnen.');event.ignore();return
         if not getattr(self,'update_handoff',False):
-            dirty=bool(self.center.doc and self.center.doc.dirty) or any(layer['doc'].dirty for layer in self.workbench.layers)
+            dirty=bool(self.center.doc and self.center.doc.dirty) or any(layer['doc'].dirty for layer in self.workbench.layers) or (hasattr(self,'loot') and self.loot.dirty)
             if dirty and QMessageBox.question(self,'Ulagrede endringer','Avslutte og forkaste ulagrede editor-/kartendringer?',QMessageBox.Yes|QMessageBox.No,QMessageBox.No)!=QMessageBox.Yes:event.ignore();return
         try:self.manager.save()
         except (OSError,ValueError):pass
         event.accept()
+
+    def terminal_output(self,text):
+        super().terminal_output(text)
+        if hasattr(self,'stage_label'):
+            from steam_status import phase
+            self.stage_label.setText('Stage: '+phase(text))
+    def export_server_profile(self):
+        from profile_transfer import export_profile
+        path,_=QFileDialog.getSaveFileName(self,'Export server profile',self.p['name']+'.cruz.json','Server profile (*.cruz.json *.taldris.json *.json)')
+        if path:export_profile(self.p,path);self.events.put('Profile exported without credentials. Companion program commands are excluded.')
+    def import_server_profile(self):
+        from profile_transfer import read_profile
+        path,_=QFileDialog.getOpenFileName(self,'Import server profile','','Server profile (*.json)')
+        if not path:return
+        fields=read_profile(path)
+        if QMessageBox.question(self,'Import server profile','Create a new profile named '+fields['name']+'?\nReview file paths and ports before starting. No server files will be changed.',QMessageBox.Yes|QMessageBox.Cancel,QMessageBox.Cancel)!=QMessageBox.Yes:return
+        result=self.manager.client.call('import_profile',{'profile':fields});self.manager.refresh();self.p=next(p for p in self.manager.state['servers'] if p['id']==result['id']);self.load();self.go(7)
+    def fix_dependencies(self):
+        from dependencies import check_dependencies
+        from PySide6.QtCore import QUrl
+        from PySide6.QtGui import QDesktopServices
+        rows=check_dependencies(self.p.get('root',''));box=QMessageBox(self);box.setWindowTitle('DayZ runtime dependencies');box.setText('\n'.join(('✓ ' if ok else '✕ ')+title+': '+detail for ok,title,detail,url in rows));dx=box.addButton('Microsoft DirectX',QMessageBox.ActionRole);vc=box.addButton('Microsoft Visual C++ x64',QMessageBox.ActionRole);box.addButton(QMessageBox.Close);box.exec()
+        if box.clickedButton() is dx:QDesktopServices.openUrl(QUrl(rows[0][3]))
+        elif box.clickedButton() is vc:QDesktopServices.openUrl(QUrl(rows[1][3]))

@@ -1,4 +1,4 @@
-name: Taldris dev
+name: CruzDoodelZ Server Studio dev
 on:
   push:
     branches: [dev]
@@ -41,7 +41,18 @@ jobs:
           BUILD: ${{ github.run_number }}
           REPOSITORY: ${{ github.repository }}
         run: python scripts/release.py stamp
-      - run: python -m PyInstaller --noconfirm --clean --onefile --windowed --collect-data certifi --collect-data discord --hidden-import win32timezone --hidden-import servicemanager --name TaldrisServerStudio app.py
+      - run: python -m PyInstaller --noconfirm --clean --onefile --windowed --collect-data certifi --collect-data discord --hidden-import win32timezone --hidden-import servicemanager --add-data "loot_web;loot_web" --add-data "loot_maps;loot_maps" --name TaldrisServerStudio app.py
+      - name: Smoke test integrated loot editor
+        shell: pwsh
+        run: |
+          $process = Start-Process -FilePath dist/TaldrisServerStudio.exe -ArgumentList '--smoke-loot', 'loot-smoke.json' -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "Loot editor smoke failed" }
+      - name: Check loot editor result
+        shell: pwsh
+        run: |
+          if (!(Test-Path loot-smoke.json)) { throw "Loot smoke report missing" }
+          $report = Get-Content loot-smoke.json -Raw | ConvertFrom-Json
+          if (!$report.success) { throw ($report | ConvertTo-Json) }
       - name: Smoke test packaged background agent
         run: python scripts/smoke_agent.py dist/TaldrisServerStudio.exe
       - name: Smoke test packaged self installation and uninstall

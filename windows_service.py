@@ -22,7 +22,7 @@ def install_service(home,source=None):
 $existing=Get-Service -Name '{NAME}' -ErrorAction SilentlyContinue
 if ($existing -and $existing.Status -ne 'Stopped') {{ Stop-Service -Name '{NAME}'; (Get-Service '{NAME}').WaitForStatus('Stopped',[TimeSpan]::FromSeconds(45)) }}
 if ($existing) {{ & sc.exe config '{NAME}' binPath= {ps_quote(command)} start= auto | Out-Null }}
-else {{ & sc.exe create '{NAME}' binPath= {ps_quote(command)} start= auto DisplayName= 'Taldris Server Studio Agent' | Out-Null }}
+else {{ & sc.exe create '{NAME}' binPath= {ps_quote(command)} start= auto DisplayName= 'CruzDoodelZ Server Studio Agent' | Out-Null }}
 if ($LASTEXITCODE -ne 0) {{ exit $LASTEXITCODE }}
 & sc.exe failure '{NAME}' reset= 86400 actions= restart/10000/restart/30000 | Out-Null
 Start-Service -Name '{NAME}'
@@ -38,7 +38,7 @@ Start-Service -Name '{NAME}'
 def run_service(home):
     import servicemanager,win32service,win32serviceutil
     class Service(win32serviceutil.ServiceFramework):
-        _svc_name_=NAME;_svc_display_name_='Taldris Server Studio Agent';_svc_description_='DayZ drift, Discord, oppdateringer og restarter uten åpent programvindu.'
+        _svc_name_=NAME;_svc_display_name_='CruzDoodelZ Server Studio Agent';_svc_description_='DayZ drift, Discord, oppdateringer og restarter uten åpent programvindu.'
         def __init__(self,args):super().__init__(args);self.stop_request=threading.Event();self.finished=threading.Event()
         def SvcStop(self):
             self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING);self.stop_request.set()

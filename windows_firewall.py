@@ -75,7 +75,7 @@ if ($r) {{
 $admin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $admin) {{ exit 5 }}
 if ($r) {{ Remove-NetFirewallRule -PolicyStore PersistentStore -Name $name }}
-New-NetFirewallRule -PolicyStore PersistentStore -Name $name -DisplayName {ps_quote('Taldris DayZ ' + str(profile['name']))} -Group 'Taldris Server Studio' -Direction Inbound -Action Allow -Enabled True -Profile Any -Program $exe -Protocol UDP -LocalPort $ports | Out-Null
+New-NetFirewallRule -PolicyStore PersistentStore -Name $name -DisplayName {ps_quote('Taldris DayZ ' + str(profile['name']))} -Group 'CruzDoodelZ Server Studio' -Direction Inbound -Action Allow -Enabled True -Profile Any -Program $exe -Protocol UDP -LocalPort $ports | Out-Null
 exit 0
 """
 

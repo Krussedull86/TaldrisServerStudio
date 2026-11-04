@@ -26,3 +26,17 @@ def stage(text):
         if any(s in lower for s in ['logging in','connecting anonymously','waiting for user info','logged in']):return 'Kobler til / logger inn på Steam — '+line[:160]
         if 'checking for available updates' in lower or 'updating steamcmd' in lower:return 'Oppdaterer SteamCMD'
     return 'SteamCMD er startet — venter på neste melding'
+
+
+def phase(text):
+    lines=plain_terminal(text).casefold()
+    # The last recognizable transition wins, including jobs with several downloads.
+    result='Starting'
+    for line in lines.splitlines():
+        if any(k in line for k in ('error!','failed','access denied','no subscription')):result='Failed — read console'
+        elif any(k in line for k in ('logging in','steam guard','password:','connecting anonymously')):result='Login / Steam Guard'
+        elif any(k in line for k in ('workshop','download item')):result='Workshop mods'
+        elif any(k in line for k in ('validating','verifying')):result='Validating'
+        elif any(k in line for k in ('downloading','update state','updating app')):result='Updating server'
+        elif 'success!' in line or 'success. downloaded' in line:result='Download confirmed — finishing job'
+    return result

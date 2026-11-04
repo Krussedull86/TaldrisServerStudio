@@ -35,8 +35,8 @@ class UITests(unittest.TestCase):
     def test_switch_local_mod_to_both(self):
         from local_mods import import_mods,scan_mods
         path=self.root/'@Both'; (path/'Addons').mkdir(parents=True); (path/'Addons'/'test.pbo').write_bytes(b'test'); import_mods(self.window.p,scan_mods(path)['mods']); self.window.refresh_mods(); self.window.mods.selectRow(0)
-        with patch('integration.QInputDialog.getItem',return_value=('Begge (-mod + -serverMod)',True)):self.window.edit_selected_mod()
-        self.assertEqual(self.window.p['mods'][0]['load_mode'],'both'); self.assertEqual(self.window.mods.item(0,3).text(),'Begge')
+        with patch('integration.QInputDialog.getItem',return_value=('Both (-mod + -serverMod)',True)):self.window.edit_selected_mod()
+        self.assertEqual(self.window.p['mods'][0]['load_mode'],'both'); self.assertEqual(self.window.mods.item(0,3).text(),'Both')
     def test_pages_and_import(self):
         w=self.window
         for i in range(10):w.go(i); self.app.processEvents()

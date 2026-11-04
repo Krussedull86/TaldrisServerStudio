@@ -39,7 +39,7 @@ class OperationsStudio(ReleaseStudio):
         self.op_backup=QCheckBox('Ta backup før oppdatering / planlagt restart'); c.addWidget(self.op_backup)
         self.op_keep=QLineEdit('10'); form.addRow('Behold antall automatiske backuper',self.op_keep)
         self.op_recover=QCheckBox('Gjenstart ved krasj (maks 3 forsøk per 15 minutter)'); c.addWidget(self.op_recover)
-        c.addWidget(button('Lagre driftsoppsett',self.action(self.save_operations),'primary')); inner.addWidget(f)
+        c.addWidget(button('Save operations',self.action(self.save_operations),'primary')); inner.addWidget(f)
         inner.addWidget(button('Kjør vedlikehold nå (server må være stoppet)',self.action(self.manual_maintenance)))
         self.op_status=label('Ingen driftshendelser registrert.','muted'); inner.addWidget(self.op_status)
         inner.addWidget(label('Bakgrunnsagenten utfører vedlikehold og restart uten åpent programvindu. Steam kan kreve ny innlogging eller Steam Guard. Ved oppdateringsfeil forblir serveren stoppet, og feilen vises i loggen. Ingen automatisk tvungen stopp eller wipe.','muted'))

@@ -81,7 +81,7 @@ class MapWorkbench(QWidget):
             self.server_id=self.studio.p['id'];self.layers=self.cache.get(self.server_id,[]);self.layer_choice.blockSignals(True);self.layer_choice.clear();self.layer_choice.addItems([l['doc'].relative for l in self.layers]);self.layer_choice.blockSignals(False)
         self.render();self.choose_layer()
     def choose_image(self):
-        path,_=QFileDialog.getOpenFileName(self,'Kartbilde for valgt server','','Bilder (*.png *.jpg *.jpeg *.webp)')
+        path,_=QFileDialog.getOpenFileName(self,'Kartbilde for valgt server','','Images (*.png *.jpg *.jpeg *.webp)')
         if path:self.studio.p['map_image']=path;self.studio.manager.save();self.render()
     def add_layer(self):
         files=[name for name in catalog(self.studio.p) if name.endswith('.xml')]
