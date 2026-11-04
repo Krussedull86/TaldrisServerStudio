@@ -40,6 +40,8 @@ class SteamSession(QObject):
         self.ids=list(dict.fromkeys(ids if ids is not None else [m['id'] for m in profile['mods'] if m.get('enabled',True) and m.get('id')])) if kind in ('all','mods') else []
         if kind=='mods' and not self.ids:raise ValueError('Add at least one active Workshop mod first.')
         args=steam_arguments(profile,kind,self.ids)
+        from steam_runtime import SteamEvidence
+        self.evidence=SteamEvidence()
         self.profile=profile; self.kind=kind; self.chained=chained; self.raw=''; self.secrets=[]; self.was_cancelled=False; self.last_output=time.monotonic(); self.started_at=self.last_output; self.last_stage='Starter SteamCMD'; self.manager.busy.add(profile['id'])
         self.process.setProgram(str(exe.resolve())); self.process.setArguments(args); self.process.setWorkingDirectory(str(exe.resolve().parent)); self.active.emit(True); self.progress.emit(-1); self.raw='Starter SteamCMD.\nPlan: innlogging → '+('DayZ Server 223350 → ' if kind in ('server','all') else '')+(str(len(self.ids))+' Workshop-mods → ' if self.ids else '')+'avslutt.\nVenter på meldinger fra Steam …\n'; self.output.emit(self.sanitized()); self.detail.emit('Starter SteamCMD — ingen nedlasting er bekreftet ennå.'); self.process.start(); self.watch.start()
     def sanitized(self):
@@ -51,6 +53,7 @@ class SteamSession(QObject):
         data=bytes(self.process.readAllStandardOutput()).decode('utf-8',errors='replace')
         if not data:return
         self.raw+=data
+        self.evidence.feed(data)
         # Keep output bounded. Passwords are never written to disk by this app.
         if len(self.raw)>1000000:self.raw=self.raw[-800000:]
         self.last_output=time.monotonic(); self.output.emit(self.sanitized())
@@ -69,7 +72,7 @@ class SteamSession(QObject):
     def finish(self,code,status):
         self.read()
         if self.profile is None:return
-        ok,msg=result_summary(self.raw,self.kind,self.ids,code,(Path(self.profile['root'])/'DayZServer_x64.exe').is_file())
+        ok,msg=result_summary(self.evidence.text(),self.kind,self.ids,code,(Path(self.profile['root'])/'DayZServer_x64.exe').is_file())
         if status!=QProcess.NormalExit:ok=False
         if self.was_cancelled:ok=False; msg='SteamCMD job was cancelled. No automatic install or server start is performed.'
         self.complete(ok,msg)

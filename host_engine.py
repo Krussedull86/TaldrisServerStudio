@@ -357,6 +357,7 @@ class HostEngine:
     @offline_job
     def bootstrap(self,p):
         from steam_services import install_steamcmd
+        if not p.get('steamcmd','').strip():raise ValueError('Choose a SteamCMD folder in Get started first.')
         exe=install_steamcmd(Path(p['steamcmd']).parent,self.log);p['steamcmd']=exe;self.manager.save();return exe
     @offline_job
     def backup(self,p):
@@ -377,40 +378,59 @@ class HostEngine:
         self.editable(p)
         if kind not in ('login','server','mods','all'):raise ValueError('Ukjent SteamCMD-jobb.')
         if os.name!='nt':raise ValueError('SteamCMD-jobber krever Windows.')
-        ids=list(dict.fromkeys(ids if ids is not None else [m['id'] for m in p['mods'] if m.get('enabled',True) and m.get('id') and m.get('source')!='local'])) if kind in ('mods','all') else []
+        if not p.get('steamcmd','').strip():raise ValueError('Choose a SteamCMD folder in Get started first.')
+        ids=list(dict.fromkeys(str(wid) for wid in (ids if ids is not None else [m['id'] for m in p['mods'] if m.get('enabled',True) and m.get('id') and m.get('source')!='local']))) if kind in ('mods','all') else []
         if any(not str(wid).isdigit() for wid in ids):raise ValueError('Ugyldig Workshop-ID.')
         if kind=='mods' and not ids:raise ValueError('Ingen aktive Workshop-mods.')
         if backup and kind!='login' and (Path(p['root'])/p['config']).exists() and p.get('maintenance_backup',True):self.backup(p)
         with self.manager.lock:self.editable(p);self.manager.busy.add(p['id'])
-        self.steam_profile=p['id'];self.console=''
+        self.steam_profile=p['id'];self.console='Starting SteamCMD — waiting for Valve output.\n';self.steam_cancelled=threading.Event()
         installed_versions={m['id']:m.get('remote_updated',0) for m in p['mods'] if m.get('id')}
         try:
-            from winpty import PtyProcess
+            from steam_runtime import spawn_steam,ConsoleReplies,SteamEvidence
+            from steam_services import install_steamcmd
             exe=Path(p['steamcmd']).resolve()
-            if not exe.is_file():raise ValueError('Last ned SteamCMD i Kom i gang først.')
-            self.pty=PtyProcess.spawn([str(exe),*steam_arguments(p,kind,ids)],cwd=str(exe.parent),dimensions=(40,180));readq=queue.Queue()
+            args=steam_arguments(p,kind,ids)
+            if not exe.is_file():install_steamcmd(exe.parent,self.log)
+            Path(p['root']).mkdir(parents=True,exist_ok=True)
+            self.pty=proc=spawn_steam(exe,args);readq=queue.Queue(maxsize=128);replies=ConsoleReplies();evidence=SteamEvidence();reader_stop=threading.Event()
+            def send(item):
+                while not reader_stop.is_set():
+                    try:readq.put(item,timeout=.5);return
+                    except queue.Full:pass
             def reader():
                 try:
-                    while True:readq.put(self.pty.read(8192))
-                except Exception as e:readq.put(None)
-            threading.Thread(target=reader,daemon=True).start();last=time.monotonic()
+                    while not reader_stop.is_set():
+                        chunk=proc.read(8192)
+                        if chunk:send(('output',chunk))
+                except EOFError:send(('eof',''))
+                except Exception as error:send(('error',str(error)))
+            reader_thread=threading.Thread(target=reader,daemon=True);reader_thread.start();last=time.monotonic()
             while True:
+                if self.steam_cancelled.is_set():raise ValueError('SteamCMD job cancelled. No mods were deployed and no server was started.')
                 if self.stop_event.is_set():raise ValueError('Agenten avslutter. SteamCMD avbrytes uten modinstallasjon.')
-                try:chunk=readq.get(timeout=.5)
+                try:event,chunk=readq.get(timeout=.5)
                 except queue.Empty:
+                    # Some PTY backends never signal EOF after their child exits.
+                    # Allow queued output to drain, then inspect the exit code.
+                    if time.monotonic()-last>3 and not proc.isalive():break
                     if time.monotonic()-last>900:raise TimeoutError('SteamCMD ventet 15 minutter uten utdata. Kontroller innlogging og Steam Guard.')
                     continue
-                if chunk is None:break
-                if chunk:self.console=(self.console+chunk)[-1000000:];last=time.monotonic()
+                if event=='eof':break
+                if event=='error':raise ValueError('SteamCMD console read failed: '+chunk)
+                if chunk:
+                    evidence.feed(chunk);replies.feed(chunk,proc.write)
+                    self.console=(self.console+chunk)[-1000000:];last=time.monotonic()
             until=time.monotonic()+3
             while self.pty.exitstatus is None and time.monotonic()<until:time.sleep(.05)
             code=self.pty.exitstatus if self.pty.exitstatus is not None else 1
-            ok,message=result_summary(self.console,kind,ids,code,(Path(p['root'])/'DayZServer_x64.exe').is_file())
+            if self.steam_cancelled.is_set():raise ValueError('SteamCMD job cancelled. No mods were deployed and no server was started.')
+            ok,message=result_summary(evidence.text(),kind,ids,code,(Path(p['root'])/'DayZServer_x64.exe').is_file())
             if not ok:raise ValueError(message)
             self.log(message)
             if ids:
                 bases=[]
-                for match in re.finditer(r'Success\.\s*Downloaded item\s+(\d+)\s+to\s+"([^"]+)"',plain_terminal(self.console),re.I):
+                for match in re.finditer(r'Success\.\s*Downloaded item\s+(\d+)\s+to\s+"([^"]+)"',evidence.text(),re.I):
                     if match.group(1) in ids:bases.append(Path(match.group(2)).parent)
                 bases.extend([exe.parent/'steamapps/workshop/content/221100',Path(p['root'])/'steamapps/workshop/content/221100',Path(p.get('workshop',''))])
                 base=next((b for b in bases if all((b/wid/'addons').is_dir() for wid in ids)),None)
@@ -421,10 +441,16 @@ class HostEngine:
             if chained and not local_path(p['root'],p['config']).exists():provision(p,name=p.get('name','DayZ'),players=p.get('max_players',40),mission=p.get('mission','dayzOffline.chernarusplus'))
             p['mods_pending']=False;self.manager.save();return message
         finally:
+            if 'reader_stop' in locals():reader_stop.set()
             if self.pty:
                 try:self.pty.close(force=True)
                 except Exception:pass
+            if 'reader_thread' in locals():reader_thread.join(timeout=2)
             self.pty=None;self.steam_profile=None;self.manager.busy.discard(p['id'])
+    def cancel_steam(self):
+        if self.steam_profile:
+            self.steam_cancelled.set()
+            if self.pty:self.pty.terminate(force=True)
     def steam_input(self,value):
         if not self.pty:raise ValueError('Ingen SteamCMD-økt venter på input.')
         if any(c in value for c in '\r\n\x00'):raise ValueError('Send én linje om gangen.')

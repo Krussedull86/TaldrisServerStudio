@@ -13,14 +13,14 @@ class ConsoleWorker(QThread):
     def run(self):
         proc=None
         try:
-            from winpty import PtyProcess
-            proc=PtyProcess.spawn([self.program,*self.args],cwd=self.cwd,dimensions=(40,180))
+            from steam_runtime import spawn_steam,ConsoleReplies
+            proc=spawn_steam(self.program,self.args,self.cwd);replies=ConsoleReplies()
             with self.input_lock:self.proc=proc
             if self.cancelled.is_set():proc.terminate(force=True)
             while True:
                 try:
                     text=proc.read(8192)
-                    if text:self.received.emit(text)
+                    if text:replies.feed(text,proc.write);self.received.emit(text)
                 except EOFError:break
             code=proc.exitstatus
             # Some console backends deliver EOF shortly before exit status is ready.

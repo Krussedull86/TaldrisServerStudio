@@ -107,7 +107,10 @@ def search(text,page=1):
 def install_steamcmd(directory,report=lambda s:None,fetch=read_url):
     """Download Valve's official bootstrap; do not overwrite an existing install."""
     target=Path(directory).resolve(); exe=target/'steamcmd.exe'
-    if exe.is_file():report('SteamCMD finnes allerede.'); return str(exe)
+    if exe.is_file():
+        with exe.open('rb') as file:
+            if file.read(2)!=b'MZ':raise ValueError('Existing steamcmd.exe is damaged or is not a Windows executable. Choose a new SteamCMD folder to download a clean copy.')
+        report('SteamCMD finnes allerede.');return str(exe)
     target.mkdir(parents=True,exist_ok=True); report('Laster ned SteamCMD fra Valve …')
     raw=fetch(STEAMCMD_URL,limit=50*1024*1024)
     with zipfile.ZipFile(io.BytesIO(raw)) as archive:
@@ -150,6 +153,7 @@ def provision(profile,name,players,mission):
 def steam_arguments(profile,kind,ids=None,verify=True):
     from core import validate
     validate(profile)
+    if kind not in ('login','server','mods','all'):raise ValueError('Unknown SteamCMD job type.')
     user=profile.get('steam_user','').strip() if profile.get('login_mode','anonymous')=='account' else 'anonymous'
     if not user or not re.fullmatch(r'[A-Za-z0-9_@.\-]+',user):raise ValueError('Oppgi gyldig Steam-brukernavn i veiviseren.')
     args=['+@ShutdownOnFailedCommand','1','+@NoPromptForPassword','0','+force_install_dir',str(Path(profile['root']).resolve()),'+login',user]
@@ -158,19 +162,27 @@ def steam_arguments(profile,kind,ids=None,verify=True):
         if verify:args+=['validate']
     if kind in ('mods','all'):
         ids=ids if ids is not None else [m['id'] for m in profile['mods'] if m.get('enabled',True) and m.get('id')]
-        for wid in dict.fromkeys(ids):args+=['+workshop_download_item',str(WORKSHOP_APP),workshop_id(wid),'validate']
+        for wid in dict.fromkeys(str(w) for w in ids):
+            args+=['+workshop_download_item',str(WORKSHOP_APP),workshop_id(wid)]
+            if verify:args+=['validate']
     return args+['+quit']
 
 def result_summary(output,kind,ids,code,exe_exists=True):
-    clean=re.sub(r'\x1b\[[0-9;]*[A-Za-z]','',output)
+    from steam_status import plain_terminal
+    clean=plain_terminal(output)
     failed=bool(re.search(r'(ERROR!|FAILED\b|No subscription|Access Denied|Invalid Password|Invalid Login Auth Code|Rate Limit)',clean,re.I))
-    server_ok=bool(re.search(r"Success!\s*App\s*'223350'\s*fully installed",clean,re.I)) and exe_exists
+    server_ok=bool(re.search(r"Success!\s*App\s*'223350'\s*(?:fully installed|already up to date)",clean,re.I)) and exe_exists
     downloaded={m.group(1) for m in re.finditer(r'Success\.\s*Downloaded item\s+(\d+)\b',clean,re.I)}
-    expected=set(ids)
+    expected={str(w) for w in ids}
     ok=code==0 and not failed
     if kind in ('server','all'):ok=ok and server_ok
     if kind in ('mods','all'):ok=ok and expected.issubset(downloaded)
     if kind=='login':ok=ok and bool(re.search(r'(Logged in.*?OK|Logging in.*?OK|Waiting for user info.*?OK)',clean,re.I|re.S))
     if ok:return True,'SteamCMD bekreftet at jobben er fullført.'
     if re.search(r'(No subscription|Access Denied|Invalid Password|Invalid Login|FAILED.*log|Account Logon Denied)',clean,re.I):return False,'Steam avviste innlogging eller tilgang. Velg Steam-konto og prøv igjen. Workshop kan kreve en konto med DayZ-tilgang.'
-    return False,'Jobben er ikke bekreftet fullført. Les SteamCMD-utdata. Ved anonym tilgangsfeil: velg Steam-konto og prøv igjen.'
+    errors=[line.strip() for line in clean.splitlines() if re.search(r'ERROR!|FAILED\b|Rate Limit',line,re.I)]
+    if errors:return False,'SteamCMD failed: '+errors[-1][:350]
+    if kind in ('server','all') and not server_ok:return False,'SteamCMD did not confirm DayZ Server 223350 installation. Check the console for login / Steam Guard or download errors.'
+    missing=expected-downloaded
+    if missing:return False,'SteamCMD did not confirm Workshop items: '+', '.join(sorted(missing))+'. Check login and download access in the console.'
+    return False,'SteamCMD ended without confirmation (exit code '+str(code)+'). Read the console before retrying.'

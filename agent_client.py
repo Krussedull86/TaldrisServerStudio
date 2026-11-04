@@ -121,7 +121,7 @@ class RemoteSteamSession(QObject):
     def running(self):return self.profile is not None or bool(self.manager.raw.get('steam_profile'))
     def start(self,profile,kind,ids=None,chained=False):
         if self.running():raise ValueError('En SteamCMD-jobb kjører allerede.')
-        self.started=time.monotonic();self.job=self.manager.enqueue('steam',profile,dict(kind=kind,ids=ids,chained=chained));self.profile=profile;self.kind=kind;self.chained=chained;self.ids=ids or [];self.active.emit(True);self.progress.emit(-1)
+        self.started=time.monotonic();self.previous='';self.job=self.manager.enqueue('steam',profile,dict(kind=kind,ids=ids,chained=chained));self.profile=profile;self.kind=kind;self.chained=chained;self.ids=ids or [];self.active.emit(True);self.progress.emit(-1)
     def send_secret(self,value):self.manager.client.call('input',{'value':value})
     def cancel(self):self.manager.client.call('cancel_steam')
     def poll(self):
@@ -134,7 +134,11 @@ class RemoteSteamSession(QObject):
         if not job:
             if time.monotonic()-self.started<10 or self.profile['id'] in self.manager.busy:return
             job={'status':'failed','error':'SteamCMD-jobben finnes ikke lenger i agenten. Kontroller logger etter agentbytte.'}
-        self.detail.emit('Bakgrunnsagent: '+job['status'])
+        from steam_status import stage,progress_percent
+        elapsed=int(time.monotonic()-self.started)
+        self.detail.emit(('Queued — waiting for another agent job' if job['status']=='queued' else stage(text))+f' • {elapsed//60:02d}:{elapsed%60:02d}')
+        percent=progress_percent(text)
+        self.progress.emit(percent if percent is not None else -1)
         if job['status'] in ('completed','failed'):
             data=dict(profile=self.profile,kind=self.kind,ids=self.ids,chained=self.chained,ok=job['status']=='completed',message=str(job.get('result') or job.get('error','')),output='',agent_managed=True)
             self.job=None;self.profile=None;self.active.emit(False);self.progress.emit(100 if data['ok'] else 0);self.completed.emit(data)

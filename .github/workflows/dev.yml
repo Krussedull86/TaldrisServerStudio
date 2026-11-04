@@ -43,7 +43,7 @@ jobs:
           BUILD: ${{ github.run_number }}
           REPOSITORY: ${{ github.repository }}
         run: python scripts/release.py stamp
-      - run: python -m PyInstaller --noconfirm --clean --onefile --windowed --collect-data certifi --collect-data discord --hidden-import win32timezone --hidden-import servicemanager --add-data "loot_web;loot_web" --add-data "loot_maps;loot_maps" --name TaldrisServerStudio app.py
+      - run: python -m PyInstaller --noconfirm --clean --onefile --windowed --collect-data certifi --collect-data discord --hidden-import win32timezone --hidden-import servicemanager --add-data "loot_web;loot_web" --add-data "loot_maps;loot_maps" --collect-all winpty --add-data "assets;assets" --icon assets/cds.ico --name TaldrisServerStudio app.py
       - name: Smoke test integrated loot editor
         if: ${{ !contains(github.event.head_commit.message, '[build only]') }}
         shell: pwsh

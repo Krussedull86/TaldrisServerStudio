@@ -40,6 +40,7 @@ def label(text,style=None):
 
 def button(text,fn,kind=None):
     b=QPushButton(text); b.setCursor(Qt.PointingHandCursor); b.clicked.connect(fn)
+    b.setMinimumHeight(40)
     if kind:b.setObjectName(kind)
     return b
 
@@ -74,7 +75,7 @@ class MapView(QGraphicsView):
 
 class Studio(QMainWindow):
     def __init__(self,home=None):
-        super().__init__(); self.setWindowTitle('CruzDoodelZ Server Studio • '+VERSION); self.resize(1440,940); self.setMinimumSize(1120,780)
+        super().__init__(); self.setWindowTitle('CruzDoodelZ Server Studio • '+VERSION); self.resize(1440,940); self.setMinimumSize(900,600)
         self.events=queue.Queue(); self.manager=getattr(self,'manager_class',Manager)(home or Path(os.getenv('LOCALAPPDATA',Path.home()))/'TaldrisServerStudio',self.events.put)
         self.p=self.manager.state['servers'][0]; self.deadlines={}; self.log_signature=None; self.page_names=['Overview','Map & markers','Mod library','Logs','Configuration','Backups','Automation','Settings']
         shell=QWidget(); self.setCentralWidget(shell); outer=QHBoxLayout(shell); outer.setContentsMargins(0,0,0,0); outer.setSpacing(0)
@@ -83,7 +84,8 @@ class Studio(QMainWindow):
         self.nav=[]
         for i,(name,icon) in enumerate(zip(self.page_names,['◫','⌖','▦','≡','⚙','◇','◷','☷'])):
             b=button(icon+'   '+name,lambda checked=False,n=i:self.go(n),'nav'); b.setCheckable(True); left.addWidget(b); self.nav.append(b)
-        left.addStretch(); left.addWidget(label('LOCAL HOST','eyebrow')); left.addWidget(label('Windows / DayZ Dedicated\nYour files. Your server.','muted')); outer.addWidget(sidebar)
+        left.addStretch(); left.addWidget(label('LOCAL HOST','eyebrow')); left.addWidget(label('Windows / DayZ Dedicated\nYour files. Your server.','muted'))
+        nav_scroll=QScrollArea();nav_scroll.setWidgetResizable(True);nav_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff);nav_scroll.setFixedWidth(258);nav_scroll.setWidget(sidebar);outer.addWidget(nav_scroll)
         main=QVBoxLayout(); main.setContentsMargins(28,25,28,20); main.setSpacing(20); outer.addLayout(main,1)
         header=QHBoxLayout(); headings=QVBoxLayout(); headings.addWidget(label('SERVER WORKSPACE','eyebrow')); self.heading=label('Overview','title'); headings.addWidget(self.heading); header.addLayout(headings); header.addStretch()
         self.selector=QComboBox(); self.selector.setMinimumWidth(245); self.selector.currentIndexChanged.connect(self.select); header.addWidget(self.selector); header.addWidget(button('+ New server',self.new_server));self.server_controls=header; main.addLayout(header)
@@ -104,10 +106,14 @@ class Studio(QMainWindow):
         if n==1:QTimer.singleShot(0,self.map.reset_view)
     def update_server(self,p=None):self.manager.job(p or self.p,self.manager.update)
     def overview(self):
-        l=self.page(); hero,h=card('SERVER CONTROL'); self.server_title=label('Your DayZ server','title'); h.addWidget(self.server_title)
+        outer=self.page();scroll=QScrollArea();scroll.setWidgetResizable(True);content=QWidget();l=QVBoxLayout(content);l.setContentsMargins(0,0,0,0);l.setSpacing(18);scroll.setWidget(content);outer.addWidget(scroll)
+        hero,h=card('SERVER CONTROL'); self.server_title=label('Your DayZ server','title'); h.addWidget(self.server_title)
         self.server_status=label('STOPPED','eyebrow'); h.addWidget(self.server_status); self.launch_detail=label('Ingen serveroppstart er registrert i denne økten.','muted'); h.addWidget(self.launch_detail); h.addWidget(label('Start, monitor and maintain the server from one place.','muted'))
-        actions=QHBoxLayout(); self.start_btn=button('▶  Start server',self.action(lambda:self.manager.start(self.p)),'primary'); self.stop_btn=button('■  Force stop',self.stop,'danger')
-        actions.addWidget(self.start_btn); actions.addWidget(self.stop_btn); actions.addWidget(button('Vis oppstartslogg',self.action(self.show_launch_log))); actions.addWidget(button('↗  Connect locally',self.action(self.connect_local))); actions.addStretch(); h.addLayout(actions); l.addWidget(hero)
+        from responsive_layout import ActionLayout
+        from PySide6.QtWidgets import QLayout,QSizePolicy
+        h.setSizeConstraint(QLayout.SetMinimumSize);hero.setSizePolicy(QSizePolicy.Expanding,QSizePolicy.Minimum)
+        actions=ActionLayout(); self.start_btn=button('▶  Start server',self.action(lambda:self.manager.start(self.p)),'primary'); self.stop_btn=button('■  Force stop',self.stop,'danger')
+        actions.addWidget(self.start_btn); actions.addWidget(self.stop_btn); actions.addWidget(button('Startup log',self.action(self.show_launch_log))); actions.addWidget(button('↗  Connect locally',self.action(self.connect_local))); h.addLayout(actions); l.addWidget(hero)
         metrics=QHBoxLayout(); self.metrics=[]
         for title,foot in [('ACTIVE MODS','Load order'),('MAP MARKERS','Your places'),('GAME PORT','Local server profile'),('PLAYERS','Live data not connected')]:
             f,c=card(title); value=label('—','metric'); c.addWidget(value); c.addWidget(label(foot,'muted')); metrics.addWidget(f); self.metrics.append(value)

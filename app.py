@@ -35,7 +35,12 @@ def main():
         target=launcher_target(home) or active_exe(home)
         if target and target!=Path(sys.executable).resolve():subprocess.Popen([str(target),'--home',str(home)],cwd=str(target.parent),env={**os.environ,'PYINSTALLER_RESET_ENVIRONMENT':'1'});return 0
     QApplication.setAttribute(Qt.AA_ShareOpenGLContexts)
+    if sys.platform=='win32':
+        import ctypes
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('CruzDoodelZ.ServerStudio')
     app=QApplication(sys.argv);app.setStyle('Fusion');app.setStyleSheet(STYLE)
+    from PySide6.QtGui import QIcon
+    app.setWindowIcon(QIcon(str(Path(__file__).resolve().parent/'assets/cds.ico')))
     if getattr(sys,'frozen',False) and sys.platform=='win32' and not args.wait_panel:
         from self_install import read_install,install
         choice=args.install or Path(sys.executable).name in ('TaldrisServerStudio-Setup.exe','CruzDoodelZServerStudio-Setup.exe')

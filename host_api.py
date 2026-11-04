@@ -58,7 +58,7 @@ class AgentAPI:
                 e.manager.save();return settings
         if method=='input':e.steam_input(str(params['value']));return True
         if method=='cancel_steam':
-            if e.pty:e.pty.terminate(force=True)
+            e.cancel_steam()
             return True
         if method=='upgrade':
             import os,subprocess,sys,psutil
