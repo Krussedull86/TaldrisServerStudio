@@ -36,7 +36,7 @@ def ensure_agent(home):
     while time.monotonic()<end:
         try:client.call('snapshot',timeout=1);return client
         except (OSError,ValueError,KeyError):time.sleep(.15)
-    raise RuntimeError('Bakgrunnsagenten startet ikke. Se host.log i programdatamappen.')
+    raise RuntimeError('The background agent did not start. See host.log in the application data folder.')
 
 
 class RemoteProcess:
@@ -92,12 +92,12 @@ class RemoteManager:
         from release_info import VERSION,BUILD
         if getattr(sys,'frozen',False):
             self.refresh()
-            if version_key(self.raw.get('version'),self.raw.get('build'))<version_key(VERSION,BUILD):raise ValueError(f'Bakgrunnsagenten er eldre enn panelet ({self.raw.get("version")} / {self.raw.get("build")}). Velg Programoppdatering → Oppdater/reparer bakgrunnsagent før start.')
+            if version_key(self.raw.get('version'),self.raw.get('build'))<version_key(VERSION,BUILD):raise ValueError(f"The background agent is older than the panel ({self.raw.get('version')} / {self.raw.get('build')}). Open Program updates → Update / repair background agent before starting.")
         return self.enqueue('start',p)
     def force_stop(self,p):return self.enqueue('force_stop',p)
     def job(self,p,fn):return self.enqueue('backup' if fn.__name__=='backup' else 'steam',p,{'kind':'all'})
     def backup(self,p):return self.enqueue('backup',p)
-    def deploy(self,p):raise ValueError('Modinstallasjon utføres av bakgrunnsagenten etter SteamCMD.')
+    def deploy(self,p):raise ValueError('The background agent deploys mods after SteamCMD finishes.')
     def wait_job(self,job,timeout=30):
         end=time.monotonic()+timeout
         while time.monotonic()<end:
@@ -106,7 +106,7 @@ class RemoteManager:
             if value and value['status']=='completed':return value.get('result')
             if value and value['status']=='failed':raise ValueError(value['error'])
             time.sleep(.1)
-        raise TimeoutError('Jobben kjører fortsatt. Kontroller jobbstatus i oversikten.')
+        raise TimeoutError('The job is still running. Check its status in Overview.')
     def save_document(self,doc):
         result=self.client.call('document_save',{'server':doc.profile['id'],'file':doc.relative,'base':digest(doc.original),'text':doc.text},timeout=30)
         doc.original=doc.text;return result
@@ -120,7 +120,7 @@ class RemoteSteamSession(QObject):
         super().__init__(parent);self.manager=manager;self.job=None;self.profile=None;self.kind='';self.chained=False;self.ids=[];self.previous='';self.timer=QTimer(self);self.timer.timeout.connect(self.poll);self.timer.start(1000)
     def running(self):return self.profile is not None or bool(self.manager.raw.get('steam_profile'))
     def start(self,profile,kind,ids=None,chained=False):
-        if self.running():raise ValueError('En SteamCMD-jobb kjører allerede.')
+        if self.running():raise ValueError('A SteamCMD job is already running.')
         self.started=time.monotonic();self.previous='';self.job=self.manager.enqueue('steam',profile,dict(kind=kind,ids=ids,chained=chained));self.profile=profile;self.kind=kind;self.chained=chained;self.ids=ids or [];self.active.emit(True);self.progress.emit(-1)
     def send_secret(self,value):self.manager.client.call('input',{'value':value})
     def cancel(self):self.manager.client.call('cancel_steam')
@@ -133,7 +133,7 @@ class RemoteSteamSession(QObject):
         job=next((j for j in snap.get('jobs',[]) if j['id']==self.job['id']),None)
         if not job:
             if time.monotonic()-self.started<10 or self.profile['id'] in self.manager.busy:return
-            job={'status':'failed','error':'SteamCMD-jobben finnes ikke lenger i agenten. Kontroller logger etter agentbytte.'}
+            job={'status':'failed','error':'The SteamCMD job is no longer available in the agent. Check the logs after changing agents.'}
         from steam_status import stage,progress_percent
         elapsed=int(time.monotonic()-self.started)
         self.detail.emit(('Queued — waiting for another agent job' if job['status']=='queued' else stage(text))+f' • {elapsed//60:02d}:{elapsed%60:02d}')

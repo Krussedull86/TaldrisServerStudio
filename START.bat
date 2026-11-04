@@ -11,10 +11,10 @@ if errorlevel 1 goto fail
 if errorlevel 1 goto fail
 exit /b 0
 :missing
-echo Installer Python 3.12 eller nyere fra python.org.
+echo Install Python 3.12 or newer from python.org.
 pause
 exit /b 1
 :fail
-echo Oppstart feilet. Se feilmeldingen over. Forste oppstart krever internett.
+echo Startup failed. See the error above. The first launch requires internet access.
 pause
 exit /b 1

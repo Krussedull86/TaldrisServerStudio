@@ -6,7 +6,7 @@ NAME='TaldrisServerStudioAgent'
 
 
 def install_service(home,source=None):
-    if sys.platform!='win32' or not getattr(sys,'frozen',False):raise ValueError('Tjenesteinstallasjon krever den pakkede Windows-EXE-en.')
+    if sys.platform!='win32' or not getattr(sys,'frozen',False):raise ValueError('Service installation requires the packaged Windows EXE.')
     from release_info import VERSION,BUILD
     from host_api import AgentClient
     home=Path(home).resolve();target=home/'agent_versions'/f'{VERSION}-b{BUILD}'/'TaldrisAgent.exe';target.parent.mkdir(parents=True,exist_ok=True)
@@ -16,7 +16,7 @@ def install_service(home,source=None):
     protect_file(home)
     try:AgentClient(home).call('shutdown')
     except (OSError,ValueError) as error:
-        if 'Vent til' in str(error):raise
+        if 'Wait until' in str(error):raise
     command=subprocess.list2cmdline([str(target),'--windows-service','--home',str(home)])
     script=f"""$ErrorActionPreference='Stop'
 $existing=Get-Service -Name '{NAME}' -ErrorAction SilentlyContinue
@@ -31,14 +31,14 @@ Start-Service -Name '{NAME}'
     ps=str(Path(os.environ.get('SystemRoot',r'C:\Windows'))/'System32/WindowsPowerShell/v1.0/powershell.exe')
     outer=f"$ErrorActionPreference='Stop'; try {{ $p=Start-Process -FilePath {ps_quote(ps)} -ArgumentList '-NoProfile -NonInteractive -EncodedCommand {encoded(script)}' -Verb RunAs -Wait -PassThru; exit $p.ExitCode }} catch {{ exit 1 }}"
     result=subprocess.run([ps,'-NoProfile','-NonInteractive','-EncodedCommand',encoded(outer)],capture_output=True,creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0),timeout=150)
-    if result.returncode:raise ValueError('Windows-tjenesten ble ikke installert/startet. Godta administratorforespørselen og kontroller Windows Hendelsesliste. DayZ er ikke stoppet.')
-    return 'Windows-tjenesten er installert. Agenten starter med Windows og kjører etter RDP-avlogging.'
+    if result.returncode:raise ValueError('The Windows service was not installed/started. Accept the administrator prompt and check Windows Event Viewer. DayZ has not been stopped.')
+    return 'The Windows service is installed. The agent starts with Windows and keeps running after RDP logout.'
 
 
 def run_service(home):
     import servicemanager,win32service,win32serviceutil
     class Service(win32serviceutil.ServiceFramework):
-        _svc_name_=NAME;_svc_display_name_='CruzDoodelZ Server Studio Agent';_svc_description_='DayZ drift, Discord, oppdateringer og restarter uten åpent programvindu.'
+        _svc_name_=NAME;_svc_display_name_='CruzDoodelZ Server Studio Agent';_svc_description_='DayZ operations, Discord, updates and restarts without an open application window.'
         def __init__(self,args):super().__init__(args);self.stop_request=threading.Event();self.finished=threading.Event()
         def SvcStop(self):
             self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING);self.stop_request.set()
@@ -48,7 +48,7 @@ def run_service(home):
         def SvcDoRun(self):
             from host_api import serve
             try:serve(home,service=True,external_stop=self.stop_request)
-            except Exception as error:servicemanager.LogErrorMsg('Taldris agent: '+str(error));raise
+            except Exception as error:servicemanager.LogErrorMsg('CDS agent: '+str(error));raise
             finally:self.finished.set()
     servicemanager.Initialize();servicemanager.PrepareToHostSingle(Service);servicemanager.StartServiceCtrlDispatcher()
 

@@ -14,11 +14,11 @@ class TerminalStatusTests(unittest.TestCase):
     def test_terminal_codes_and_carriage_returns(self):
         text='\x1b[?25l\x1b[32mUpdate\x1b[0m\rDownloading\r\nPassword:'
         self.assertEqual(plain_terminal(text),'Update\nDownloading\nPassword:')
-        self.assertIn('Venter på Steam-passord',stage(text))
+        self.assertIn('Waiting for Steam password',stage(text))
     def test_start_banner_does_not_claim_download(self):
-        self.assertIn('venter',stage('Steam Console Client\n-- type quit to exit --'))
-        self.assertIn('Laster ned',stage('Update state downloading, progress: 12.0 (10 / 100)'))
-        self.assertIn('Steam melder en feil',stage('ERROR! Failed to install: No subscription'))
+        self.assertIn('waiting',stage('Steam Console Client\n-- type quit to exit --'))
+        self.assertIn('Downloading',stage('Update state downloading, progress: 12.0 (10 / 100)'))
+        self.assertIn('Steam reported an error',stage('ERROR! Failed to install: No subscription'))
 
 @unittest.skipUnless(sys.platform=='win32','Requires an actual Windows console')
 class WindowsConsoleTests(unittest.TestCase):

@@ -24,7 +24,7 @@ def main():
     if args.agent:
         from host_api import serve
         serve(home);return 0
-    from PySide6.QtCore import QLockFile,Qt
+    from PySide6.QtCore import QLockFile,Qt,QLocale
     from PySide6.QtWidgets import QApplication,QMessageBox
     from desktop import STYLE
     from suite_ui import SuiteStudio
@@ -35,6 +35,8 @@ def main():
         target=launcher_target(home) or active_exe(home)
         if target and target!=Path(sys.executable).resolve():subprocess.Popen([str(target),'--home',str(home)],cwd=str(target.parent),env={**os.environ,'PYINSTALLER_RESET_ENVIRONMENT':'1'});return 0
     QApplication.setAttribute(Qt.AA_ShareOpenGLContexts)
+    QApplication.setAttribute(Qt.AA_DontUseNativeDialogs)
+    QLocale.setDefault(QLocale(QLocale.English,QLocale.UnitedKingdom))
     if sys.platform=='win32':
         import ctypes
         from shell_identity import APP_ID
@@ -46,19 +48,19 @@ def main():
         from self_install import read_install,install
         choice=args.install or Path(sys.executable).name in ('TaldrisServerStudio-Setup.exe','CruzDoodelZServerStudio-Setup.exe')
         if not choice and not args.portable and not read_install(home) and not (home/'portable_mode.json').exists():
-            box=QMessageBox();box.setWindowTitle('Installer CruzDoodelZ Server Studio');box.setText('Installer programmet med snarveier og støtte for oppgraderinger, eller kjør portabelt. Serverdata beholdes ved oppgradering og avinstallasjon.');yes=box.addButton('Installer',QMessageBox.AcceptRole);portable=box.addButton('Kjør portabelt',QMessageBox.ActionRole);box.addButton(QMessageBox.Cancel);box.exec()
+            box=QMessageBox();box.setWindowTitle('Install CruzDoodelZ Server Studio');box.setText('Install the application with shortcuts and upgrade support, or run it in portable mode. Server data is preserved during upgrades and uninstallation.');yes=box.addButton('Install',QMessageBox.AcceptRole);portable=box.addButton('Run portable',QMessageBox.ActionRole);box.addButton(QMessageBox.Cancel);box.exec()
             if box.clickedButton()==yes:choice=True
             elif box.clickedButton()==portable:(home/'portable_mode.json').write_text('{}')
             else:return 0
         if choice:
             try:target=Path(install(home))
-            except Exception as error:QMessageBox.critical(None,'Installasjon',str(error));return 1
+            except Exception as error:QMessageBox.critical(None,'Installation',str(error));return 1
             if target.resolve()!=Path(sys.executable).resolve():
                 probe=QLockFile(str(home/'panel.lock'));probe.setStaleLockTime(0)
-                if not probe.tryLock(0):QMessageBox.information(None,'Installert','Programmet er installert. Lukk det åpne programvinduet og bruk den nye snarveien. DayZ-serverne fortsetter.');return 0
+                if not probe.tryLock(0):QMessageBox.information(None,'Installed','The application is installed. Close the open application window and use the new shortcut. DayZ servers keep running.');return 0
                 probe.unlock();subprocess.Popen([str(target),'--home',str(home)],cwd=str(target.parent),env={**os.environ,'PYINSTALLER_RESET_ENVIRONMENT':'1'});return 0
     lock=QLockFile(str(home/'panel.lock'));lock.setStaleLockTime(0)
-    if not lock.tryLock(0):QMessageBox.information(None,'CruzDoodelZ Server Studio','Kontrollpanelet kjører allerede for denne datamappen.');return 1
+    if not lock.tryLock(0):QMessageBox.information(None,'CruzDoodelZ Server Studio','The control panel is already running for this data folder.');return 1
     try:window=SuiteStudio(home)
     except Exception as error:QMessageBox.critical(None,'CruzDoodelZ – startup',str(error));return 1
     window.setWindowIcon(app.windowIcon());window.show();mark_active(home);return app.exec()

@@ -27,7 +27,7 @@ def package():
 def publish_dev():
     out=ROOT/'release_output'; info=json.loads((out/'build.json').read_text())
     tag=f"dev-v{info['version']}.b{info['build']}"
-    gh('release','create',tag,*[str(p) for p in sorted(out.iterdir())],'--target',os.environ['COMMIT'],'--title',f"Dev {info['version']} • bygg {info['build']}",'--notes','Automatisk dev-utgave. Stable er uendret.','--prerelease','--latest=false')
+    gh('release','create',tag,*[str(p) for p in sorted(out.iterdir())],'--target',os.environ['COMMIT'],'--title',f"Dev {info['version']} • build {info['build']}",'--notes','Automatic dev release. Stable is unchanged.','--prerelease','--latest=false')
 def promote():
     tag=os.environ['DEV_TAG']
     if not re.fullmatch(r'dev-v\d+\.\d+\.\d+\.b\d+',tag):raise ValueError('Invalid dev tag')
@@ -50,7 +50,7 @@ def promote():
     stable=tag.removeprefix('dev-')
     # Use exact commit resolved from source tag, not a branch name or latest dev head.
     commit=gh('api',f'repos/{os.environ["GH_REPO"]}/commits/{tag}','--jq','.sha')
-    gh('release','create',stable,*[str(p) for p in sorted(out.iterdir())],'--target',commit,'--title',f"Stable {info['version']} • bygg {info['build']}",'--notes',f'Godkjent fra {tag}. Samme Windows-pakke og SHA-256 som testutgaven.','--latest')
+    gh('release','create',stable,*[str(p) for p in sorted(out.iterdir())],'--target',commit,'--title',f"Stable {info['version']} • build {info['build']}",'--notes',f'Approved from {tag}. The same Windows package and SHA-256 as the dev release.','--latest')
 if __name__=='__main__':
     actions={'stamp':stamp,'package':package,'publish-dev':publish_dev,'promote':promote}
     actions[sys.argv[1]]()

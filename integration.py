@@ -27,10 +27,10 @@ class SteamSession(QObject):
         self.profile=None; self.raw=''; self.secrets=[]; self.kind=''; self.ids=[]; self.was_cancelled=False; self.chained=False; self.watch=QTimer(self); self.watch.setInterval(1000); self.watch.timeout.connect(self.remind)
     def running(self):return self.profile is not None
     def start(self,profile,kind,ids=None,chained=False):
-        if self.running():raise ValueError('En SteamCMD-jobb kjører allerede. Vent eller avbryt den først.')
-        if os.name!='nt':raise ValueError('SteamCMD-installasjon og DayZ-kjøring krever Windows i denne utgaven.')
+        if self.running():raise ValueError('A SteamCMD job is already running. Wait for it or cancel it first.')
+        if os.name!='nt':raise ValueError('SteamCMD installation and DayZ execution require Windows in this version.')
         validate(profile)
-        if self.manager.running(profile) or profile['id'] in self.manager.busy:raise ValueError('Stopp serveren og vent til alle jobber er ferdige.')
+        if self.manager.running(profile) or profile['id'] in self.manager.busy:raise ValueError('Stop the server and wait for all jobs to finish.')
         # One process per installation, even across profiles. Never update a live shared root.
         for p in self.manager.state['servers']:
             if p['id']!=profile['id'] and (self.manager.running(p) or p['id'] in self.manager.busy) and Path(p['root']).resolve()==Path(profile['root']).resolve():raise ValueError('Another active profile is using the same server folder.')
@@ -42,8 +42,8 @@ class SteamSession(QObject):
         args=steam_arguments(profile,kind,self.ids)
         from steam_runtime import SteamEvidence
         self.evidence=SteamEvidence()
-        self.profile=profile; self.kind=kind; self.chained=chained; self.raw=''; self.secrets=[]; self.was_cancelled=False; self.last_output=time.monotonic(); self.started_at=self.last_output; self.last_stage='Starter SteamCMD'; self.manager.busy.add(profile['id'])
-        self.process.setProgram(str(exe.resolve())); self.process.setArguments(args); self.process.setWorkingDirectory(str(exe.resolve().parent)); self.active.emit(True); self.progress.emit(-1); self.raw='Starter SteamCMD.\nPlan: innlogging → '+('DayZ Server 223350 → ' if kind in ('server','all') else '')+(str(len(self.ids))+' Workshop-mods → ' if self.ids else '')+'avslutt.\nVenter på meldinger fra Steam …\n'; self.output.emit(self.sanitized()); self.detail.emit('Starter SteamCMD — ingen nedlasting er bekreftet ennå.'); self.process.start(); self.watch.start()
+        self.profile=profile; self.kind=kind; self.chained=chained; self.raw=''; self.secrets=[]; self.was_cancelled=False; self.last_output=time.monotonic(); self.started_at=self.last_output; self.last_stage='Starting SteamCMD'; self.manager.busy.add(profile['id'])
+        self.process.setProgram(str(exe.resolve())); self.process.setArguments(args); self.process.setWorkingDirectory(str(exe.resolve().parent)); self.active.emit(True); self.progress.emit(-1); self.raw='Starting SteamCMD.\nPlan: login → '+('DayZ Server 223350 → ' if kind in ('server','all') else '')+(str(len(self.ids))+' Workshop mods → ' if self.ids else '')+'quit.\nWaiting for messages from Steam …\n'; self.output.emit(self.sanitized()); self.detail.emit('Starting SteamCMD — no download has been confirmed yet.'); self.process.start(); self.watch.start()
     def sanitized(self):
         text=plain_terminal(self.raw[-240000:])
         for value in self.secrets:
@@ -62,8 +62,8 @@ class SteamSession(QObject):
         if percent is not None:self.progress.emit(percent)
         elif previous_stage!=self.last_stage:self.progress.emit(-1)
     def send_secret(self,value):
-        if not self.running():raise ValueError('Start en SteamCMD-jobb først.')
-        if any(c in value for c in ['\n','\r','\x00']):raise ValueError('Send én linje om gangen.')
+        if not self.running():raise ValueError('Start a SteamCMD job first.')
+        if any(c in value for c in ['\n','\r','\x00']):raise ValueError('Send one line at a time.')
         self.secrets.append(value); self.process.write((value+'\n').encode()); self.output.emit(self.sanitized())
     def cancel(self):
         if self.running():self.was_cancelled=True; self.process.kill()
@@ -85,8 +85,8 @@ class SteamSession(QObject):
     def remind(self):
         if not self.running():return
         idle=int(time.monotonic()-self.last_output); elapsed=int(time.monotonic()-self.started_at)
-        text=f'{self.last_stage} • kjørt {elapsed//60:02d}:{elapsed%60:02d} • siste melding for {idle} s siden'
-        if idle>=30:text+=' • Ingen nye meldinger; nedlasting er ikke bekreftet.'
+        text=f'{self.last_stage} • elapsed {elapsed // 60:02d}:{elapsed % 60:02d} • last message {idle} s ago'
+        if idle>=30:text+=' • No new messages; download is not confirmed.'
         self.detail.emit(text)
 
 class IntegratedStudio(Studio):
@@ -101,7 +101,7 @@ class IntegratedStudio(Studio):
         # Native controls remain usable at 1080p with ten destinations.
         self.setStyleSheet('QPushButton#nav {padding-top:10px;padding-bottom:10px;}')
         self.load_setup(); self.install_action_buttons(); self.install_local_controls(); self.go(8 if not self.p['root'] else 0)
-    def run_task(self,fn,done,profile=None,description='Nettverksjobb'):
+    def run_task(self,fn,done,profile=None,description='Network job'):
         if profile:
             self.editable_profile(profile); self.manager.busy.add(profile['id'])
         t=Task(fn,self); self.tasks.add(t)
@@ -112,7 +112,7 @@ class IntegratedStudio(Studio):
         def failure(msg):release(); self.events.put(description+': '+msg); QMessageBox.warning(self,description,msg)
         t.done.connect(success); t.failed.connect(failure); t.finished.connect(lambda:self.tasks.discard(t)); t.finished.connect(t.deleteLater); t.start()
     def editable_profile(self,p):
-        if self.manager.running(p) or p['id'] in self.manager.busy:raise ValueError('Stopp serveren og vent til jobben er ferdig.')
+        if self.manager.running(p) or p['id'] in self.manager.busy:raise ValueError('Stop the server and wait for the job to finish.')
         for other in self.manager.state['servers']:
             if other['id']!=p['id'] and (self.manager.running(other) or other['id'] in self.manager.busy) and Path(other['root']).resolve()==Path(p['root']).resolve():raise ValueError('Another active profile is using the same server folder.')
     def load(self):
@@ -132,7 +132,7 @@ class IntegratedStudio(Studio):
             from local_mods import import_mods
             added,skipped=import_mods(self.p,dialog.selected_rows,load_mode=('client','server','both')[dialog.scope.currentIndex()])
             self.p['local_scan_root']=dialog.directory.text(); self.manager.save(); self.refresh_mods()
-            self.events.put(f'{len(added)} lokale mods lagt til; {skipped} eksisterende hoppet over. PBO-filer lastes direkte fra utviklingsmappene.')
+            self.events.put(f'{len(added)} local mods added; {skipped} existing mods skipped. PBO files load directly from the development folders.')
     def open_local_mod(self):
         from core import mod_path
         path=mod_path(self.p,self.p['mods'][self.mod_index()])
@@ -157,12 +157,12 @@ class IntegratedStudio(Studio):
         self.setup_status=label('Choose folders to begin.','eyebrow'); c.addWidget(self.setup_status)
         buttons=QHBoxLayout();buttons.addWidget(button('Save setup',self.action(self.save_setup_and_map))); buttons.addWidget(button('↓ Download SteamCMD',self.action(self.bootstrap))); buttons.addWidget(button('Test login',self.action(self.login_test))); buttons.addWidget(button('Install & prepare',self.action(self.install_server),'primary')); c.addLayout(buttons)
         form_outer.addWidget(f); form_outer.addWidget(label('Anonymous is the default. Steam decides access: DayZ Server and especially Workshop often require a Steam account that owns DayZ. Password / Steam Guard is entered only in the SteamCMD Console tab — never stored in the profile.','muted')); form_outer.addStretch(); scroll=QScrollArea(); scroll.setWidgetResizable(True); scroll.setWidget(install); tabs.addTab(scroll,'Install wizard')
-        console=QWidget(); cl=QVBoxLayout(console); self.console_status=label('No SteamCMD job running.','eyebrow'); cl.addWidget(self.console_status); self.progress=QProgressBar(); self.progress.setRange(0,100); self.progress.setValue(0); self.progress.setFormat('Nedlasting / kontroll: %p%'); self.progress.setToolTip('Bevegelse uten prosent betyr bare at prosessen kjører. Nedlasting er først bekreftet når Steam rapporterer den.'); cl.addWidget(self.progress)
-        self.terminal_detail=label('Ingen nedlasting er bekreftet.','muted'); cl.addWidget(self.terminal_detail)
-        self.terminal=QPlainTextEdit(); self.terminal.setReadOnly(True); self.terminal.setFont(QFont('Consolas',10)); self.terminal.setPlaceholderText('Live utdata fra SteamCMD vises her under nedlasting og innlogging.'); cl.addWidget(self.terminal,1)
-        self.secret=QLineEdit(); self.secret.setEchoMode(QLineEdit.Password); self.secret.setPlaceholderText('Passord eller Steam Guard-kode når Steam ber om det …'); self.secret.returnPressed.connect(self.send_secret); self.secret.setEnabled(False)
+        console=QWidget(); cl=QVBoxLayout(console); self.console_status=label('No SteamCMD job running.','eyebrow'); cl.addWidget(self.console_status); self.progress=QProgressBar(); self.progress.setRange(0,100); self.progress.setValue(0); self.progress.setFormat('Download / verification: %p%'); self.progress.setToolTip('Movement without a percentage only indicates a running process. A download is confirmed only when Steam reports it.'); cl.addWidget(self.progress)
+        self.terminal_detail=label('No download has been confirmed.','muted'); cl.addWidget(self.terminal_detail)
+        self.terminal=QPlainTextEdit(); self.terminal.setReadOnly(True); self.terminal.setFont(QFont('Consolas',10)); self.terminal.setPlaceholderText('Live SteamCMD output appears here during downloads and login.'); cl.addWidget(self.terminal,1)
+        self.secret=QLineEdit(); self.secret.setEchoMode(QLineEdit.Password); self.secret.setPlaceholderText('Password or Steam Guard code when Steam requests it …'); self.secret.returnPressed.connect(self.send_secret); self.secret.setEnabled(False)
         row=QHBoxLayout(); row.addWidget(self.secret,1); row.addWidget(button('Send to SteamCMD',self.send_secret)); row.addWidget(button('Cancel job',self.cancel_steam,'danger')); cl.addLayout(row)
-        controls=QHBoxLayout(); self.follow_terminal=QCheckBox('Følg siste melding'); self.follow_terminal.setChecked(True); controls.addWidget(self.follow_terminal); controls.addStretch(); controls.addWidget(button('Åpne SteamCMD-loggmappe',self.open_steam_logs)); cl.addLayout(controls)
+        controls=QHBoxLayout(); self.follow_terminal=QCheckBox('Follow latest output'); self.follow_terminal.setChecked(True); controls.addWidget(self.follow_terminal); controls.addStretch(); controls.addWidget(button('Open SteamCMD log folder',self.open_steam_logs)); cl.addLayout(controls)
         cl.addWidget(label('Input is hidden and is never saved to the profile or activity log by this app. SteamCMD may keep login data in its own folder.','muted')); tabs.addTab(console,'SteamCMD console'); self.setup_tabs=tabs
         tools=QHBoxLayout(); tools.addWidget(button('Create config without download',self.action(self.create_config))); tools.addWidget(button('DirectX (Microsoft)',lambda:QDesktopServices.openUrl(QUrl(DIRECTX_PAGE)))); tools.addWidget(button('Start existing server',self.action(lambda:self.manager.start(self.p)),'primary')); tools.addStretch(); layout.addLayout(tools)
     def setup_browse(self,kind):
@@ -177,31 +177,31 @@ class IntegratedStudio(Studio):
     def save_mission_choice(self):
         from mission_settings import save_mission
         from config_documents import Document,digest
-        if Path(self.setup_root.text()).resolve()!=Path(self.p['root']).resolve():raise ValueError('Lagre serveroppsettet først hvis servermappen er endret.')
+        if Path(self.setup_root.text()).resolve()!=Path(self.p['root']).resolve():raise ValueError('Save the server settings first if the server folder has changed.')
         mission=self.mission.currentText().strip();doc=Document(self.p,self.p['config'],self.manager.home)
         if hasattr(self,'center'):
             self.center.sync()
-            if self.center.doc and self.center.doc.path==doc.path and self.center.doc.dirty:raise ValueError('Lagre eller forkast ulagrede endringer i konfigurasjonseditoren først.')
+            if self.center.doc and self.center.doc.path==doc.path and self.center.doc.dirty:raise ValueError('Save or discard unsaved changes in the configuration editor first.')
         if getattr(self.manager,'remote',False):result=self.manager.client.call('mission_save',{'server':self.p['id'],'mission':mission,'base':digest(doc.original)});self.manager.refresh()
         else:result=save_mission(self.manager,self.p,mission,digest(doc.original))
         if hasattr(self,'center') and self.center.doc and self.center.doc.path==doc.path:self.center.doc=None;self.config_cache.pop(self.p['id'],None)
-        self.load();self.setup_status.setText('Kartvalg lagret til CFG med backup: '+mission+(' • Missionmappen mangler ennå.' if not result['folder_exists'] else ''));self.events.put('Kartvalg lagret: '+mission)
+        self.load();self.setup_status.setText('Map selection saved to CFG with backup: '+mission+(' • The mission folder does not exist yet.' if not result['folder_exists'] else ''));self.events.put('Map selection saved: '+mission)
     def save_setup_and_map(self):
         mission=self.mission.currentText().strip();self.save_setup()
         if (Path(self.p['root'])/self.p['config']).is_file():self.mission.setCurrentText(mission);self.save_mission_choice()
-        else:self.setup_status.setText('Oppsett lagret. Kartvalget brukes når konfigurasjonen opprettes.')
+        else:self.setup_status.setText('Settings saved. The map selection will be used when the configuration is created.')
     def save_setup(self):
         self.editable(); p=dict(self.p); p.update(name=self.setup_name.text().strip(),root=self.setup_root.text().strip(),steamcmd=str(Path(self.setup_steam.text().strip())/'steamcmd.exe'),steam_user=self.setup_user.text().strip(),login_mode='anonymous' if self.login.currentIndex()==0 else 'account',max_players=int(self.player_slots.text()),mission=self.mission.currentText().strip())
-        if not p['name']:raise ValueError('Oppgi servernavn.')
-        if not self.setup_steam.text().strip():raise ValueError('Velg SteamCMD-mappe.')
+        if not p['name']:raise ValueError('Enter a server name.')
+        if not self.setup_steam.text().strip():raise ValueError('Choose a SteamCMD folder.')
         if not 1<=p['max_players']<=127:raise ValueError('Choose 1–127 player slots.')
-        if p['login_mode']=='account' and not p['steam_user']:raise ValueError('Oppgi Steam-brukernavn.')
+        if p['login_mode']=='account' and not p['steam_user']:raise ValueError('Enter a Steam username.')
         validate(p); p['workshop']=str(Path(p['steamcmd']).parent/'steamapps'/'workshop'/'content'/'221100'); self.p.update(p); self.manager.save(); self.load()
     def bootstrap(self,after=None):
-        if self.steam.running():raise ValueError('Vent til SteamCMD-jobben er ferdig.')
+        if self.steam.running():raise ValueError('Wait for the SteamCMD job to finish.')
         self.save_setup(); p=self.p; directory=Path(p['steamcmd']).parent; self.setup_status.setText('Downloading SteamCMD from Valve…')
         def ready(exe):
-            p['steamcmd']=exe; self.manager.save(); self.events.put('SteamCMD lastet ned eller funnet.'); self.setup_status.setText('✓ SteamCMD is ready for first run.')
+            p['steamcmd']=exe; self.manager.save(); self.events.put('SteamCMD downloaded or found.'); self.setup_status.setText('✓ SteamCMD is ready for first run.')
             if after:after(p)
         self.run_task(lambda:install_steamcmd(directory,self.events.put),ready,p,'SteamCMD download')
     def login_test(self):
@@ -269,32 +269,32 @@ class IntegratedStudio(Studio):
             self.manager.save(); self.events.put('Preparation complete for '+p['name']); self.refresh_backups()
             if self.p is p:self.read_config(); self.refresh_mods()
             if data['chained'] and p.get('start_after_install'):
-                self.manager.start(p); self.events.put('Serverprosessen er opprettet. Programmet følger oppstarten; se servervinduet og RPT for status.'); self.go(0)
+                self.manager.start(p); self.events.put('Server process created. The application monitors startup; see the server window and RPT for status.'); self.go(0)
         self.run_task(deploy_and_finish,ready,p,'Preparation')
     def workshop_page(self):
         l=self.page(); row=QHBoxLayout(); self.ws_query=QLineEdit(); self.ws_query.setPlaceholderText('Search DayZ Steam Workshop…'); self.ws_query.returnPressed.connect(self.ws_search)
-        self.ws_search_button=button('Søk',self.ws_search,'primary'); self.ws_page=1
-        row.addWidget(self.ws_query,1); row.addWidget(self.ws_search_button); row.addWidget(button('Forrige',lambda:self.ws_search(-1))); row.addWidget(button('Neste',lambda:self.ws_search(1))); l.addLayout(row)
+        self.ws_search_button=button('Search',self.ws_search,'primary'); self.ws_page=1
+        row.addWidget(self.ws_query,1); row.addWidget(self.ws_search_button); row.addWidget(button('Previous',lambda:self.ws_search(-1))); row.addWidget(button('Next',lambda:self.ws_search(1))); l.addLayout(row)
         row=QHBoxLayout(); row.addWidget(button('+ Add via ID / link',self.ws_by_id)); row.addWidget(button('Import Workshop collection',self.ws_collection)); row.addWidget(button('Check mod updates',self.ws_check)); row.addWidget(button('Open Workshop website',self.ws_open_search)); l.addLayout(row)
         self.ws_status=label('Search for mods or paste a Workshop link. No API key required.','eyebrow'); l.addWidget(self.ws_status)
-        self.ws_table=QTableWidget(0,4); self.ws_table.setHorizontalHeaderLabels(['MOD','WORKSHOP ID','SIZE','OPPDATERT']); self.ws_table.horizontalHeader().setSectionResizeMode(0,QHeaderView.Stretch); self.ws_table.horizontalHeader().setSectionResizeMode(1,QHeaderView.ResizeToContents); self.ws_table.setSelectionBehavior(QAbstractItemView.SelectRows); self.ws_table.setSelectionMode(QAbstractItemView.SingleSelection); self.ws_table.setEditTriggers(QAbstractItemView.NoEditTriggers); self.ws_table.itemSelectionChanged.connect(self.ws_selection); self.ws_table.doubleClicked.connect(lambda _:self.ws_add_selected()); l.addWidget(self.ws_table,1)
-        self.ws_description=QPlainTextEdit(); self.ws_description.setReadOnly(True); self.ws_description.setMaximumHeight(115); self.ws_description.setPlaceholderText('Velg en mod for beskrivelse og detaljer.'); l.addWidget(self.ws_description)
-        row=QHBoxLayout(); row.addWidget(button('Legg valgt mod til server',self.ws_add_selected,'primary')); row.addWidget(button('Open selected Workshop page',self.ws_open_selected)); row.addWidget(button('↓ Last ned og installer aktive mods',self.action(self.download_mods))); l.addLayout(row)
+        self.ws_table=QTableWidget(0,4); self.ws_table.setHorizontalHeaderLabels(['MOD','WORKSHOP ID','SIZE','UPDATED']); self.ws_table.horizontalHeader().setSectionResizeMode(0,QHeaderView.Stretch); self.ws_table.horizontalHeader().setSectionResizeMode(1,QHeaderView.ResizeToContents); self.ws_table.setSelectionBehavior(QAbstractItemView.SelectRows); self.ws_table.setSelectionMode(QAbstractItemView.SingleSelection); self.ws_table.setEditTriggers(QAbstractItemView.NoEditTriggers); self.ws_table.itemSelectionChanged.connect(self.ws_selection); self.ws_table.doubleClicked.connect(lambda _:self.ws_add_selected()); l.addWidget(self.ws_table,1)
+        self.ws_description=QPlainTextEdit(); self.ws_description.setReadOnly(True); self.ws_description.setMaximumHeight(115); self.ws_description.setPlaceholderText('Select a mod for its description and details.'); l.addWidget(self.ws_description)
+        row=QHBoxLayout(); row.addWidget(button('Add selected mod to server',self.ws_add_selected,'primary')); row.addWidget(button('Open selected Workshop page',self.ws_open_selected)); row.addWidget(button('↓ Download and deploy enabled mods',self.action(self.download_mods))); l.addLayout(row)
         l.addWidget(label('Search and metadata come directly from Steam. Downloads use SteamCMD. Check dependencies and load order on the mod page. Collection import follows collection order.','muted'))
         # Add one-click download to the existing mod library too.
-        self.stack.widget(2).layout().addWidget(button('Endre valgt mod / mod, servermod eller begge',self.action(self.edit_selected_mod)))
-        self.stack.widget(2).layout().addWidget(button('↓ Last ned og installer aktive Workshop-mods',self.action(self.download_mods),'primary'))
+        self.stack.widget(2).layout().addWidget(button('Edit selected mod / client, server or both',self.action(self.edit_selected_mod)))
+        self.stack.widget(2).layout().addWidget(button('↓ Download and deploy enabled Workshop mods',self.action(self.download_mods),'primary'))
     def ws_search(self,delta=0):
         if not self.ws_search_button.isEnabled():return
-        self.ws_page=max(1,self.ws_page+delta) if delta else 1; page=self.ws_page; text=self.ws_query.text().strip(); self.ws_search_button.setEnabled(False); self.ws_status.setText(f'Søker på Steam … side {page}')
-        def loaded(items):self.ws_search_button.setEnabled(True); self.show_results(items); self.ws_status.setText(f'{len(items)} DayZ-mods • side {page}')
+        self.ws_page=max(1,self.ws_page+delta) if delta else 1; page=self.ws_page; text=self.ws_query.text().strip(); self.ws_search_button.setEnabled(False); self.ws_status.setText(f'Searching Steam … page {page}')
+        def loaded(items):self.ws_search_button.setEnabled(True); self.show_results(items); self.ws_status.setText(f'{len(items)} DayZ mods • page {page}')
         t=Task(lambda:search(text,page),self); self.tasks.add(t); t.done.connect(loaded)
         def failed(msg):self.ws_search_button.setEnabled(True); self.ws_status.setText(msg)
         t.failed.connect(failed); t.finished.connect(lambda:self.tasks.discard(t)); t.finished.connect(t.deleteLater); t.start()
     def show_results(self,items):
         self.workshop_results=items; self.ws_table.setRowCount(len(items))
         for i,m in enumerate(items):
-            for j,v in enumerate([m['title'],m['id'],f"{m['size']/1024/1024:.1f} MB",time.strftime('%d.%m.%Y',time.localtime(m['updated'])) if m['updated'] else 'Ukjent']):self.ws_table.setItem(i,j,QTableWidgetItem(v))
+            for j,v in enumerate([m['title'],m['id'],f"{m['size']/1024/1024:.1f} MB",time.strftime('%d.%m.%Y',time.localtime(m['updated'])) if m['updated'] else 'Unknown']):self.ws_table.setItem(i,j,QTableWidgetItem(v))
         if items:self.ws_table.selectRow(0)
     def ws_selection(self):
         i=self.ws_table.currentRow()
@@ -306,16 +306,16 @@ class IntegratedStudio(Studio):
     def import_items(self,p,items):
         self.editable_profile(p); added=0
         for m in items:
-            if m['file_type']!=0:raise ValueError('Bruk samlingsimport for Workshop-samlinger.')
+            if m['file_type']!=0:raise ValueError('Use collection import for Workshop collections.')
             old=next((x for x in p['mods'] if x.get('id')==m['id']),None)
             if old:old.update(title=m['title'],remote_updated=m['updated']); continue
             p['mods'].append(dict(folder='@'+m['id'],id=m['id'],enabled=True,server=False,title=m['title'],remote_updated=m['updated'])); added+=1
         self.manager.save()
         if p is self.p:self.refresh_mods()
-        self.events.put(f'{added} mods lagt til i '+p['name']); self.ws_status.setText(f'{added} mods lagt til. Last ned og installer for å bruke dem.')
+        self.events.put(f'{added} mods added to '+p['name']); self.ws_status.setText(f'{added} mods added. Download and deploy them to use them.')
     def ws_add_selected(self):self.guard(lambda:self.import_items(self.p,[self.selected_item()]))
     def ws_by_id(self):
-        value,ok=QInputDialog.getText(self,'Hent Workshop-mod','Workshop-ID eller lenke:')
+        value,ok=QInputDialog.getText(self,'Fetch Workshop mod','Workshop ID or link:')
         if not ok or not value.strip():return
         p=self.p
         self.guard(lambda:self.run_task(lambda:details([workshop_id(value)]),lambda items:(self.import_items(p,items),self.show_results(items)),description='Workshop'))
@@ -324,9 +324,9 @@ class IntegratedStudio(Studio):
         if not ok or not value.strip():return
         p=self.p
         def preview(items):
-            names='\n'.join(x['title'] for x in items[:20]); extra=f'\n… og {len(items)-20} til' if len(items)>20 else ''
-            if QMessageBox.question(self,'Import collection',f'Legge {len(items)} mods til {p["name"]}?\n\n'+names+extra,QMessageBox.Yes|QMessageBox.No,QMessageBox.No)==QMessageBox.Yes:self.import_items(p,items)
-        self.guard(lambda:self.run_task(lambda:collection(value),preview,description='Workshop-samling'))
+            names='\n'.join(x['title'] for x in items[:20]); extra=f'\n… and {len(items) - 20} more' if len(items)>20 else ''
+            if QMessageBox.question(self,'Import collection',f"Add {len(items)} mods to {p['name']}?\n\n"+names+extra,QMessageBox.Yes|QMessageBox.No,QMessageBox.No)==QMessageBox.Yes:self.import_items(p,items)
+        self.guard(lambda:self.run_task(lambda:collection(value),preview,description='Workshop collection'))
     def ws_open_search(self):
         from urllib.parse import urlencode
         QDesktopServices.openUrl(QUrl('https://steamcommunity.com/workshop/browse/?'+urlencode({'appid':221100,'searchtext':self.ws_query.text()})))
@@ -343,12 +343,12 @@ class IntegratedStudio(Studio):
                         installed=m.get('installed_updated',0)
                         if installed and d['updated']>installed:newer+=1
                         if not installed:unknown+=1
-            self.manager.save(); self.show_results(items); self.ws_status.setText(f'{newer} nyere versjoner • {unknown} uten bekreftet lokal versjon'); self.refresh_mods()
-        self.guard(lambda:self.run_task(lambda:details(ids),received,description='Oppdateringssjekk'))
+            self.manager.save(); self.show_results(items); self.ws_status.setText(f'{newer} newer versions • {unknown} without a verified local version'); self.refresh_mods()
+        self.guard(lambda:self.run_task(lambda:details(ids),received,description='Update check'))
     def edit_selected_mod(self):
         self.editable(); i=self.mod_index(); old=self.p['mods'][i]
         if old.get('source')=='local':
-            scope,ok=QInputDialog.getItem(self,'Lokal utviklermod','Lastes direkte fra '+old['path'],['Mod (-mod)','Servermod (-serverMod)','Both (-mod + -serverMod)'],('client','server','both').index(mod_load_mode(old)),False)
+            scope,ok=QInputDialog.getItem(self,'Local development mod','Loads directly from '+old['path'],['Mod (-mod)','Servermod (-serverMod)','Both (-mod + -serverMod)'],('client','server','both').index(mod_load_mode(old)),False)
             if ok:
                 mode={'Mod (-mod)':'client','Servermod (-serverMod)':'server','Both (-mod + -serverMod)':'both'}[scope]
                 old.update(server=mode=='server',load_mode=mode); self.mod_save()
@@ -365,24 +365,24 @@ class IntegratedStudio(Studio):
         if old['folder']!=candidate['folder']:self.events.put('New mod folder saved. The old folder is not deleted automatically. Reinstall the mod before starting.')
     def refresh_mods(self):
         super().refresh_mods()
-        self.mods.horizontalHeaderItem(1).setText('MOD / MAPPE')
-        self.mods.horizontalHeaderItem(4).setText('STATUS / OPPDATERING')
+        self.mods.horizontalHeaderItem(1).setText('MOD / FOLDER')
+        self.mods.horizontalHeaderItem(4).setText('STATUS / UPDATE')
         for i,m in enumerate(self.p['mods']):
             if m.get('title'):
                 self.mods.item(i,1).setText(m['title']+'  /  '+m['folder'])
             if m.get('source')=='local':
-                self.mods.item(i,2).setText('Lokal / utvikling')
+                self.mods.item(i,2).setText('Local / development')
                 self.mods.item(i,1).setToolTip(m['path'])
-                self.mods.item(i,4).setText(('Aktiv' if m.get('enabled',True) else 'Inactive')+' / direkte fra disk')
+                self.mods.item(i,4).setText(('Enabled' if m.get('enabled',True) else 'Inactive')+' / directly from disk')
                 for col in range(self.mods.columnCount()):self.mods.item(i,col).setToolTip(m['path'])
                 continue
             installed=m.get('installed_updated',0); remote=m.get('remote_updated',0)
             if installed and remote>installed:
-                self.mods.item(i,4).setText('Ny versjon tilgjengelig')
+                self.mods.item(i,4).setText('New version available')
             elif m.get('installed_at'):
-                self.mods.item(i,4).setText('Installert' if m.get('enabled',True) else 'Installert / inaktiv')
+                self.mods.item(i,4).setText('Installed' if m.get('enabled',True) else 'Installed / disabled')
             elif m.get('id'):
-                self.mods.item(i,4).setText(('Aktiv' if m.get('enabled',True) else 'Inactive')+' / ikke bekreftet installert')
+                self.mods.item(i,4).setText(('Enabled' if m.get('enabled',True) else 'Inactive')+' / installation not confirmed')
         self.filter_mods()
     def download_mods(self):
         self.go(8); self.setup_tabs.setCurrentIndex(1); self.steam.start(self.p,'mods')

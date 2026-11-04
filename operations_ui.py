@@ -21,32 +21,32 @@ class OperationsStudio(ReleaseStudio):
         self.op_timer=QTimer(self); self.op_timer.timeout.connect(self.operations_tick); self.op_timer.start(5000)
         for profile in self.manager.state['servers']:
             if not getattr(self.manager,'remote',False) and profile.get('maintenance_state') in ('backup','steam','deploy'):
-                self.maintenance_failed(profile,'Forrige vedlikehold ble avbrutt. Bruk Kjør vedlikehold nå for å prøve igjen.')
+                self.maintenance_failed(profile,'Previous maintenance was interrupted. Use Run maintenance now to try again.')
         self.load_operations()
     def automation_page(self):
         layout=self.page(); scroll=QScrollArea(); scroll.setWidgetResizable(True); content=QWidget(); inner=QVBoxLayout(content)
-        f,c=card('MODS OG SERVEROPPDATERINGER','Workshop sjekkes mens serveren kjører. Oppdateringer installeres etter planlagt avslutning eller når serveren allerede er stoppet. Lokale utviklermods lastes aldri ned fra Workshop.')
-        self.auto=QCheckBox('Aktiver automatiske Steam-oppdateringer (Workshop-mods)'); c.addWidget(self.auto)
-        self.op_game=QCheckBox('Oppdater også DayZ-serverfiler i vedlikeholdet'); c.addWidget(self.op_game)
-        form=QFormLayout(); self.interval=QLineEdit('30'); form.addRow('Sjekkintervall, minutter',self.interval);self.mod_restart=QCheckBox('Varslet restart når en Workshop-mod får oppdatering');form.addRow('',self.mod_restart);self.mod_grace=QSpinBox();self.mod_grace.setRange(1,1440);self.mod_grace.setValue(15);form.addRow('Ventetid før modrestart, minutter',self.mod_grace); c.addLayout(form); inner.addWidget(f)
+        f,c=card('MODS AND SERVER UPDATES','Workshop is checked while the server runs. Updates are installed after a scheduled shutdown or when the server is already stopped. Local development mods are never downloaded from Workshop.')
+        self.auto=QCheckBox('Enable automatic Steam updates (Workshop mods)'); c.addWidget(self.auto)
+        self.op_game=QCheckBox('Also update DayZ server files during maintenance'); c.addWidget(self.op_game)
+        form=QFormLayout(); self.interval=QLineEdit('30'); form.addRow('Check interval, minutes',self.interval);self.mod_restart=QCheckBox('Announce a restart when a Workshop mod has an update');form.addRow('',self.mod_restart);self.mod_grace=QSpinBox();self.mod_grace.setRange(1,1440);self.mod_grace.setValue(15);form.addRow('Delay before mod restart, minutes',self.mod_grace); c.addLayout(form); inner.addWidget(f)
         from runtime_tools_ui import RuntimeTools
         self.runtime_tools=RuntimeTools(self);inner.addWidget(self.runtime_tools)
-        f,c=card('RESTARTPLAN','DayZ bruker messages.xml til spillervarsler, lagring og avslutning. Planendringer gjelder fra neste serverstart. Klokkeslett følger Windows sin lokale tid.')
-        self.op_schedule=QCheckBox('Aktiver planlagt restart'); c.addWidget(self.op_schedule)
-        form=QFormLayout(); self.op_mode=QComboBox(); self.op_mode.addItems(['Faste klokkeslett','Intervall fra serverstart']); form.addRow('Plan',self.op_mode)
-        self.op_times=QLineEdit(); self.op_times.setPlaceholderText('00:00, 06:00, 12:00, 18:00'); form.addRow('Klokkeslett',self.op_times)
-        self.op_minutes=QLineEdit('240'); form.addRow('Intervall, minutter',self.op_minutes); c.addLayout(form)
-        self.op_backup=QCheckBox('Ta backup før oppdatering / planlagt restart'); c.addWidget(self.op_backup)
-        self.op_keep=QLineEdit('10'); form.addRow('Behold antall automatiske backuper',self.op_keep)
-        self.op_recover=QCheckBox('Gjenstart ved krasj (maks 3 forsøk per 15 minutter)'); c.addWidget(self.op_recover)
+        f,c=card('RESTART SCHEDULE','DayZ uses messages.xml for player warnings, saving and shutdown. Schedule changes apply from the next server start. Times follow the Windows local time zone.')
+        self.op_schedule=QCheckBox('Enable scheduled restart'); c.addWidget(self.op_schedule)
+        form=QFormLayout(); self.op_mode=QComboBox(); self.op_mode.addItems(['Fixed times','Interval since server start']); form.addRow('Plan',self.op_mode)
+        self.op_times=QLineEdit(); self.op_times.setPlaceholderText('00:00, 06:00, 12:00, 18:00'); form.addRow('Times',self.op_times)
+        self.op_minutes=QLineEdit('240'); form.addRow('Interval, minutes',self.op_minutes); c.addLayout(form)
+        self.op_backup=QCheckBox('Back up before updates / scheduled restarts'); c.addWidget(self.op_backup)
+        self.op_keep=QLineEdit('10'); form.addRow('Number of automatic backups to retain',self.op_keep)
+        self.op_recover=QCheckBox('Restart after a crash (maximum 3 attempts per 15 minutes)'); c.addWidget(self.op_recover)
         c.addWidget(button('Save operations',self.action(self.save_operations),'primary')); inner.addWidget(f)
-        inner.addWidget(button('Kjør vedlikehold nå (server må være stoppet)',self.action(self.manual_maintenance)))
-        self.op_status=label('Ingen driftshendelser registrert.','muted'); inner.addWidget(self.op_status)
-        inner.addWidget(label('Bakgrunnsagenten utfører vedlikehold og restart uten åpent programvindu. Steam kan kreve ny innlogging eller Steam Guard. Ved oppdateringsfeil forblir serveren stoppet, og feilen vises i loggen. Ingen automatisk tvungen stopp eller wipe.','muted'))
+        inner.addWidget(button('Run maintenance now (server must be stopped)',self.action(self.manual_maintenance)))
+        self.op_status=label('No operations events recorded.','muted'); inner.addWidget(self.op_status)
+        inner.addWidget(label('The background agent performs maintenance and restarts without an open application window. Steam may require login or Steam Guard again. If an update fails, the server remains stopped and the error appears in the log. No automatic force-stop or wipe is performed.','muted'))
         inner.addStretch(); scroll.setWidget(content); layout.addWidget(scroll)
     def manual_maintenance(self):
-        if self.manager.running(self.p):raise ValueError('Serveren kjører. Vent til planlagt restart for trygg avslutning.')
-        if not self.begin_maintenance(self.p,False):raise ValueError('En jobb pågår. Vent til den er ferdig.')
+        if self.manager.running(self.p):raise ValueError('The server is running. Wait for the scheduled restart for a safe shutdown.')
+        if not self.begin_maintenance(self.p,False):raise ValueError('A job is running. Wait for it to finish.')
     def save_automation(self):self.save_operations()
     def load(self):
         super().load()
@@ -56,15 +56,15 @@ class OperationsStudio(ReleaseStudio):
         self.op_times.setText(p.get('restart_times','00:00, 06:00, 12:00, 18:00')); self.op_minutes.setText(str(p.get('restart_interval',240))); self.op_backup.setChecked(p.get('maintenance_backup',True)); self.op_keep.setText(str(p.get('backup_keep',10))); self.op_recover.setChecked(p.get('crash_recovery',False))
     def save_operations(self):
         p=self.p
-        if p['id'] in self.manager.busy:raise ValueError('Vent til vedlikeholdet er ferdig.')
+        if p['id'] in self.manager.busy:raise ValueError('Wait for maintenance to finish.')
         candidate=dict(p,auto_update=self.auto.isChecked(),update_minutes=int(self.interval.text()),update_game=self.op_game.isChecked(),scheduled_restart=self.op_schedule.isChecked(),restart_mode='clock' if self.op_mode.currentIndex()==0 else 'interval',restart_times=self.op_times.text().strip(),restart_interval=int(self.op_minutes.text()),maintenance_backup=self.op_backup.isChecked(),backup_keep=int(self.op_keep.text()),crash_recovery=self.op_recover.isChecked(),mod_restart_enabled=self.mod_restart.isChecked(),mod_grace_minutes=self.mod_grace.value())
         candidate.update(self.runtime_tools.values())
         from runtime_tools import validate_runtime
         validate_runtime(candidate)
-        if not 5<=candidate['update_minutes']<=10080:raise ValueError('Oppdateringssjekk må være 5–10080 minutter.')
-        if not 1<=candidate['backup_keep']<=100:raise ValueError('Behold 1–100 automatiske backuper.')
+        if not 5<=candidate['update_minutes']<=10080:raise ValueError('Update check interval must be 5–10080 minutes.')
+        if not 1<=candidate['backup_keep']<=100:raise ValueError('Retain 1–100 automatic backups.')
         restart_times(candidate['restart_times']); next_restart(candidate)
-        p.update(candidate); self.manager.save(); self.events.put('Driftsoppsett lagret. Restartplanen brukes fra neste serverstart.'); self.op_next.pop(p['id'],None)
+        p.update(candidate); self.manager.save(); self.events.put('Operations settings saved. The restart schedule applies from the next server start.'); self.op_next.pop(p['id'],None)
     def background(self,fn,done,failed):
         task=Task(fn,self); self.tasks.add(task)
         task.done.connect(lambda value:self.guard(lambda:done(value))); task.failed.connect(failed); task.finished.connect(lambda:self.tasks.discard(task)); task.finished.connect(task.deleteLater); task.start()
@@ -81,12 +81,12 @@ class OperationsStudio(ReleaseStudio):
                         if not m.get('installed_updated') or item['updated']>m['installed_updated']:newer.append(item['title'])
             if newer:
                 p['mods_pending']=True
-                self.events.put(p['name']+': oppdatering venter til vedlikehold: '+', '.join(newer))
+                self.events.put(p['name']+': update is waiting for maintenance: '+', '.join(newer))
             self.manager.save()
-        def failed(msg):self.op_checking.discard(key); self.events.put(p['name']+': automatisk Workshop-sjekk feilet: '+msg)
+        def failed(msg):self.op_checking.discard(key); self.events.put(p['name']+': automatic Workshop check failed: '+msg)
         self.background(lambda:details(ids),done,failed)
     def maintenance_failed(self,p,msg):
-        p['maintenance_state']='failed'; p['maintenance_error']=str(msg); self.manager.busy.discard(p['id']); self.manager.save(); self.events.put(p['name']+': VEDLIKEHOLD STOPPET: '+str(msg))
+        p['maintenance_state']='failed'; p['maintenance_error']=str(msg); self.manager.busy.discard(p['id']); self.manager.save(); self.events.put(p['name']+': MAINTENANCE STOPPED: '+str(msg))
     def begin_maintenance(self,p,restart):
         if self.steam.running() or p['id'] in self.manager.busy or self.manager.running(p):return False
         p.pop('_deployment_ok',None)
@@ -139,29 +139,29 @@ class OperationsStudio(ReleaseStudio):
                     elif p.get('crash_recovery') and not record.get('expected_stop'):
                         history=self.op_crashes.setdefault(key,deque());
                         while history and now-history[0]>900:history.popleft()
-                        if len(history)<3:history.append(now); self.op_retries[key]=now+30; self.events.put(p['name']+': krasjgjenstart om 30 sekunder.')
-                        else:self.events.put(p['name']+': krasjgjenstart stoppet etter 3 forsøk på 15 minutter.')
+                        if len(history)<3:history.append(now); self.op_retries[key]=now+30; self.events.put(p['name']+': crash recovery in 30 seconds.')
+                        else:self.events.put(p['name']+': crash recovery stopped after 3 attempts in 15 minutes.')
             if p.get('maintenance_state')=='queued' and not running:self.begin_maintenance(p,True)
             if p.get('maintenance_state')=='deploy' and key not in self.manager.busy:
                 # The deployment worker marks success explicitly; a partial deployment must never restart.
                 if p.pop('_deployment_ok',False):self.maintenance_ready(p)
-                else:self.maintenance_failed(p,'Modinstallasjonen ble ikke bekreftet. Kontroller logger og Workshop-mappe.')
+                else:self.maintenance_failed(p,'Mod deployment was not confirmed. Check the logs and Workshop folder.')
             if key in self.op_retries and now>=self.op_retries[key] and not running and key not in self.manager.busy and p.get('maintenance_state','idle')=='idle':
                 del self.op_retries[key]
                 try:self.manager.start(p)
-                except Exception as e:self.events.put(p['name']+': gjenstart feilet: '+str(e))
+                except Exception as e:self.events.put(p['name']+': restart failed: '+str(e))
             if p.get('auto_update') and key not in self.op_checking and key not in self.manager.busy and now>=self.op_next.get(key,0):
                 self.op_next[key]=now+max(5,int(p['update_minutes']))*60
                 if running:self.check_mods_automatic(p)
                 elif p.get('maintenance_state','idle')=='idle' and not self.steam.running():self.begin_maintenance(p,False)
         p=self.p; r=self.manager.launches.get(p['id']); parts=[]
         if r and self.manager.running(p):
-            parts.append('PID '+str(r['pid'])+' • oppetid '+str(int((now-r['started_wall'])/60))+' min')
+            parts.append('PID '+str(r['pid'])+' • uptime '+str(int((now-r['started_wall'])/60))+' min')
             try:
                 proc=psutil.Process(r['pid']); parts.append('RAM '+str(round(proc.memory_info().rss/1024**2))+' MB')
             except psutil.Error:pass
-            if r.get('restart_due'):parts.append('Neste restart ca. '+datetime.fromtimestamp(r['restart_due']).strftime('%d.%m %H:%M'))
-        parts.append('Vedlikehold: '+p.get('maintenance_state','idle'))
-        if p.get('mods_pending'):parts.append('Modoppdateringer venter')
+            if r.get('restart_due'):parts.append('Next restart approximately '+datetime.fromtimestamp(r['restart_due']).strftime('%d.%m %H:%M'))
+        parts.append('Maintenance: '+p.get('maintenance_state','idle'))
+        if p.get('mods_pending'):parts.append('Mod updates pending')
         if p.get('maintenance_error'):parts.append(p['maintenance_error'])
         self.op_status.setText('\n'.join(parts))

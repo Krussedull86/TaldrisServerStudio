@@ -30,7 +30,7 @@ class ConsoleWorker(QThread):
             self.exited.emit(int(code) if code is not None else 1)
         except Exception as e:
             if proc is None:self.failed.emit(str(e))
-            else:self.received.emit('\n[Terminalfeil: '+str(e)+']\n'); self.exited.emit(1)
+            else:self.received.emit('\n[Console error: '+str(e)+']\n'); self.exited.emit(1)
         finally:
             with self.input_lock:self.proc=None
             if proc is not None:
@@ -38,7 +38,7 @@ class ConsoleWorker(QThread):
                 except Exception:pass
     def write(self,data):
         with self.input_lock:
-            if self.proc is None:raise ValueError('Terminalen starter fortsatt. Vent på SteamCMD-spørsmålet før du sender input.')
+            if self.proc is None:raise ValueError('The console is still starting. Wait for the SteamCMD prompt before sending input.')
             return self.proc.write(data)
     def stop(self):
         self.cancelled.set()
@@ -57,7 +57,7 @@ class WindowsConsoleProcess(QObject):
     def setArguments(self,args):self.args=list(args)
     def setWorkingDirectory(self,path):self.cwd=path
     def start(self):
-        if self.worker is not None and self.worker.isRunning():raise ValueError('Terminalprosessen kjører allerede.')
+        if self.worker is not None and self.worker.isRunning():raise ValueError('The console process is already running.')
         self.buffer.clear(); self.error_text=''; worker=ConsoleWorker(self.program,self.args,self.cwd,self); self.worker=worker
         worker.received.connect(self._received); worker.failed.connect(self._failed)
         # Emit process completion only after the worker has released all terminal resources.
@@ -72,7 +72,7 @@ class WindowsConsoleProcess(QObject):
         else:self.finished.emit(self.exit_code,QProcess.NormalExit)
     def readAllStandardOutput(self):data=bytes(self.buffer); self.buffer.clear(); return data
     def write(self,data):
-        if self.worker is None:raise ValueError('SteamCMD-terminalen kjører ikke.')
+        if self.worker is None:raise ValueError('The SteamCMD console is not running.')
         text=bytes(data).decode('utf-8').replace('\r\n','\n').replace('\n','\r\n'); return self.worker.write(text)
     def kill(self):
         if self.worker is not None:self.worker.stop()

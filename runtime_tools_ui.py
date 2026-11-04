@@ -16,13 +16,13 @@ class ProgramDialog(QDialog):
         form.addRow('Arguments',self.args);self.flags={}
         for key,title in [('enabled','Enabled'),('on_start','Check/start on server start'),('on_restart','Check/start on restart and crash recovery'),('required','Required — cancel server start if this program fails')]:
             value=QCheckBox(title);value.setChecked(self.program.get(key,True));form.addRow('',value);self.flags[key]=value
-        self.wait=QSpinBox();self.wait.setRange(0,120);self.wait.setValue(self.program.get('wait_seconds',2));form.addRow('Wait after start, seconds',self.wait);layout.addLayout(form);layout.addWidget(label('Kjørende prosesser gjenbrukes når full filsti og eventuelle argumenter stemmer. Tilleggsprogrammer stoppes ikke automatisk sammen med DayZ. Ved tjenestedrift vises ikke programvinduer på skrivebordet.','muted'))
+        self.wait=QSpinBox();self.wait.setRange(0,120);self.wait.setValue(self.program.get('wait_seconds',2));form.addRow('Wait after start, seconds',self.wait);layout.addLayout(form);layout.addWidget(label('Running processes are reused when the full path and any arguments match. Companion programs are not stopped automatically with DayZ. When running as a service, program windows do not appear on the desktop.','muted'))
         buttons=QDialogButtonBox(QDialogButtonBox.Save|QDialogButtonBox.Cancel);buttons.button(QDialogButtonBox.Save).setText('Add / save');buttons.button(QDialogButtonBox.Cancel).setText('Cancel');buttons.accepted.connect(self.accept);buttons.rejected.connect(self.reject);layout.addWidget(buttons)
     def choose_exe(self):
-        path,_=QFileDialog.getOpenFileName(self,'Velg program',self.path.text(),'Windows-program (*.exe)')
+        path,_=QFileDialog.getOpenFileName(self,'Choose program',self.path.text(),'Windows executable (*.exe)')
         if path:self.path.setText(path);self.name.setText(self.name.text() or Path(path).stem)
     def choose_cwd(self):
-        path=QFileDialog.getExistingDirectory(self,'Arbeidsmappe',self.cwd.text())
+        path=QFileDialog.getExistingDirectory(self,'Working directory',self.cwd.text())
         if path:self.cwd.setText(path)
     def values(self):
         result=dict(self.program,name=self.name.text().strip() or Path(self.path.text()).stem,path=self.path.text().strip(),args=self.args.text().strip(),cwd=self.cwd.text().strip(),wait_seconds=self.wait.value(),**{k:v.isChecked() for k,v in self.flags.items()});validate_runtime({'programs':[result]});return result
@@ -30,11 +30,11 @@ class ProgramDialog(QDialog):
 class RuntimeTools(QWidget):
     def __init__(self,studio):
         super().__init__();self.studio=studio;self.programs=[];self.profile_id=None;self.statuses=[];layout=QVBoxLayout(self);layout.setContentsMargins(0,0,0,0);tabs=QTabWidget();layout.addWidget(tabs)
-        programs=QWidget();pl=QVBoxLayout(programs);self.profile_picker=QComboBox();self.profile_picker.currentIndexChanged.connect(lambda i:studio.guard(lambda:self.choose_profile(i)));pl.addWidget(label('Server profile for EXE list','muted'));pl.addWidget(self.profile_picker);pl.addWidget(label('Sjekk EXE-programmer før DayZ starter. Velg hvilke som gjelder ved start og restart. Lagre driftsoppsettet etter endringer.','muted'));row=QHBoxLayout()
+        programs=QWidget();pl=QVBoxLayout(programs);self.profile_picker=QComboBox();self.profile_picker.currentIndexChanged.connect(lambda i:studio.guard(lambda:self.choose_profile(i)));pl.addWidget(label('Server profile for EXE list','muted'));pl.addWidget(self.profile_picker);pl.addWidget(label('Check companion EXE programs before DayZ starts. Choose which apply to start and restart. Save operations settings after making changes.','muted'));row=QHBoxLayout()
         for title,fn in [('Add EXE …',self.add),('Edit …',self.edit),('Remove from list',self.remove),('Check running programs',self.check)]:row.addWidget(button(title,lambda checked=False,f=fn:studio.guard(f)))
         pl.addLayout(row);self.table=QTableWidget(0,5);self.table.setHorizontalHeaderLabels(['Use','Program','EXE file','When','Status / PID']);self.table.setSelectionBehavior(QAbstractItemView.SelectRows);self.table.setSelectionMode(QAbstractItemView.SingleSelection);self.table.setEditTriggers(QAbstractItemView.NoEditTriggers);self.table.horizontalHeader().setSectionResizeMode(2,QHeaderView.Stretch);self.table.setColumnWidth(0,70);self.table.setColumnWidth(1,160);self.table.setColumnWidth(3,160);self.table.setColumnWidth(4,170);self.table.setMinimumHeight(210);self.table.itemChanged.connect(self.checkbox_changed);self.table.setContextMenuPolicy(Qt.CustomContextMenu);self.table.customContextMenuRequested.connect(self.context_menu);self.table.doubleClicked.connect(lambda:studio.guard(self.edit));pl.addWidget(self.table);tabs.addTab(programs,'Companion EXEs')
         logs=QWidget();ll=QVBoxLayout(logs);self.enabled=QCheckBox('Archive closed RPT / LOG / ADM before server start/restart');ll.addWidget(self.enabled);form=QFormLayout();self.days=QSpinBox();self.days.setRange(1,3650);self.count=QSpinBox();self.count.setRange(1,1000);self.mb=QSpinBox();self.mb.setRange(10,102400);form.addRow('Keep archives, days',self.days);form.addRow('Maximum archives',self.count);form.addRow('Total archive limit, MB',self.mb);ll.addLayout(form)
-        ll.addWidget(label('Bare avsluttede logger i profiles-mappens toppnivå arkiveres. Aktive logger roteres ikke. Siste arkiv beholdes alltid, også hvis én økt overstiger plassgrensen.','muted'));row=QHBoxLayout();row.addWidget(button('Archive logs now (stopped server)',lambda:studio.guard(self.rotate)));row.addWidget(button('Open log archives',self.open_archives));row.addStretch();ll.addLayout(row);tabs.addTab(logs,'Log rotation');self.message=label('Endringer gjelder valgt server.','muted');layout.addWidget(self.message)
+        ll.addWidget(label('Only closed logs at the top level of the profiles folder are archived. Active logs are not rotated. The newest archive is always retained, even when one session exceeds the size limit.','muted'));row=QHBoxLayout();row.addWidget(button('Archive logs now (stopped server)',lambda:studio.guard(self.rotate)));row.addWidget(button('Open log archives',self.open_archives));row.addStretch();ll.addLayout(row);tabs.addTab(logs,'Log rotation');self.message=label('Changes apply to the selected server.','muted');layout.addWidget(self.message)
     def load(self,p):
         self.profile_picker.blockSignals(True);self.profile_picker.clear();
         for profile in self.studio.manager.state['servers']:self.profile_picker.addItem(profile['name'],profile['id'])
@@ -61,7 +61,7 @@ class RuntimeTools(QWidget):
         if dialog.exec():self.programs.append(dialog.values());self.persist_programs();self.render()
     def edit(self):
         row=self.table.currentRow()
-        if row<0:raise ValueError('Velg et program først.')
+        if row<0:raise ValueError('Choose a program first.')
         self.sync_checks();dialog=ProgramDialog(self,self.programs[row])
         if dialog.exec():self.programs[row]=dialog.values();self.persist_programs();self.render()
     def remove(self):
@@ -80,13 +80,13 @@ class RuntimeTools(QWidget):
             self.update_status(CompanionPrograms().statuses(self.programs));return
         profile=self.studio.p['id'];job=self.studio.manager.enqueue('program_status',self.studio.p)
         def ready(result):
-            if self.studio.p['id']==profile:self.update_status(result);self.message.setText('Status gjelder sist lagrede EXE-liste.')
-        self.studio.run_task(lambda:self.studio.manager.wait_job(job),ready,description='EXE-status')
+            if self.studio.p['id']==profile:self.update_status(result);self.message.setText('Status refers to the last saved EXE list.')
+        self.studio.run_task(lambda:self.studio.manager.wait_job(job),ready,description='EXE status')
     def rotate(self):
-        if not getattr(self.studio.manager,'remote',False):raise ValueError('Loggrotasjon utføres av bakgrunnsagenten i Windows-programmet.')
+        if not getattr(self.studio.manager,'remote',False):raise ValueError('The background agent rotates logs in the Windows application.')
         profile=self.studio.p['id'];job=self.studio.manager.enqueue('rotate_logs',self.studio.p)
         def ready(result):
-            if self.studio.p['id']==profile:self.message.setText(str(result['archived'])+' logger arkivert. '+str(result['skipped'])+' beholdt/ikke tilgjengelig.')
+            if self.studio.p['id']==profile:self.message.setText(str(result['archived'])+' logs archived. '+str(result['skipped'])+' kept/unavailable.')
         self.studio.run_task(lambda:self.studio.manager.wait_job(job,timeout=600),ready,description='Log rotation')
     def open_archives(self):
         from log_rotation import archive_folder
@@ -95,7 +95,7 @@ class RuntimeTools(QWidget):
     def persist_programs(self):
         validate_runtime({'programs':self.programs})
         self.studio.p['programs']=copy.deepcopy(self.programs);self.studio.manager.save()
-        self.message.setText('EXE-listen er lagret for '+self.studio.p['name']+'.')
+        self.message.setText('EXE list saved for '+self.studio.p['name']+'.')
     def choose_profile(self,index):
         identity=self.profile_picker.itemData(index)
         if not identity or identity==self.profile_id:return
@@ -106,17 +106,17 @@ class RuntimeTools(QWidget):
         row=self.table.rowAt(position.y())
         if row<0:return
         self.table.selectRow(row);menu=QMenu(self)
-        for title,action in [('Start','start'),('Restart','restart'),('Stopp','stop')]:
+        for title,action in [('Start','start'),('Restart','restart'),('Stop','stop')]:
             menu.addAction(title,lambda checked=False,a=action:self.studio.guard(lambda:self.control_program(a)))
         menu.addSeparator();menu.addAction('Edit …',lambda:self.studio.guard(self.edit));menu.exec(self.table.viewport().mapToGlobal(position))
     def control_program(self,action):
         row=self.table.currentRow()
-        if row<0:raise ValueError('Velg et program først.')
+        if row<0:raise ValueError('Choose a program first.')
         self.sync_checks();self.persist_programs();program=self.programs[row]
         if action in ('stop','restart'):
-            text='Dette avslutter '+program['name']+' og kan påvirke andre serverprofiler som bruker samme prosess. Fortsette?'
+            text='This will terminate '+program['name']+' and may affect other server profiles using the same process. Continue?'
             if QMessageBox.question(self,'Companion program',text,QMessageBox.Yes|QMessageBox.No,QMessageBox.No)!=QMessageBox.Yes:return
-        if not getattr(self.studio.manager,'remote',False):raise ValueError('Programstyring krever bakgrunnsagenten.')
+        if not getattr(self.studio.manager,'remote',False):raise ValueError('Program controls require the background agent.')
         profile=self.profile_id;job=self.studio.manager.enqueue('program_'+action,self.studio.p,{'program_id':program['id']})
         def ready(result):
             if self.profile_id==profile:self.message.setText(program['name']+': '+str(result['status']));self.check()

@@ -48,23 +48,23 @@ def restore_processes(manager):
     path=manager.home/'processes.json'
     if not path.exists():return
     try:records=json.loads(path.read_text('utf-8'))
-    except (ValueError,OSError):manager.log('Prosessregisteret kunne ikke leses. Ingen prosess tas over.'); return
+    except (ValueError,OSError):manager.log('Could not read the process registry. No process will be adopted.'); return
     claimed=set()
     for profile in manager.state['servers']:
         saved=records.get(profile['id'])
         if not saved:continue
         try:
-            if int(saved['pid']) in claimed:raise ValueError('Prosessen tilhører allerede en annen profil.')
+            if int(saved['pid']) in claimed:raise ValueError('The process already belongs to another profile.')
             proc=psutil.Process(int(saved['pid']))
-            if not matches(saved,proc):raise ValueError('Prosessidentiteten stemmer ikke.')
-            if Path(saved['exe']).resolve()!=(Path(profile['root'])/'DayZServer_x64.exe').resolve():raise ValueError('Servermappe er endret.')
+            if not matches(saved,proc):raise ValueError('The process identity does not match.')
+            if Path(saved['exe']).resolve()!=(Path(profile['root'])/'DayZServer_x64.exe').resolve():raise ValueError('The server folder has changed.')
             attached=AttachedProcess(proc)
             if attached.poll() is not None:continue
             from server_diagnostics import snapshot
             record=dict(saved,proc=attached,baseline=snapshot(saved['profiles']),started=time.monotonic()-max(0,time.time()-saved['started_wall']),state='running')
             manager.procs[profile['id']]=attached; manager.launches[profile['id']]=record;claimed.add(proc.pid)
-            manager.log(profile['name']+': koblet til eksisterende serverprosess, PID '+str(proc.pid)+'. Serveren er ikke restartet.')
-        except (psutil.Error,OSError,ValueError,KeyError,TypeError):manager.log(profile['name']+': tidligere serverprosess kunne ikke bekreftes. Ingen prosess tas over.')
+            manager.log(profile['name']+': reconnected to the existing server process, PID '+str(proc.pid)+'. The server has not been restarted.')
+        except (psutil.Error,OSError,ValueError,KeyError,TypeError):manager.log(profile['name']+': the previous server process could not be verified. No process will be adopted.')
 
 
 def discover_processes(manager):
@@ -85,12 +85,12 @@ def discover_processes(manager):
                 candidates.append((proc,args))
             except (psutil.Error,OSError):continue
         if len(candidates)!=1:
-            if candidates:manager.log(profile['name']+': flere serverprosesser matcher. Automatisk overtakelse avbrytes.')
+            if candidates:manager.log(profile['name']+': multiple server processes match. Automatic adoption cancelled.')
             continue
         proc,args=candidates[0]
         from server_diagnostics import snapshot
         started=proc.create_time(); profiles=str((root/profile['profiles']).resolve()); attached=AttachedProcess(proc)
         record=dict(name=profile['name'],exe=str(exe),args=args,cwd=str(root),profiles=profiles,pid=proc.pid,proc=attached,baseline=snapshot(profiles),started_wall=started,started=time.monotonic()-max(0,time.time()-started),state='running',expected_stop=False,restart_due=None)
         manager.procs[profile['id']]=attached; manager.launches[profile['id']]=record;claimed.add(proc.pid)
-        manager.log(profile['name']+': fant og overtok eksisterende DayZ-prosess med bekreftet EXE, konfigurasjon, profiles og port. PID '+str(proc.pid)+'.')
+        manager.log(profile['name']+': found and adopted an existing DayZ process with verified EXE, configuration, profiles and port. PID '+str(proc.pid)+'.')
     save_processes(manager)

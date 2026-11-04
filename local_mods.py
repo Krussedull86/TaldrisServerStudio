@@ -6,8 +6,8 @@ def canonical(path):return os.path.normcase(str(Path(path).resolve())).casefold(
 
 def inspect_mod(path):
     path=Path(path).absolute()
-    if not path.is_dir() or not path.name.startswith('@'):raise ValueError('Velg en modmappe som begynner med @.')
-    if any(c in str(path) for c in [';','"','\n','\r','\x00']):raise ValueError('Modstien kan ikke inneholde semikolon, anførselstegn eller linjeskift.')
+    if not path.is_dir() or not path.name.startswith('@'):raise ValueError('Choose a mod folder that starts with @.')
+    if any(c in str(path) for c in [';','"','\n','\r','\x00']):raise ValueError('The mod path cannot contain semicolons, quotation marks or line breaks.')
     # Steam !Workshop entries can be directory links; inspect but never alter them.
     addons=next((p for p in path.iterdir() if p.is_dir() and p.name.casefold()=='addons'),None)
     pbos=[p for p in addons.iterdir() if p.is_file() and p.suffix.casefold()=='.pbo'] if addons else []
@@ -15,11 +15,11 @@ def inspect_mod(path):
     keys=[]
     for folder in path.iterdir():
         if folder.is_dir() and folder.name.casefold()=='keys':keys.extend(p for p in folder.iterdir() if p.is_file() and p.suffix.casefold()=='.bikey')
-    return dict(name=path.name,path=str(path),pbo_count=count,key_count=len(keys),ready=count>0,status=f'{count} PBO • {len(keys)} nøkler' if count else 'Ingen pakket PBO i Addons – bygg modden først')
+    return dict(name=path.name,path=str(path),pbo_count=count,key_count=len(keys),ready=count>0,status=f'{count} PBO • {len(keys)} keys' if count else 'No packed PBO in Addons — build the mod first')
 
 def scan_mods(directory,recursive=False):
     root=Path(directory).absolute()
-    if not root.is_dir():raise ValueError('Mappen finnes ikke.')
+    if not root.is_dir():raise ValueError('The folder does not exist.')
     candidates=[]; seen=set(); warnings=[]
     def add(path):
         try:

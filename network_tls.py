@@ -12,7 +12,5 @@ def tls_context():
 def network_message(error):
     reason=getattr(error,'reason',error)
     if isinstance(reason,ssl.SSLCertVerificationError) or 'CERTIFICATE_VERIFY_FAILED' in str(reason):
-        return ('Kunne ikke bekrefte nettsidens sertifikat. Kontroller dato/klokkeslett og Windows-oppdateringer. '
-                'Hvis nettverket bruker sertifikatkontroll, må det riktige rotsertifikatet være klarert i Windows. '
-                'Sertifikatkontroll er fortsatt aktiv.')
+        return ('Could not verify the website certificate. Check the date/time and Windows updates. If the network inspects certificates, Windows must trust the correct root certificate. Certificate verification remains enabled.')
     return str(error)

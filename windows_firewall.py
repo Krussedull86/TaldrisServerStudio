@@ -16,10 +16,10 @@ def mask_config(text):
 def set_query_port(text, port):
     port = int(port)
     if not 1 <= port <= 65535:
-        raise ValueError('Steam query-port må være 1–65535.')
+        raise ValueError('Steam query port must be 1–65535.')
     matches = list(re.finditer(r'\bsteamQueryPort\s*=\s*\d+\s*;', mask_config(text), re.I))
     if len(matches) > 1:
-        raise ValueError('Flere steamQueryPort finnes. Fjern duplikatene i konfigurasjonseditoren.')
+        raise ValueError('Multiple steamQueryPort entries were found. Remove duplicates in the configuration editor.')
     line = f'steamQueryPort = {port};'
     if matches:
         match = matches[0]
@@ -30,20 +30,20 @@ def set_query_port(text, port):
 def server_ports(profile):
     if not profile.get('query_enabled',True):
         game=int(profile['port']);ports=[game,game+1,game+2]
-        if any(not 1<=port<=65535 for port in ports):raise ValueError('Ugyldig spillport.')
+        if any(not 1<=port<=65535 for port in ports):raise ValueError('Invalid game port.')
         return ports
     config = (Path(profile['root']) / profile['config']).read_text('utf-8-sig')
     config = mask_config(config)
     matches = re.findall(r'\bsteamQueryPort\s*=\s*(\d+)\s*;', config, re.I)
     if not matches:
-        raise ValueError('steamQueryPort mangler. Åpne Konfigurasjon → Steam query-port, velg port og lagre før oppstart.')
+        raise ValueError('steamQueryPort is missing. Open Configuration → Steam query port, choose a port and save before starting.')
     if len(matches) != 1:
-        raise ValueError('Flere steamQueryPort finnes. Fjern duplikatene før oppstart.')
+        raise ValueError('Multiple steamQueryPort entries were found. Remove duplicates before starting.')
     query = int(matches[0])
     game = int(profile['port'])
     ports = sorted({game, game + 1, game + 2, query})
     if any(not 1 <= port <= 65535 for port in ports):
-        raise ValueError('Ugyldig spillport eller steamQueryPort i serverkonfigurasjonen.')
+        raise ValueError('Invalid game port or steamQueryPort in the server configuration.')
     return ports
 
 
@@ -88,12 +88,12 @@ def ensure_firewall(profile, log):
     powershell = str(Path(os.environ.get('SystemRoot', r'C:\Windows')) / 'System32' / 'WindowsPowerShell' / 'v1.0' / 'powershell.exe')
     args = [powershell, '-NoProfile', '-NonInteractive', '-EncodedCommand', encoded(script)]
     options = dict(capture_output=True, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0), timeout=120)
-    log('Kontrollerer Windows-brannmur: UDP ' + ', '.join(map(str, ports)))
+    log('Checking Windows Firewall: UDP ' + ', '.join(map(str, ports)))
     result = subprocess.run(args, **options)
     if result.returncode == 5:
-        log('Windows ber om administratortilgang for å opprette serverens brannmurregel.')
+        log('Windows will request administrator access to create the server firewall rule.')
         elevate = f"$ErrorActionPreference='Stop'; try {{ $p=Start-Process -FilePath {ps_quote(powershell)} -ArgumentList '-NoProfile -NonInteractive -EncodedCommand {encoded(script)}' -Verb RunAs -Wait -PassThru; exit $p.ExitCode }} catch {{ exit 1 }}"
         result = subprocess.run([powershell, '-NoProfile', '-NonInteractive', '-EncodedCommand', encoded(elevate)], **options)
     if result.returncode:
-        raise ValueError('Brannmurregelen ble ikke opprettet. Godta Windows-administratorforespørselen og prøv igjen. Du kan slå av automatisk brannmur i Innstillinger hvis reglene administreres separat.')
-    log('Windows-brannmurregel er klar for DayZServer_x64.exe, UDP ' + ', '.join(map(str, ports)) + '. Ruter og eventuell ekstern brannmur må konfigureres separat.')
+        raise ValueError('The firewall rule was not created. Accept the Windows administrator prompt and try again. You can disable automatic firewall rules in Settings if they are managed separately.')
+    log('Windows Firewall rule is ready for DayZServer_x64.exe, UDP ' + ', '.join(map(str, ports)) + '. Configure the router and any external firewall separately.')

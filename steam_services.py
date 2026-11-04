@@ -17,46 +17,46 @@ def read_url(url,data=None,limit=MAX_RESPONSE):
     req=Request(url,data=data,headers={'User-Agent':'TaldrisServerStudio/0.3','Accept-Language':'en-US,en;q=0.9'})
     with urlopen(req,timeout=40,context=tls_context()) as response:
         raw=response.read(limit+1)
-        if len(raw)>limit:raise ValueError('Svaret fra Steam er for stort.')
+        if len(raw)>limit:raise ValueError('The Steam response is too large.')
         return raw
 
 def workshop_id(value):
     value=value.strip()
     if re.fullmatch(r'[1-9][0-9]{0,19}',value):return value
     url=urlparse(value)
-    if url.scheme not in ('http','https') or url.hostname not in ('steamcommunity.com','www.steamcommunity.com'):raise ValueError('Bruk Workshop-ID eller en steamcommunity.com-lenke.')
+    if url.scheme not in ('http','https') or url.hostname not in ('steamcommunity.com','www.steamcommunity.com'):raise ValueError('Use a Workshop ID or a steamcommunity.com link.')
     wid=parse_qs(url.query).get('id',[''])[0]
-    if not re.fullmatch(r'[1-9][0-9]{0,19}',wid):raise ValueError('Lenken mangler gyldig Workshop-ID.')
+    if not re.fullmatch(r'[1-9][0-9]{0,19}',wid):raise ValueError('The link has no valid Workshop ID.')
     return wid
 
 def api(method,params):
     raw=read_url('https://api.steampowered.com/ISteamRemoteStorage/'+method+'/v1/',urlencode(params).encode())
     try:return json.loads(raw)['response']
-    except (ValueError,KeyError,TypeError):raise ValueError('Steam returnerte et ukjent API-svar. Prøv igjen senere.')
+    except (ValueError,KeyError,TypeError):raise ValueError('Steam returned an unexpected API response. Try again later.')
 
 def details(ids):
     ids=list(dict.fromkeys(workshop_id(str(w)) for w in ids))
-    if len(ids)>100:raise ValueError('Hent høyst 100 mods om gangen.')
+    if len(ids)>100:raise ValueError('Fetch no more than 100 mods at once.')
     if not ids:return []
     params={'itemcount':len(ids)}; params.update({f'publishedfileids[{i}]':w for i,w in enumerate(ids)})
     data=api('GetPublishedFileDetails',params).get('publishedfiledetails',[])
     by_id={str(d.get('publishedfileid')):d for d in data}; result=[]
     for wid in ids:
         d=by_id.get(wid,{})
-        if int(d.get('result',0))!=1:raise ValueError('Workshop-elementet er privat, slettet eller utilgjengelig: '+wid)
-        if int(d.get('consumer_app_id',0))!=WORKSHOP_APP:raise ValueError('Dette elementet tilhører ikke DayZ: '+wid)
+        if int(d.get('result',0))!=1:raise ValueError('The Workshop item is private, deleted or unavailable: '+wid)
+        if int(d.get('consumer_app_id',0))!=WORKSHOP_APP:raise ValueError('This item does not belong to DayZ: '+wid)
         result.append(dict(id=wid,title=d.get('title',wid),updated=int(d.get('time_updated',0)),size=int(d.get('file_size',0)),file_type=int(d.get('file_type',0)),description=d.get('description',''),url='https://steamcommunity.com/sharedfiles/filedetails/?id='+wid))
     return result
 
 def collection(value):
     wid=workshop_id(value); parent=details([wid])[0]
-    if parent['file_type']!=2:raise ValueError('Dette er ikke en Workshop-samling. Bruk «Legg til via ID» for enkeltmods.')
+    if parent['file_type']!=2:raise ValueError('This is not a Workshop collection. Use “Add via ID” for individual mods.')
     data=api('GetCollectionDetails',{'collectioncount':1,'publishedfileids[0]':wid}).get('collectiondetails',[])
-    if not data or int(data[0].get('result',0))!=1:raise ValueError('Kunne ikke lese samlingen.')
+    if not data or int(data[0].get('result',0))!=1:raise ValueError('Could not read the collection.')
     ids=[str(c['publishedfileid']) for c in data[0].get('children',[])]
-    if len(ids)>100:raise ValueError('Denne utgaven støtter samlinger med høyst 100 direkte elementer.')
+    if len(ids)>100:raise ValueError('This version supports collections with at most 100 direct items.')
     items=details(ids)
-    if any(x['file_type']!=0 for x in items):raise ValueError('Samlingen inneholder undersamlinger eller andre elementtyper. Importer enkeltmods separat.')
+    if any(x['file_type']!=0 for x in items):raise ValueError('The collection contains nested collections or other item types. Import individual mods separately.')
     return items
 
 class BrowseParser(HTMLParser):
@@ -97,7 +97,7 @@ def browse_ids(raw):
     ids=list(dict.fromkeys(x['id'] for x in parser.items if x['title']))[:30]
     if ids:return ids
     if 'No items matching' in raw:return []
-    raise ValueError('Kunne ikke lese Workshop-søket. Steam kan ha endret siden eller kreve samtykke. Bruk ID/lenke, eller åpne Workshop-nettsiden.')
+    raise ValueError('Could not read Workshop search results. Steam may have changed the page or require consent. Use an ID/link, or open the Workshop website.')
 
 def search(text,page=1):
     q=urlencode(dict(appid=WORKSHOP_APP,searchtext=text,browsesort='textsearch' if text else 'trend',section='items',actualsort='textsearch' if text else 'trend',p=int(page),numperpage=30))
@@ -110,37 +110,37 @@ def install_steamcmd(directory,report=lambda s:None,fetch=read_url):
     if exe.is_file():
         with exe.open('rb') as file:
             if file.read(2)!=b'MZ':raise ValueError('Existing steamcmd.exe is damaged or is not a Windows executable. Choose a new SteamCMD folder to download a clean copy.')
-        report('SteamCMD finnes allerede.');return str(exe)
-    target.mkdir(parents=True,exist_ok=True); report('Laster ned SteamCMD fra Valve …')
+        report('SteamCMD already exists.');return str(exe)
+    target.mkdir(parents=True,exist_ok=True); report('Downloading SteamCMD from Valve …')
     raw=fetch(STEAMCMD_URL,limit=50*1024*1024)
     with zipfile.ZipFile(io.BytesIO(raw)) as archive:
         infos=archive.infolist()
-        if sum(i.file_size for i in infos)>100*1024*1024:raise ValueError('SteamCMD-arkivet er for stort.')
+        if sum(i.file_size for i in infos)>100*1024*1024:raise ValueError('The SteamCMD archive is too large.')
         for item in infos:
             p=Path(item.filename.replace('\\','/'))
-            if p.is_absolute() or '..' in p.parts or ':' in item.filename or stat.S_ISLNK(item.external_attr>>16):raise ValueError('Utrygg filsti i SteamCMD-arkivet.')
-        if not any(i.filename.lower()=='steamcmd.exe' for i in infos):raise ValueError('SteamCMD-arkivet mangler steamcmd.exe.')
+            if p.is_absolute() or '..' in p.parts or ':' in item.filename or stat.S_ISLNK(item.external_attr>>16):raise ValueError('Unsafe file path in the SteamCMD archive.')
+        if not any(i.filename.lower()=='steamcmd.exe' for i in infos):raise ValueError('The SteamCMD archive is missing steamcmd.exe.')
         with tempfile.TemporaryDirectory(dir=target,prefix='.bootstrap-') as temp:
             archive.extractall(temp)
             # Valve currently ships one bootstrap executable. Keep other existing files untouched.
             src=next(p for p in Path(temp).iterdir() if p.name.lower()=='steamcmd.exe')
-            if src.read_bytes()[:2]!=b'MZ':raise ValueError('SteamCMD er ikke en gyldig Windows-programfil.')
+            if src.read_bytes()[:2]!=b'MZ':raise ValueError('SteamCMD is not a valid Windows executable.')
             if not exe.exists():os.replace(src,exe)
-    report('SteamCMD lastet ned. Første kjøring oppdaterer SteamCMD automatisk.'); return str(exe)
+    report('SteamCMD downloaded. The first launch updates SteamCMD automatically.'); return str(exe)
 
 def cfg_string(value):
-    if any(c in value for c in ['"','\\','\n','\r','\x00']):raise ValueError('Navn og passord kan ikke inneholde anførselstegn, linjeskift eller omvendt skråstrek.')
+    if any(c in value for c in ['"','\\','\n','\r','\x00']):raise ValueError('Names and passwords cannot contain quotation marks, line breaks or backslashes.')
     return '"'+value+'"'
 
 def provision(profile,name,players,mission):
     from core import local_path,validate
     validate(profile)
-    if not 1<=int(players)<=127:raise ValueError('Velg 1–127 spillerplasser.')
-    if not re.fullmatch(r'[A-Za-z0-9_.-]+',mission):raise ValueError('Ugyldig mission-navn.')
+    if not 1<=int(players)<=127:raise ValueError('Choose 1–127 player slots.')
+    if not re.fullmatch(r'[A-Za-z0-9_.-]+',mission):raise ValueError('Invalid mission name.')
     root=Path(profile['root']); mission_dir=local_path(root,'mpmissions/'+mission)
-    if not mission_dir.is_dir():raise ValueError('Mission finnes ikke etter installasjon: '+str(mission_dir))
+    if not mission_dir.is_dir():raise ValueError('The mission does not exist after installation: '+str(mission_dir))
     config=local_path(root,profile['config'])
-    if config.exists():raise ValueError('Konfigurasjonen finnes allerede. Bruk konfigurasjonseditoren for endringer.')
+    if config.exists():raise ValueError('The configuration already exists. Use the configuration editor to make changes.')
     root.mkdir(parents=True,exist_ok=True); config.parent.mkdir(parents=True,exist_ok=True); local_path(root,profile['profiles']).mkdir(parents=True,exist_ok=True)
     text=(f'hostname = {cfg_string(name)};\nmaxPlayers = {int(players)};\nsteamQueryPort = {int(profile["port"])+3};\nverifySignatures = 2;\nforceSameBuild = 1;\n'
           'disableVoN = 0;\nvonCodecQuality = 20;\ndisable3rdPerson = 0;\ndisableCrosshair = 0;\n'
@@ -155,7 +155,7 @@ def steam_arguments(profile,kind,ids=None,verify=True):
     validate(profile)
     if kind not in ('login','server','mods','all'):raise ValueError('Unknown SteamCMD job type.')
     user=profile.get('steam_user','').strip() if profile.get('login_mode','anonymous')=='account' else 'anonymous'
-    if not user or not re.fullmatch(r'[A-Za-z0-9_@.\-]+',user):raise ValueError('Oppgi gyldig Steam-brukernavn i veiviseren.')
+    if not user or not re.fullmatch(r'[A-Za-z0-9_@.\-]+',user):raise ValueError('Enter a valid Steam username in the wizard.')
     args=['+@ShutdownOnFailedCommand','1','+@NoPromptForPassword','0','+force_install_dir',str(Path(profile['root']).resolve()),'+login',user]
     if kind in ('server','all'):
         args+=['+app_update',str(DAYZ_APP)]
@@ -178,8 +178,8 @@ def result_summary(output,kind,ids,code,exe_exists=True):
     if kind in ('server','all'):ok=ok and server_ok
     if kind in ('mods','all'):ok=ok and expected.issubset(downloaded)
     if kind=='login':ok=ok and bool(re.search(r'(Logged in.*?OK|Logging in.*?OK|Waiting for user info.*?OK)',clean,re.I|re.S))
-    if ok:return True,'SteamCMD bekreftet at jobben er fullført.'
-    if re.search(r'(No subscription|Access Denied|Invalid Password|Invalid Login|FAILED.*log|Account Logon Denied)',clean,re.I):return False,'Steam avviste innlogging eller tilgang. Velg Steam-konto og prøv igjen. Workshop kan kreve en konto med DayZ-tilgang.'
+    if ok:return True,'SteamCMD confirmed that the job completed.'
+    if re.search(r'(No subscription|Access Denied|Invalid Password|Invalid Login|FAILED.*log|Account Logon Denied)',clean,re.I):return False,'Steam denied login or access. Select Steam account and try again. Workshop may require an account with access to DayZ.'
     errors=[line.strip() for line in clean.splitlines() if re.search(r'ERROR!|FAILED\b|Rate Limit',line,re.I)]
     if errors:return False,'SteamCMD failed: '+errors[-1][:350]
     if kind in ('server','all') and not server_ok:return False,'SteamCMD did not confirm DayZ Server 223350 installation. Check the console for login / Steam Guard or download errors.'

@@ -22,7 +22,7 @@ class ClientLaunchTests(unittest.TestCase):
         mods=client_mods(self.p,self.game,[self.root/'Steam Library']);self.assertEqual([m['path'] for m in mods],[str(local),str(workshop)])
     def test_missing_and_explicit_override_do_not_silently_omit_mods(self):
         self.mod('Required',id='123');mods=client_mods(self.p,self.game,[])
-        with self.assertRaisesRegex(ValueError,'Mangler klientmod'):command(self.game,self.p,mods)
+        with self.assertRaisesRegex(ValueError,'Missing client mod'):command(self.game,self.p,mods)
         explicit=self.root/'mod';(explicit/'addons').mkdir(parents=True);mods=client_mods(self.p,self.game,[],{'123':str(explicit)});self.assertIn(str(explicit),command(self.game,self.p,mods)[-1])
         explicit.rename(self.root/'gone')
         with self.assertRaises(ValueError):command(self.game,self.p,mods)
@@ -42,4 +42,4 @@ class ClientLaunchTests(unittest.TestCase):
         app=QApplication.instance() or QApplication([]);studio=QWidget();studio.p=self.p;studio.manager=Mock(home=self.root);studio.guard=lambda fn:fn()
         self.mod('Missing')
         with patch('client_launch_ui.steam_roots',return_value=[self.root/'Steam Library']):
-            dialog=ClientDialog(studio);self.assertIn('Test',dialog.windowTitle());self.assertEqual(dialog.table.rowCount(),1);self.assertIn('MANGLER',dialog.table.item(0,1).text());dialog.close();dialog.deleteLater()
+            dialog=ClientDialog(studio);self.assertIn('Test',dialog.windowTitle());self.assertEqual(dialog.table.rowCount(),1);self.assertIn('MISSING',dialog.table.item(0,1).text());dialog.close();dialog.deleteLater()

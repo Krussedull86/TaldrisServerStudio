@@ -24,7 +24,7 @@ def tokenize(text):
                 else:value+='\\'*count
             elif text[i]=='"':inside=not inside;i+=1
             else:value+=text[i];i+=1
-        if inside:raise ValueError('Uavsluttet anførselstegn i BAT-linjen.')
+        if inside:raise ValueError('Unterminated quotation mark in the BAT line.')
         result.append((value,quoted))
     return result
 
@@ -35,7 +35,7 @@ def absolute(value,cwd):
     if not value or re.search(r'%[^%]+%|![^!]+!',value):return value
     if pm is ntpath:
         if value.startswith('\\') and not value.startswith('\\\\'):value=ntpath.splitdrive(cwd)[0]+value
-        if re.match(r'^[A-Za-z]:[^\\/]',value):raise ValueError('Diskrelativ sti kan ikke avgjøres: '+value)
+        if re.match(r'^[A-Za-z]:[^\\/]',value):raise ValueError('Cannot resolve a drive-relative path: '+value)
     return pm.normpath(value if pm.isabs(value) else pm.join(cwd,value))
 
 def has_shell(text):
@@ -47,9 +47,9 @@ def has_shell(text):
 
 def read_batch(path):
     path=Path(path)
-    if path.suffix.casefold() not in ('.bat','.cmd'):raise ValueError('Velg en .bat- eller .cmd-fil.')
+    if path.suffix.casefold() not in ('.bat','.cmd'):raise ValueError('Choose a .bat or .cmd file.')
     with path.open('rb') as f:raw=f.read(LIMIT+1)
-    if len(raw)>LIMIT:raise ValueError('BAT-filen er større enn 1 MB.')
+    if len(raw)>LIMIT:raise ValueError('The BAT file is larger than 1 MB.')
     if raw.startswith((b'\xff\xfe',b'\xfe\xff')):text=raw.decode('utf-16')
     else:
         try:text=raw.decode('utf-8-sig')
@@ -57,20 +57,20 @@ def read_batch(path):
     return parse_batch(text,str(path.resolve()))
 
 def parse_batch(text,source):
-    if len(text.encode('utf-8'))>LIMIT:raise ValueError('BAT-filen er for stor.')
+    if len(text.encode('utf-8'))>LIMIT:raise ValueError('The BAT file is too large.')
     pm=path_module(source);base=pm.dirname(source);cwd=base;variables={};warnings=[];candidates=[];blocked=0
-    if len(text.splitlines())>10000:raise ValueError('BAT-filen har mer enn 10 000 linjer.')
+    if len(text.splitlines())>10000:raise ValueError('The BAT file contains more than 10,000 lines.')
     lines=[];pending='';first=0
     for number,line in enumerate(text.splitlines(),1):
         if not pending:first=number
         tail=len(line)-len(line.rstrip('^'))
         if tail%2:pending+=line[:-1]+' ';continue
         lines.append((first,pending+line));pending=''
-    if pending:warnings.append('Siste linje har ufullstendig ^-fortsettelse.')
+    if pending:warnings.append('The last line has an incomplete ^ continuation.')
     def expand(value):
         value=re.sub(r'%~dp0',lambda m:base+pm.sep,value,flags=re.I)
         value=re.sub(r'%([^%]+)%',lambda m:cwd if m[1].casefold()=='cd' else variables.get(m[1].casefold(),m[0]),value)
-        if len(value)>32768:raise ValueError('Variabelutvidelsen i BAT-filen er for stor.')
+        if len(value)>32768:raise ValueError('BAT variable expansion is too large.')
         return value
     for number,raw in lines:
         line=raw.strip().lstrip('@').strip()
@@ -78,22 +78,22 @@ def parse_batch(text,source):
         if blocked:
             blocked+=line.count('(')-line.count(')');blocked=max(blocked,0);continue
         if re.match(r'(if|for|else)\b',line,re.I) or line=='(':
-            warnings.append(f'Linje {number}: betingelse/løkke ble ikke tolket.');blocked=max(0,line.count('(')-line.count(')'));continue
-        if has_shell(line):warnings.append(f'Linje {number}: sammensatt kommando/omdirigering ble ikke tolket.');continue
+            warnings.append(f'Line {number}: condition/loop was not interpreted.');blocked=max(0,line.count('(')-line.count(')'));continue
+        if has_shell(line):warnings.append(f'Line {number}: compound command/redirection was not interpreted.');continue
         m=re.match(r'set\s+(.*)',line,re.I)
         if m:
             value=m[1]
             if value.startswith('"') and value.endswith('"'):value=value[1:-1]
-            if value.startswith('/') or '=' not in value:warnings.append(f'Linje {number}: dynamisk SET støttes ikke.');continue
+            if value.startswith('/') or '=' not in value:warnings.append(f'Line {number}: dynamic SET is not supported.');continue
             key,value=value.split('=',1);variables[key.casefold()]=expand(value);continue
         if re.match(r'(goto|timeout|taskkill|choice)\b',line,re.I):
-            warnings.append(f'Linje {number}: stopp/restart/tidsstyring ble ikke overtatt. Bruk Automatisering i programmet.');continue
+            warnings.append(f'Line {number}: stop/restart/scheduling was not imported. Use Automation in the application.');continue
         line=expand(line)
         m=re.match(r'(?:cd|chdir)\s+(?:/d\s+)?(.+)',line,re.I)
         if m:
             cwd=absolute(m[1].strip().strip('"'),cwd);continue
         try:tokens=tokenize(line)
-        except ValueError as error:warnings.append(f'Linje {number}: {error}');continue
+        except ValueError as error:warnings.append(f'Line {number}: {error}');continue
         if not tokens:continue
         title='';working=cwd
         if tokens[0][0].casefold()=='start':
@@ -106,15 +106,15 @@ def parse_batch(text,source):
                 break
         elif tokens[0][0].casefold()=='call':tokens=tokens[1:]
         if not tokens or pm.basename(tokens[0][0]).casefold()!='dayzserver_x64.exe':
-            if re.match(r'(call|cmd|powershell|pushd|popd)\b',line,re.I) or 'dayzserver_x64.exe' in line.casefold():warnings.append(f'Linje {number}: eksternt skript eller arbeidsmappekommando ble ikke tolket.')
+            if re.match(r'(call|cmd|powershell|pushd|popd)\b',line,re.I) or 'dayzserver_x64.exe' in line.casefold():warnings.append(f'Line {number}: external script or working-directory command was not interpreted.')
             continue
         exe=absolute(tokens[0][0],working);root=pm.dirname(exe);notes=[];options={};extra=[];mods={}
         for value,_ in tokens[1:]:
             match=re.fullmatch(r'-([A-Za-z]+)(?:=(.*))?',value)
-            if not match:notes.append('Ukjent argument: '+value);continue
+            if not match:notes.append('Unknown argument: '+value);continue
             key,val=match[1].casefold(),match[2]
             if key in ('config','profiles','port'):
-                if key in options:notes.append('Gjentatt valg, siste verdi brukes: '+key)
+                if key in options:notes.append('Duplicate option; the last value is used: '+key)
                 options[key]=val or ''
             elif key in ('mod','servermod','servermods'):
                 for entry in (val or '').split(';'):
@@ -125,22 +125,22 @@ def parse_batch(text,source):
             elif key in BASE and val is None:pass
             elif key in FLAGS|VALUES:
                 try:validate_extra([value]);extra=[a for a in extra if a.split('=')[0].casefold()!=('-'+key)];extra.append(value)
-                except ValueError:notes.append('Startvalg må korrigeres: '+value)
-            else:notes.append('Ikke importert startvalg: '+value)
+                except ValueError:notes.append('Launch options must be corrected: '+value)
+            else:notes.append('Launch option not imported: '+value)
         def relative(value):
             path=absolute(value,working)
             try:
                 rel=pm.relpath(path,root)
                 if rel=='..' or rel.startswith('..'+pm.sep):raise ValueError()
                 return rel
-            except ValueError:notes.append('Sti ligger utenfor servermappen og må korrigeres: '+path);return path
+            except ValueError:notes.append('The path is outside the server folder and must be corrected: '+path);return path
         for mod in mods.values():mod['server']=mod['load_mode']=='server'
         try:port=int(options.get('port','2302'))
-        except ValueError:port=2302;notes.append('Ugyldig spillport; korriger før import.')
-        profile=dict(name=title or pm.basename(root) or 'Importert DayZ',root=root,config=relative(options.get('config','serverDZ.cfg')),profiles=relative(options.get('profiles','profiles')),port=port,mods=list(mods.values()),extra_args=extra)
-        if re.search(r'%[^%]+%|![^!]+!',json.dumps(profile)):notes.append('Uløste variabler finnes. Korriger feltene før import.')
-        if len(candidates)>=50:raise ValueError('BAT-filen har mer enn 50 serverstarter. Del den opp før import.')
-        if len(mods)>512:raise ValueError('Serverstarten har mer enn 512 mods.')
+        except ValueError:port=2302;notes.append('Invalid game port; correct it before importing.')
+        profile=dict(name=title or pm.basename(root) or 'Imported DayZ',root=root,config=relative(options.get('config','serverDZ.cfg')),profiles=relative(options.get('profiles','profiles')),port=port,mods=list(mods.values()),extra_args=extra)
+        if re.search(r'%[^%]+%|![^!]+!',json.dumps(profile)):notes.append('Unresolved variables remain. Correct the fields before importing.')
+        if len(candidates)>=50:raise ValueError('The BAT file contains more than 50 server launches. Split it before importing.')
+        if len(mods)>512:raise ValueError('The server launch contains more than 512 mods.')
         candidates.append(dict(line=number,profile=profile,warnings=notes,exe=exe))
     return dict(source=source,candidates=candidates,warnings=warnings)
 
@@ -150,22 +150,22 @@ def apply_profile(manager,data,target_id=None,expected=None):
     """Only commit reviewed settings; never write server files or start a process."""
     from core import DEFAULT,validate,local_path
     allowed={'name','root','config','profiles','port','mods','extra_args','query_enabled','auto_firewall'}
-    if set(data)-allowed:raise ValueError('Importen inneholder ukjente profilfelt.')
+    if set(data)-allowed:raise ValueError('The import contains unknown profile fields.')
     with manager.lock:
         old=next((p for p in manager.state['servers'] if p['id']==target_id),None) if target_id else None
-        if target_id and old is None:raise ValueError('Profilen finnes ikke lenger.')
-        if old is not None and fingerprint(old)!=expected:raise ValueError('Profilen er endret. Åpne importen på nytt.')
+        if target_id and old is None:raise ValueError('The profile no longer exists.')
+        if old is not None and fingerprint(old)!=expected:raise ValueError('The profile has changed. Open the import again.')
         backup=copy.deepcopy(old)
         candidate=copy.deepcopy(old if old is not None else DEFAULT);candidate.update(copy.deepcopy(data))
         candidate.setdefault('id',uuid.uuid4().hex);candidate.setdefault('login_mode','anonymous');candidate.setdefault('mission','dayzOffline.chernarusplus');candidate.setdefault('max_players',40)
-        if any(re.search(r'%[^%]+%|![^!]+!',str(candidate.get(k,''))) for k in ('root','config','profiles')):raise ValueError('Uløste variabler må erstattes med faktiske stier.')
-        if not isinstance(candidate.get('query_enabled',True),bool) or not isinstance(candidate.get('auto_firewall',True),bool):raise ValueError('Avhukinger må være av/på.')
+        if any(re.search(r'%[^%]+%|![^!]+!',str(candidate.get(k,''))) for k in ('root','config','profiles')):raise ValueError('Replace unresolved variables with actual paths.')
+        if not isinstance(candidate.get('query_enabled',True),bool) or not isinstance(candidate.get('auto_firewall',True),bool):raise ValueError('Checkbox values must be on/off.')
         validate(candidate);root=Path(candidate['root']).resolve()
-        if not (root/'DayZServer_x64.exe').is_file():raise ValueError('Fant ikke DayZServer_x64.exe i valgt servermappe.')
+        if not (root/'DayZServer_x64.exe').is_file():raise ValueError('DayZServer_x64.exe was not found in the selected server folder.')
         cfg=local_path(root,candidate['config'])
-        if not cfg.is_file():raise ValueError('Konfigurasjonsfilen finnes ikke. Korriger stien før import.')
+        if not cfg.is_file():raise ValueError('The configuration file does not exist. Correct the path before importing.')
         for p in manager.state['servers']:
-            if (p is old or Path(p['root']).resolve()==root) and (manager.running(p) or p['id'] in manager.busy):raise ValueError('Stopp serveren og vent til jobbene er ferdig før import.')
+            if (p is old or Path(p['root']).resolve()==root) and (manager.running(p) or p['id'] in manager.busy):raise ValueError('Stop the server and wait for jobs to finish before importing.')
         from config_documents import cfg_fields
         fields={f['key']:f['value'] for f in cfg_fields(cfg.read_text('utf-8-sig'))}
         if 'maxPlayers' in fields:

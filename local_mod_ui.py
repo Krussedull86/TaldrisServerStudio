@@ -38,7 +38,7 @@ class LocalModDialog(QDialog):
         for i,row in enumerate(self.rows):
             item=QTableWidgetItem(); item.setFlags(Qt.ItemIsEnabled|Qt.ItemIsUserCheckable|Qt.ItemIsSelectable); item.setCheckState(Qt.Checked if row['ready'] else Qt.Unchecked); self.table.setItem(i,0,item)
             for j,text in enumerate([row['name'],row['path'],row['status']],1):self.table.setItem(i,j,QTableWidgetItem(text))
-        msg=f"Fant {len(self.rows)} @mapper • {sum(m['ready'] for m in self.rows)} med pakket PBO."
+        msg=f"Found {len(self.rows)} @folders • {sum((m['ready'] for m in self.rows))} with packed PBO files."
         if result['warnings']:msg+=' '+str(len(result['warnings']))+' folders could not be read.'
         self.status.setText(msg); self.status.setToolTip('\n'.join(result['warnings']))
     def check_all(self,state):
@@ -46,10 +46,10 @@ class LocalModDialog(QDialog):
     def import_selected(self):
         if self.worker and self.worker.isRunning():return
         self.selected_rows=[row for i,row in enumerate(self.rows) if self.table.item(i,0).checkState()==Qt.Checked]
-        if not self.selected_rows:QMessageBox.information(self,'Lokale mods','Velg minst én modmappe.'); return
+        if not self.selected_rows:QMessageBox.information(self,'Local mods','Choose at least one mod folder.'); return
         self.accept()
     def reject(self):
-        if self.worker and self.worker.isRunning():self.status.setText('Vent til skanningen er ferdig før du lukker.'); return
+        if self.worker and self.worker.isRunning():self.status.setText('Wait for scanning to finish before closing.'); return
         super().reject()
     def closeEvent(self,event):
         if self.worker and self.worker.isRunning():event.ignore(); return

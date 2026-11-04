@@ -29,14 +29,14 @@ class ValueDelegate(QStyledItemDelegate):
 class ConfigCenter(QWidget):
     def __init__(self,studio):
         super().__init__();self.studio=studio;self.doc=None;self.loading=False;self.bindings={};self.json_data=None;self.xml=None;self.undo_stack=[];self.redo_stack=[];self.xml_nodes_map={}
-        layout=QVBoxLayout(self);row=QHBoxLayout();self.files=QComboBox();self.files.setMinimumWidth(300);row.addWidget(self.files,1);row.addWidget(button('Finn serverfiler',self.discover));row.addWidget(button('Åpne',lambda:self.safe(self.open_selected)));row.addWidget(button('Historikk',lambda:self.safe(self.history)));row.addWidget(button('Kontroller og lagre',lambda:self.safe(self.save),'primary'));layout.addLayout(row)
-        self.info=label('Velg en serverfil. Endringer gjelder først etter lagring.','muted');layout.addWidget(self.info)
+        layout=QVBoxLayout(self);row=QHBoxLayout();self.files=QComboBox();self.files.setMinimumWidth(300);row.addWidget(self.files,1);row.addWidget(button('Find server files',self.discover));row.addWidget(button('Open',lambda:self.safe(self.open_selected)));row.addWidget(button('History',lambda:self.safe(self.history)));row.addWidget(button('Validate and save',lambda:self.safe(self.save),'primary'));layout.addLayout(row)
+        self.info=label('Choose a server file. Changes take effect only after saving.','muted');layout.addWidget(self.info)
         self.tabs=QTabWidget();layout.addWidget(self.tabs,1)
-        structured=QWidget();sl=QVBoxLayout(structured);sr=QHBoxLayout();self.filter=QLineEdit();self.filter.setPlaceholderText('Filtrer innstillinger …');sr.addWidget(self.filter);sr.addWidget(button('Angre',lambda:self.safe(self.undo)));sr.addWidget(button('Gjør om',lambda:self.safe(self.redo)));sr.addWidget(button('+ CFG-innstilling',lambda:self.safe(self.add_cfg)));sl.addLayout(sr)
-        self.tree=QTreeWidget();self.tree.setHeaderLabels(['Innstilling / struktur','Verdi']);self.tree.setStyleSheet('QTreeView::item { height: 28px; }');self.tree.header().setSectionResizeMode(QHeaderView.ResizeToContents);sl.addWidget(self.tree);self.tabs.addTab(structured,'Visuell editor')
-        tw=QWidget();tl=QVBoxLayout(tw);tr=QHBoxLayout();self.type_filter=QLineEdit();self.type_filter.setPlaceholderText('Søk klasse, kategori, tier eller usage …');tr.addWidget(self.type_filter);tr.addWidget(button('Importer types',lambda:self.safe(self.import_types)));tr.addWidget(button('Masseendre',lambda:self.safe(self.bulk)));tl.addLayout(tr)
-        self.types=QTableWidget(0,len(TYPE_COLUMNS));self.types.setHorizontalHeaderLabels(TYPE_COLUMNS);self.types.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive);self.types.setSelectionBehavior(QAbstractItemView.SelectRows);self.types.setSelectionMode(QAbstractItemView.ExtendedSelection);tl.addWidget(self.types);tl.addWidget(label('Flagg, attachments og ukjente felt redigeres i Visuell editor. Semikolon skiller flere usage/value/tag-navn.','muted'));self.tabs.addTab(tw,'Types / loot')
-        self.raw=QPlainTextEdit();self.tabs.addTab(self.raw,'Rå tekst');self.diff=QPlainTextEdit();self.diff.setReadOnly(True);self.tabs.addTab(self.diff,'Endringer')
+        structured=QWidget();sl=QVBoxLayout(structured);sr=QHBoxLayout();self.filter=QLineEdit();self.filter.setPlaceholderText('Filter settings …');sr.addWidget(self.filter);sr.addWidget(button('Undo',lambda:self.safe(self.undo)));sr.addWidget(button('Redo',lambda:self.safe(self.redo)));sr.addWidget(button('+ CFG setting',lambda:self.safe(self.add_cfg)));sl.addLayout(sr)
+        self.tree=QTreeWidget();self.tree.setHeaderLabels(['Setting / structure','Value']);self.tree.setStyleSheet('QTreeView::item { height: 28px; }');self.tree.header().setSectionResizeMode(QHeaderView.ResizeToContents);sl.addWidget(self.tree);self.tabs.addTab(structured,'Visual editor')
+        tw=QWidget();tl=QVBoxLayout(tw);tr=QHBoxLayout();self.type_filter=QLineEdit();self.type_filter.setPlaceholderText('Search class, category, tier or usage …');tr.addWidget(self.type_filter);tr.addWidget(button('Import types',lambda:self.safe(self.import_types)));tr.addWidget(button('Bulk edit',lambda:self.safe(self.bulk)));tl.addLayout(tr)
+        self.types=QTableWidget(0,len(TYPE_COLUMNS));self.types.setHorizontalHeaderLabels(TYPE_COLUMNS);self.types.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive);self.types.setSelectionBehavior(QAbstractItemView.SelectRows);self.types.setSelectionMode(QAbstractItemView.ExtendedSelection);tl.addWidget(self.types);tl.addWidget(label('Edit flags, attachments and unknown fields in the Visual editor. Separate multiple usage/value/tag names with semicolons.','muted'));self.tabs.addTab(tw,'Types / loot')
+        self.raw=QPlainTextEdit();self.tabs.addTab(self.raw,'Raw text');self.diff=QPlainTextEdit();self.diff.setReadOnly(True);self.tabs.addTab(self.diff,'Changes')
         self.raw.textChanged.connect(self.raw_changed);self.tree.setItemDelegate(ValueDelegate(self.tree));self.types.setItemDelegate(ValueDelegate(self.types));self.tree.setContextMenuPolicy(Qt.CustomContextMenu);self.tree.customContextMenuRequested.connect(self.xml_menu);self.tree.itemChanged.connect(self.tree_changed);self.types.cellChanged.connect(self.type_changed);self.tabs.currentChanged.connect(self.tab_changed);self.filter.textChanged.connect(self.filter_tree);self.type_filter.textChanged.connect(self.filter_types)
     def safe(self,fn):return self.studio.guard(fn)
     def discover(self):
@@ -47,12 +47,12 @@ class ConfigCenter(QWidget):
         if self.doc:self.doc.text=self.raw.toPlainText()
     def open_selected(self):
         self.sync()
-        if self.doc and self.doc.dirty and QMessageBox.question(self,'Ulagret fil','Forkaste ulagrede endringer?',QMessageBox.Yes|QMessageBox.No,QMessageBox.No)!=QMessageBox.Yes:return
+        if self.doc and self.doc.dirty and QMessageBox.question(self,'Unsaved file','Discard unsaved changes?',QMessageBox.Yes|QMessageBox.No,QMessageBox.No)!=QMessageBox.Yes:return
         self.open_path(self.files.currentText())
     def open_path(self,relative):
-        if not relative:raise ValueError('Velg en konfigurasjonsfil først.')
+        if not relative:raise ValueError('Choose a configuration file first.')
         self.doc=Document(self.studio.p,relative,self.studio.manager.home);self.undo_stack=[];self.redo_stack=[];self.loading=True;self.raw.setPlainText(self.doc.text);self.loading=False;self.rebuild()
-        self.info.setText(self.studio.p['name']+' • '+relative+' • Lagres med backup. Krever normalt restart.')
+        self.info.setText(self.studio.p['name']+' • '+relative+' • Saved with backup. Usually requires a restart.')
     def raw_changed(self):
         if not self.loading:self.sync()
     def set_text(self,text):
@@ -80,7 +80,7 @@ class ConfigCenter(QWidget):
                         try:value=json.loads(raw)
                         except ValueError:pass
                     self.leaf(self.tree.invisibleRootItem(),field['key']+' — '+field['label'],value,('cfg',i,('line:' if field.get('style')=='line' else '')+field['kind']),field['kind']=='bool',field['kind']=='password')
-            else:self.leaf(self.tree.invisibleRootItem(),'Tekstfil','Bruk fanen Rå tekst',None)
+            else:self.leaf(self.tree.invisibleRootItem(),'Text file','Use the Raw text tab',None)
             self.tree.expandToDepth(1)
         finally:self.loading=False
         self.filter_tree();self.filter_types()
@@ -92,21 +92,21 @@ class ConfigCenter(QWidget):
             item.setFlags((item.flags()|Qt.ItemIsEditable)&~Qt.ItemIsUserCheckable)
             if boolean:
                 item.setFlags(item.flags()|Qt.ItemIsUserCheckable);item.setCheckState(1,Qt.Checked if value in (True,1,'1','true') else Qt.Unchecked);item.setText(1,'')
-            if password:item.setToolTip(1,'Dobbeltklikk og skriv nytt passord. Behold maskeringen for uendret verdi.')
+            if password:item.setToolTip(1,'Double-click and enter a new password. Keep the mask to leave the value unchanged.')
         return item
     def json_nodes(self,parent,value,path):
         if isinstance(value,(dict,list)):
             for key,child in (value.items() if isinstance(value,dict) else enumerate(value)):
                 if isinstance(child,(dict,list)):
-                    node=self.leaf(parent,str(key),'Objekt' if isinstance(child,dict) else 'Liste');self.json_nodes(node,child,path+[key])
+                    node=self.leaf(parent,str(key),'Object' if isinstance(child,dict) else 'List');self.json_nodes(node,child,path+[key])
                 else:self.leaf(parent,key,child,('json',path+[key],type(child).__name__),isinstance(child,bool),'password' in str(key).lower() or 'token' in str(key).lower())
-        else:self.leaf(parent,'Verdi',value,('json',[],type(value).__name__),isinstance(value,bool))
+        else:self.leaf(parent,'Value',value,('json',[],type(value).__name__),isinstance(value,bool))
     def xml_nodes(self,parent,node):
         if not isinstance(node.tag,str):return
         item=self.leaf(parent,node.tag+(' ['+node.get('name','')+']' if node.get('name') else ''),'')
         self.xml_nodes_map[id(item)]=node
         for key,value in node.attrib.items():self.leaf(item,'@'+key,value,('xml_attr',node,key),key.casefold() in BOOL_NAMES)
-        if not len(node) or (node.text or '').strip():self.leaf(item,'Tekst',(node.text or '').strip(),('xml_text',node,None),node.tag.casefold() in BOOL_NAMES)
+        if not len(node) or (node.text or '').strip():self.leaf(item,'Text',(node.text or '').strip(),('xml_text',node,None),node.tag.casefold() in BOOL_NAMES)
         for child in node:self.xml_nodes(item,child)
     def tree_changed(self,item,column):
         if self.loading or column!=1:return
@@ -154,48 +154,48 @@ class ConfigCenter(QWidget):
     def xml_menu(self,pos):
         item=self.tree.itemAt(pos);node=self.xml_nodes_map.get(id(item))
         if node is None:return
-        menu=QMenu(self);add=menu.addAction('Nytt barneelement');attribute=menu.addAction('Nytt attributt');duplicate=menu.addAction('Dupliser element');remove=menu.addAction('Slett element');choice=menu.exec(self.tree.viewport().mapToGlobal(pos))
+        menu=QMenu(self);add=menu.addAction('New child element');attribute=menu.addAction('New attribute');duplicate=menu.addAction('Duplicate element');remove=menu.addAction('Delete element');choice=menu.exec(self.tree.viewport().mapToGlobal(pos))
         def work():
             import copy,xml.etree.ElementTree as ET
             parent=next((p for p in self.xml.iter() if node in list(p)),None)
             if choice in (add,attribute):
-                name,ok=QInputDialog.getText(self,'Nytt XML-felt','Navn:')
+                name,ok=QInputDialog.getText(self,'New XML field','Name:')
                 if not ok:return
-                if not re.fullmatch(r'[A-Za-z_][\w.-]*',name):raise ValueError('Ugyldig XML-navn.')
-                value,ok=QInputDialog.getText(self,'Verdi','Verdi (kan være tom):')
+                if not re.fullmatch(r'[A-Za-z_][\w.-]*',name):raise ValueError('Invalid XML name.')
+                value,ok=QInputDialog.getText(self,'Value','Value (can be empty):')
                 if not ok:return
                 if choice==attribute:node.set(name,value)
                 else:ET.SubElement(node,name).text=value
             elif choice==duplicate:
-                if parent is None:raise ValueError('Rotnoden kan ikke dupliseres.')
+                if parent is None:raise ValueError('The root node cannot be duplicated.')
                 parent.append(copy.deepcopy(node))
             elif choice==remove:
-                if parent is None:raise ValueError('Rotnoden kan ikke slettes.')
+                if parent is None:raise ValueError('The root node cannot be deleted.')
                 parent.remove(node)
             else:return
             self.set_text(xml_text(self.xml));self.rebuild()
         self.safe(work)
     def add_cfg(self):
-        if not self.doc or self.doc.suffix!='.cfg':raise ValueError('Åpne en CFG-fil først.')
-        key,ok=QInputDialog.getItem(self,'Ny innstilling','Innstilling:',list(SCHEMA),0,True)
+        if not self.doc or self.doc.suffix!='.cfg':raise ValueError('Open a CFG file first.')
+        key,ok=QInputDialog.getItem(self,'New setting','Setting:',list(SCHEMA),0,True)
         if not ok:return
-        if not re.fullmatch(r'[A-Za-z_]\w*',key):raise ValueError('Ugyldig innstillingsnavn.')
-        if any(f['key']==key for f in cfg_fields(self.doc.text)):raise ValueError('Innstillingen finnes allerede.')
+        if not re.fullmatch(r'[A-Za-z_]\w*',key):raise ValueError('Invalid setting name.')
+        if any(f['key']==key for f in cfg_fields(self.doc.text)):raise ValueError('The setting already exists.')
         kind=SCHEMA.get(key,('', 'raw'))[1];value='""' if kind in ('string','password') else '0';self.set_text(key+' = '+value+';\n'+self.doc.text);self.rebuild()
     def import_types(self):
-        if not self.doc or self.doc.suffix!='.xml':raise ValueError('Åpne types-filen først.')
-        path,_=QFileDialog.getOpenFileName(self,'Importer types','','XML (*.xml)')
+        if not self.doc or self.doc.suffix!='.xml':raise ValueError('Open the types file first.')
+        path,_=QFileDialog.getOpenFileName(self,'Import types','','XML (*.xml)')
         if not path:return
-        if Path(path).stat().st_size>8*1024**2:raise ValueError('Importfilen er for stor.')
-        replace=QMessageBox.question(self,'Eksisterende klasser','Erstatte eksisterende klasser med samme navn? Nei beholder dem.',QMessageBox.Yes|QMessageBox.No,QMessageBox.No)==QMessageBox.Yes
-        text,added,skipped=merge_types(self.doc.text,Path(path).read_text('utf-8-sig'),replace);self.set_text(text);self.rebuild();self.info.setText(f'{added} importert • {skipped} beholdt. Kontroller Endringer før lagring.')
+        if Path(path).stat().st_size>8*1024**2:raise ValueError('The import file is too large.')
+        replace=QMessageBox.question(self,'Existing classes','Replace existing classes with matching names? No keeps them.',QMessageBox.Yes|QMessageBox.No,QMessageBox.No)==QMessageBox.Yes
+        text,added,skipped=merge_types(self.doc.text,Path(path).read_text('utf-8-sig'),replace);self.set_text(text);self.rebuild();self.info.setText(f'{added} imported • {skipped} kept. Review Changes before saving.')
     def bulk(self):
-        if not self.doc:raise ValueError('Åpne en types-fil først.')
+        if not self.doc:raise ValueError('Open a types file first.')
         rows=sorted({index.row() for index in self.types.selectedIndexes()})
-        if not rows:raise ValueError('Velg radene du vil endre.')
-        key,ok=QInputDialog.getItem(self,'Masseendring','Felt:',TYPE_COLUMNS[1:8],0,False)
+        if not rows:raise ValueError('Select the rows you want to edit.')
+        key,ok=QInputDialog.getItem(self,'Bulk edit','Field:',TYPE_COLUMNS[1:8],0,False)
         if not ok:return
-        factor,ok=QInputDialog.getDouble(self,'Masseendring','Multiplikator (1,2 = +20 %):',1.2,0,100,3)
+        factor,ok=QInputDialog.getDouble(self,'Bulk edit','Multiplier (1.2 = +20%):',1.2,0,100,3)
         if not ok:return
         text=self.doc.text;values=type_rows(text)
         for row in rows:
@@ -203,22 +203,22 @@ class ConfigCenter(QWidget):
             if old and int(old)>=0:text=edit_type(text,row,key,str(round(int(old)*factor)))
         self.set_text(text);self.rebuild()
     def save(self):
-        if not self.doc:raise ValueError('Åpne en fil først.')
+        if not self.doc:raise ValueError('Open a file first.')
         self.sync()
         if hasattr(self.studio,'editable_document'):self.studio.editable_document(self.doc)
         else:self.studio.editable_profile(self.doc.profile)
         warnings=self.doc.warnings()
         if not self.doc.dirty:return
-        dialog=QDialog(self);dialog.setWindowTitle('Kontroller endringer – '+self.doc.relative);dialog.resize(1000,700);layout=QVBoxLayout(dialog)
+        dialog=QDialog(self);dialog.setWindowTitle('Review changes — '+self.doc.relative);dialog.resize(1000,700);layout=QVBoxLayout(dialog)
         if warnings:layout.addWidget(label('\n'.join(warnings[:20]),'muted'))
-        view=QPlainTextEdit(self.doc.diff());view.setReadOnly(True);layout.addWidget(view);row=QHBoxLayout();row.addWidget(button('Cancel',dialog.reject));row.addWidget(button('Lagre med backup',dialog.accept,'primary'));layout.addLayout(row)
+        view=QPlainTextEdit(self.doc.diff());view.setReadOnly(True);layout.addWidget(view);row=QHBoxLayout();row.addWidget(button('Cancel',dialog.reject));row.addWidget(button('Save with backup',dialog.accept,'primary'));layout.addLayout(row)
         if dialog.exec()!=QDialog.Accepted:return
         if hasattr(self.studio.manager,'save_document'):self.studio.manager.save_document(self.doc)
         else:self.doc.save()
-        self.studio.events.put('Konfigurasjon lagret med backup: '+self.doc.relative);self.rebuild()
+        self.studio.events.put('Configuration saved with backup: '+self.doc.relative);self.rebuild()
     def history(self):
-        if not self.doc:raise ValueError('Åpne en fil først.')
+        if not self.doc:raise ValueError('Open a file first.')
         files=sorted([p.name for p in self.doc.history_dir.glob('*') if p.name!='source.json'],reverse=True)
-        if not files:raise ValueError('Ingen lagret historikk for denne filen.')
-        name,ok=QInputDialog.getItem(self,'Gjenopprett til editor','Velg versjon. Ingenting skrives før du lagrer.',files,0,False)
+        if not files:raise ValueError('No saved history for this file.')
+        name,ok=QInputDialog.getItem(self,'Restore to editor','Choose a version. Nothing is written until you save.',files,0,False)
         if ok:self.doc.restore(self.doc.history_dir/name);self.set_text(self.doc.text);self.rebuild()

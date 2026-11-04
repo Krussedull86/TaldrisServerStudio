@@ -19,12 +19,12 @@ def recover(root):
     data=json.loads(path.read_text('utf-8'));entries=data.get('entries',[])
     for entry in reversed(entries):
         dest=local_path(root,entry['file']);old=local_path(root,entry['old'])
-        if not old.name.startswith(dest.name+'.restore-'):raise ValueError('Ugyldig gjenopprettingsjournal.')
+        if not old.name.startswith(dest.name+'.restore-'):raise ValueError('Invalid restore journal.')
         if data.get('committed'):
             if old.exists():remove(old)
         elif old.exists():remove(dest);old.rename(dest)
         elif not entry['existed'] and entry.get('done'):remove(dest)
     stage=local_path(root,data['stage'])
-    if not stage.name.startswith('.taldris-restore-'):raise ValueError('Ugyldig staging-mappe.')
+    if not stage.name.startswith('.taldris-restore-'):raise ValueError('Invalid staging folder.')
     if stage.exists():remove(stage)
     path.unlink();return True

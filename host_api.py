@@ -15,9 +15,9 @@ class AgentAPI:
             def log_message(self,*args):pass
             def do_POST(self):
                 try:
-                    if self.client_address[0]!='127.0.0.1' or self.headers.get('Origin') or not hmac.compare_digest(self.headers.get('Authorization',''),'Bearer '+outer.token):self.reply(403,{'error':'Ingen tilgang.'});return
+                    if self.client_address[0]!='127.0.0.1' or self.headers.get('Origin') or not hmac.compare_digest(self.headers.get('Authorization',''),'Bearer '+outer.token):self.reply(403,{'error':'Access denied.'});return
                     size=int(self.headers.get('Content-Length','0'))
-                    if not 0<size<=12*1024**2:self.reply(413,{'error':'Ugyldig forespørselsstørrelse.'});return
+                    if not 0<size<=12*1024**2:self.reply(413,{'error':'Invalid request size.'});return
                     data=json.loads(self.rfile.read(size));result=outer.call(data['method'],data.get('params',{}));self.reply(200,{'result':result})
                 except Exception as error:self.reply(400,{'error':outer.engine.redact(error)})
             def reply(self,code,data):
@@ -40,13 +40,13 @@ class AgentAPI:
         if method=='remove_profile':return e.remove_profile(params['server'],params['expected'])
         if method=='mission_save':
             from mission_settings import save_mission
-            result=save_mission(e.manager,e.profile(params['server']),params['mission'],params['base']);e.log('Windows-panel: kartvalg lagret • '+params['mission']);return result
+            result=save_mission(e.manager,e.profile(params['server']),params['mission'],params['base']);e.log('Windows panel: map selection saved • '+params['mission']);return result
         if method=='import_profile':
             from profile_transfer import import_profile
             result=import_profile(e.manager,params['profile']);e.log('Server profile imported: '+result['name']);return result
         if method=='import_batch':
             from batch_import import apply_profile
-            result=apply_profile(e.manager,params['profile'],params.get('target'),params.get('expected'));e.log('Windows-panel: BAT-profil importert • '+result['name']);return result
+            result=apply_profile(e.manager,params['profile'],params.get('target'),params.get('expected'));e.log('Windows panel: BAT profile imported • '+result['name']);return result
         if method=='updates':
             with e.manager.lock:
                 settings=e.manager.state.setdefault('updates',{})
@@ -54,7 +54,7 @@ class AgentAPI:
                     if key in params:settings[key]=params[key]
                 from program_updates import repository
                 if settings.get('repository'):settings['repository']=repository(settings['repository'])
-                if settings.get('channel','dev') not in ('dev','stable'):raise ValueError('Ukjent kanal.')
+                if settings.get('channel','dev') not in ('dev','stable'):raise ValueError('Unknown channel.')
                 e.manager.save();return settings
         if method=='input':e.steam_input(str(params['value']));return True
         if method=='cancel_steam':
@@ -62,10 +62,10 @@ class AgentAPI:
             return True
         if method=='upgrade':
             import os,subprocess,sys,psutil
-            if e.manager.busy or any(j['status']=='running' for j in e.jobs.values()):raise ValueError('Agentoppdatering venter til jobbene er ferdig.')
+            if e.manager.busy or any(j['status']=='running' for j in e.jobs.values()):raise ValueError('The agent update is waiting for jobs to finish.')
             if getattr(e,'upgrade_pending',False):return True
             source=Path(params['exe']).resolve()
-            if source.suffix.casefold()!='.exe' or not source.is_file() or source.open('rb').read(2)!=b'MZ':raise ValueError('Ugyldig agentprogram.')
+            if source.suffix.casefold()!='.exe' or not source.is_file() or source.open('rb').read(2)!=b'MZ':raise ValueError('Invalid agent executable.')
             me=psutil.Process();args=[str(source),'--home',str(e.home)]
             if e.service:args+=['--upgrade-service']
             else:args+=['--agent','--wait-agent',str(me.pid),str(me.create_time())]
@@ -75,7 +75,7 @@ class AgentAPI:
             return True
         if method=='document_save':
             with e.manager.lock:
-                result=e.execute('document_save',params['server'],params);e.log('Windows-panel: konfigurasjon lagret • '+params['file']);return result
+                result=e.execute('document_save',params['server'],params);e.log('Windows panel: configuration saved • '+params['file']);return result
         if method=='catalog':return catalog(e.profile(params['server']))
         if method=='document':
             doc=Document(e.profile(params['server']),params['file'],e.home);return {'text':doc.text,'relative':doc.relative}
@@ -85,16 +85,16 @@ class AgentAPI:
                 candidate=dict(settings,**{k:v for k,v in params.items() if k!='token'})
                 if candidate.get('enabled'):
                     for key in ('guild_id','channel_id'):
-                        if not str(candidate.get(key,'')).isdigit():raise ValueError('Discord '+key+' må være en numerisk ID.')
-                    if not isinstance(candidate.get('owners'),list) or not candidate['owners'] or any(not str(x).isdigit() for x in candidate['owners']):raise ValueError('Legg inn minst én gyldig eier-ID.')
+                        if not str(candidate.get(key,'')).isdigit():raise ValueError('Discord '+key+' must be a numeric ID.')
+                    if not isinstance(candidate.get('owners'),list) or not candidate['owners'] or any(not str(x).isdigit() for x in candidate['owners']):raise ValueError('Enter at least one valid owner ID.')
                     permissions=[candidate.get('roles',{}),*candidate.get('server_roles',{}).values()]
                     for roles in permissions:
-                        if not isinstance(roles,dict):raise ValueError('Roller må være et JSON-objekt.')
+                        if not isinstance(roles,dict):raise ValueError('Roles must be a JSON object.')
                         for scope,ids in roles.items():
-                            if scope not in ('read','control','moderate','maintenance','config') or not isinstance(ids,list) or any(not str(x).isdigit() for x in ids):raise ValueError('Ugyldig rettighet eller rolle-ID-liste.')
+                            if scope not in ('read','control','moderate','maintenance','config') or not isinstance(ids,list) or any(not str(x).isdigit() for x in ids):raise ValueError('Invalid permission or role-ID list.')
                 for key in ('enabled','guild_id','channel_id','owners','roles','server_roles'):
                     if key in params:settings[key]=params[key]
-                if settings.get('enabled') and (not str(settings.get('guild_id','')).isdigit() or not settings.get('owners')):raise ValueError('Discord krever server-ID og minst én eier-ID.')
+                if settings.get('enabled') and (not str(settings.get('guild_id','')).isdigit() or not settings.get('owners')):raise ValueError('Discord requires a server ID and at least one owner ID.')
                 if params.get('token'):
                     secrets_data=load_secrets(e.home);secrets_data['discord_token']=params['token'];store_secrets(e.home,secrets_data)
                 e.manager.save()
@@ -103,9 +103,9 @@ class AgentAPI:
                 e.discord=DiscordHost(e);e.discord.start()
             return dict(settings,has_token=bool(load_secrets(e.home).get('discord_token')))
         if method=='shutdown':
-            if e.manager.busy or any(j['status']=='running' for j in e.jobs.values()):raise ValueError('Vent til jobben er ferdig før agenten byttes.')
+            if e.manager.busy or any(j['status']=='running' for j in e.jobs.values()):raise ValueError('Wait for the job to finish before changing agents.')
             e.stop_event.set();return True
-        raise ValueError('Ukjent API-metode.')
+        raise ValueError('Unknown API method.')
 
 
 class AgentClient:
@@ -113,14 +113,14 @@ class AgentClient:
     def call(self,method,params=None,timeout=15):
         info=json.loads((self.home/'agent.json').read_text('utf-8'))
         port=int(info['port'])
-        if not 1<=port<=65535:raise ValueError('Ugyldig agentport.')
+        if not 1<=port<=65535:raise ValueError('Invalid agent port.')
         raw=json.dumps({'method':method,'params':params or {}}).encode()
         request=Request('http://127.0.0.1:'+str(port)+'/',data=raw,headers={'Authorization':'Bearer '+info['token'],'Content-Type':'application/json'})
         try:
             with self.opener.open(request,timeout=timeout) as response:data=json.load(response)
         except HTTPError as error:
             try:data=json.load(error)
-            except ValueError:raise ValueError('Bakgrunnsagenten avviste forespørselen.')
+            except ValueError:raise ValueError('The background agent rejected the request.')
         if 'error' in data:raise ValueError(data['error'])
         return data['result']
 

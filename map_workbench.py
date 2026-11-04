@@ -42,7 +42,7 @@ class PointItem(QGraphicsEllipseItem):
             x,z=self.workbench.scene_to_world(self.pos().x(),self.pos().y());self.point['node'].set('x',f'{x:.3f}');self.point['node'].set('z',f'{z:.3f}');self.point.update(x=x,z=z)
             if self.radius_item:self.radius_item.setPos(self.pos())
             self.setToolTip(self.point['name']+f'\nX {x:.2f} / Z {z:.2f}')
-            self.workbench.update_document(self.layer);self.workbench.status.setText(f'Endret X {x:.2f}, Z {z:.2f}. Ikke lagret ennå.')
+            self.workbench.update_document(self.layer);self.workbench.status.setText(f'Changed X {x:.2f}, Z {z:.2f}. Not saved yet.')
         return super().itemChange(change,value)
 
 
@@ -62,10 +62,10 @@ class MapView(QGraphicsView):
 class MapWorkbench(QWidget):
     def __init__(self,studio):
         super().__init__();self.studio=studio;self.layers=[];self.server_id=None
-        layout=QVBoxLayout(self);row=QHBoxLayout();row.addWidget(button('Kartbilde',lambda:studio.guard(self.choose_image)));row.addWidget(button('+ XML-lag',lambda:studio.guard(self.add_layer)));self.layer_choice=QComboBox();row.addWidget(self.layer_choice,1);row.addWidget(button('Vis/skjul lag',self.toggle_layer));row.addWidget(button('Tilpass kart',self.fit));layout.addLayout(row)
-        row=QHBoxLayout();self.groups=QComboBox();row.addWidget(self.groups,1);row.addWidget(button('+ Punkt med koordinater',lambda:studio.guard(self.manual_point)));row.addWidget(button('Rediger valgt punkt',lambda:studio.guard(self.edit_point)));row.addWidget(button('Slett valgte punkter',lambda:studio.guard(self.remove_points)));row.addWidget(button('Kontroller og lagre lag',lambda:studio.guard(self.save_active),'primary'));layout.addLayout(row)
-        row=QHBoxLayout();row.addWidget(button('Angre',lambda:studio.guard(lambda:self.history_step(False))));row.addWidget(button('Gjør om',lambda:studio.guard(lambda:self.history_step(True))));row.addStretch();layout.addLayout(row)
-        self.view=MapView(self);layout.addWidget(self.view,1);self.cursor=label('X / Z','eyebrow');layout.addWidget(self.cursor);self.status=label('Zoom med musehjul. Dra kartet for å flytte visningen. Dobbeltklikk for å legge til punkt i valgt gruppe. Dra et punkt for å flytte det.','muted');layout.addWidget(self.status)
+        layout=QVBoxLayout(self);row=QHBoxLayout();row.addWidget(button('Map image',lambda:studio.guard(self.choose_image)));row.addWidget(button('+ XML layer',lambda:studio.guard(self.add_layer)));self.layer_choice=QComboBox();row.addWidget(self.layer_choice,1);row.addWidget(button('Show/hide layer',self.toggle_layer));row.addWidget(button('Fit map',self.fit));layout.addLayout(row)
+        row=QHBoxLayout();self.groups=QComboBox();row.addWidget(self.groups,1);row.addWidget(button('+ Point by coordinates',lambda:studio.guard(self.manual_point)));row.addWidget(button('Edit selected point',lambda:studio.guard(self.edit_point)));row.addWidget(button('Delete selected points',lambda:studio.guard(self.remove_points)));row.addWidget(button('Validate and save layer',lambda:studio.guard(self.save_active),'primary'));layout.addLayout(row)
+        row=QHBoxLayout();row.addWidget(button('Undo',lambda:studio.guard(lambda:self.history_step(False))));row.addWidget(button('Redo',lambda:studio.guard(lambda:self.history_step(True))));row.addStretch();layout.addLayout(row)
+        self.view=MapView(self);layout.addWidget(self.view,1);self.cursor=label('X / Z','eyebrow');layout.addWidget(self.cursor);self.status=label('Zoom with the mouse wheel. Drag the map to pan. Double-click to add a point to the selected group. Drag a point to move it.','muted');layout.addWidget(self.status)
         self.layer_choice.currentIndexChanged.connect(self.choose_layer)
     def world_to_scene(self,x,z):
         size=float(self.studio.p['map_size']);return x/size*1000,(1-z/size)*1000
@@ -81,16 +81,16 @@ class MapWorkbench(QWidget):
             self.server_id=self.studio.p['id'];self.layers=self.cache.get(self.server_id,[]);self.layer_choice.blockSignals(True);self.layer_choice.clear();self.layer_choice.addItems([l['doc'].relative for l in self.layers]);self.layer_choice.blockSignals(False)
         self.render();self.choose_layer()
     def choose_image(self):
-        path,_=QFileDialog.getOpenFileName(self,'Kartbilde for valgt server','','Images (*.png *.jpg *.jpeg *.webp)')
+        path,_=QFileDialog.getOpenFileName(self,'Map image for selected server','','Images (*.png *.jpg *.jpeg *.webp)')
         if path:self.studio.p['map_image']=path;self.studio.manager.save();self.render()
     def add_layer(self):
         files=[name for name in catalog(self.studio.p) if name.endswith('.xml')]
-        if not files:raise ValueError('Ingen XML-filer funnet i servermappen.')
-        name,ok=QInputDialog.getItem(self,'Kartlag','Velg fil med X/Z-koordinater:',files,0,False)
+        if not files:raise ValueError('No XML files found in the server folder.')
+        name,ok=QInputDialog.getItem(self,'Map layer','Choose a file with X/Z coordinates:',files,0,False)
         if not ok:return
-        if any(layer['doc'].relative==name for layer in self.layers):raise ValueError('Dette laget er allerede lagt til.')
+        if any(layer['doc'].relative==name for layer in self.layers):raise ValueError('This layer has already been added.')
         doc=Document(self.studio.p,name,self.studio.manager.home);root=parse_xml(doc.text);points=coordinates(root)
-        if not points:raise ValueError('Filen har ingen XML-elementer med x- og z-attributter. Åpne andre formater i konfigurasjonssenteret.')
+        if not points:raise ValueError('The file has no XML elements with x and z attributes. Open other formats in the configuration center.')
         self.layers.append(dict(doc=doc,root=root,visible=True,color=COLORS[len(self.layers)%len(COLORS)]));self.layer_choice.addItem(name);self.layer_choice.setCurrentIndex(len(self.layers)-1);self.render();self.choose_layer()
     def choose_layer(self,*args):
         self.groups.clear();self.group_nodes=[];layer=self.active_layer()
@@ -107,7 +107,7 @@ class MapWorkbench(QWidget):
         if not pix.isNull():scene.addPixmap(pix.scaled(1000,1000,Qt.IgnoreAspectRatio,Qt.SmoothTransformation))
         else:
             scene.setBackgroundBrush(QColor('#12212b'))
-            text=scene.addText('Velg kartbilde for '+self.studio.p['name']);text.setDefaultTextColor(QColor('#e2f4ff'));text.setPos(20,20)
+            text=scene.addText('Choose map image for '+self.studio.p['name']);text.setDefaultTextColor(QColor('#e2f4ff'));text.setPos(20,20)
         for step in range(0,1001,100):scene.addLine(step,0,step,1000,QPen(QColor(150,190,210,60)));scene.addLine(0,step,1000,step,QPen(QColor(150,190,210,60)))
         for layer in self.layers:
             if not layer['visible']:continue
@@ -126,20 +126,20 @@ class MapWorkbench(QWidget):
     def add_point(self,x,y):
         if not 0<=x<=1000 or not 0<=y<=1000:return
         layer=self.active_layer();i=self.groups.currentIndex()
-        if not layer or i<0:raise ValueError('Velg et lag og en koordinatgruppe først.')
+        if not layer or i<0:raise ValueError('Choose a layer and coordinate group first.')
         parent=self.group_nodes[i];existing=next((p for p in coordinates(layer['root']) if p['parent'] is parent),None)
-        if not existing:raise ValueError('Gruppen mangler et punkt å bruke som mal.')
+        if not existing:raise ValueError('The group has no point to use as a template.')
         self.checkpoint(layer)
         point=copy.deepcopy(existing['node']);wx,wz=self.scene_to_world(x,y);point.set('x',f'{wx:.3f}');point.set('z',f'{wz:.3f}');parent.append(point);self.update_document(layer);self.render()
     def manual_point(self):
-        x,ok=QInputDialog.getDouble(self,'Nytt punkt','X:',0,0,float(self.studio.p['map_size']),3)
+        x,ok=QInputDialog.getDouble(self,'New point','X:',0,0,float(self.studio.p['map_size']),3)
         if not ok:return
-        z,ok=QInputDialog.getDouble(self,'Nytt punkt','Z:',0,0,float(self.studio.p['map_size']),3)
+        z,ok=QInputDialog.getDouble(self,'New point','Z:',0,0,float(self.studio.p['map_size']),3)
         if ok:self.add_point(*self.world_to_scene(x,z))
     def remove_points(self):
         layer=self.active_layer();items=[i for i in self.view.scene().selectedItems() if isinstance(i,PointItem) and i.layer is layer]
         if not items:return
-        if any(item.point['parent'] is None for item in items):raise ValueError('Rotnoden kan ikke slettes.')
+        if any(item.point['parent'] is None for item in items):raise ValueError('The root node cannot be deleted.')
         self.checkpoint(layer)
         for item in items: item.point['parent'].remove(item.point['node'])
         self.update_document(layer);self.render();self.choose_layer()
@@ -157,30 +157,30 @@ class MapWorkbench(QWidget):
         if text==current:return
         layer.setdefault('undo' if redo else 'redo',[]).append(current)
         layer['root']=parse_xml(text);self.update_document(layer);self.render();self.choose_layer()
-        self.status.setText('Gjort om. Ikke lagret ennå.' if redo else 'Angret. Ikke lagret ennå.')
+        self.status.setText('Redone. Not saved yet.' if redo else 'Undone. Not saved yet.')
     def edit_point(self):
         layer=self.active_layer();items=[i for i in self.view.scene().selectedItems() if isinstance(i,PointItem) and i.layer is layer]
-        if len(items)!=1:raise ValueError('Velg ett punkt i det aktive laget først.')
+        if len(items)!=1:raise ValueError('Select one point in the active layer first.')
         node=items[0].point['node'];size=float(self.studio.p['map_size'])
-        x,ok=QInputDialog.getDouble(self,'Rediger punkt','X:',float(node.get('x')),0,size,3)
+        x,ok=QInputDialog.getDouble(self,'Edit point','X:',float(node.get('x')),0,size,3)
         if not ok:return
-        z,ok=QInputDialog.getDouble(self,'Rediger punkt','Z:',float(node.get('z')),0,size,3)
+        z,ok=QInputDialog.getDouble(self,'Edit point','Z:',float(node.get('z')),0,size,3)
         if not ok:return
         radius_key='r' if 'r' in node.attrib else 'radius' if 'radius' in node.attrib else None
         radius=None
         if radius_key:
-            radius,ok=QInputDialog.getDouble(self,'Rediger punkt','Radius (meter):',float(node.get(radius_key)),0,size,3)
+            radius,ok=QInputDialog.getDouble(self,'Edit point','Radius (meters):',float(node.get(radius_key)),0,size,3)
             if not ok:return
         self.checkpoint(layer);node.set('x',f'{x:.3f}');node.set('z',f'{z:.3f}')
         if radius_key:node.set(radius_key,f'{radius:.3f}')
-        self.update_document(layer);self.render();self.status.setText('Punkt endret. Ikke lagret ennå.')
+        self.update_document(layer);self.render();self.status.setText('Point changed. Not saved yet.')
     def save_active(self):
         layer=self.active_layer()
-        if not layer:raise ValueError('Velg et lag først.')
+        if not layer:raise ValueError('Choose a layer first.')
         doc=layer['doc'];self.studio.editable_profile(doc.profile);doc.warnings()
         if not doc.dirty:return
-        dialog=QMessageBox(self);dialog.setWindowTitle('Lagre kartkoordinater');dialog.setText('Lagre '+doc.relative+' med backup? Krever normalt restart.');dialog.setDetailedText(doc.diff());dialog.setStandardButtons(QMessageBox.Save|QMessageBox.Cancel)
+        dialog=QMessageBox(self);dialog.setWindowTitle('Save map coordinates');dialog.setText('Save '+doc.relative+' with backup? Usually requires a restart.');dialog.setDetailedText(doc.diff());dialog.setStandardButtons(QMessageBox.Save|QMessageBox.Cancel)
         if dialog.exec()==QMessageBox.Save:
             if hasattr(self.studio.manager,'save_document'):self.studio.manager.save_document(doc)
             else:doc.save()
-            self.studio.events.put('Kartlag lagret: '+doc.relative)
+            self.studio.events.put('Map layer saved: '+doc.relative)

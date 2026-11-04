@@ -6,10 +6,10 @@ if errorlevel 1 goto fail
 if errorlevel 1 goto fail
 .venv\Scripts\python.exe -m PyInstaller --noconfirm --clean --onefile --windowed --collect-data certifi --collect-data discord --hidden-import win32timezone --hidden-import servicemanager --add-data "loot_web;loot_web" --add-data "loot_maps;loot_maps" --collect-all winpty --add-data "assets;assets" --icon assets/cds.ico --name TaldrisServerStudio app.py
 if errorlevel 1 goto fail
-echo Ferdig: dist\TaldrisServerStudio.exe
+echo Done: dist\TaldrisServerStudio.exe
 pause
 exit /b 0
 :fail
-echo Bygging feilet. Se feilmeldingen over.
+echo Build failed. See the error above.
 pause
 exit /b 1

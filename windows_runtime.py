@@ -25,15 +25,13 @@ def directx_issue(server_root):
     if machine is None:return ''
     try:local=next((p for p in root.iterdir() if p.is_file() and p.name.casefold()==DIRECTX_DLL.casefold()),None)
     except OSError:local=None
-    instructions=('Installer Microsoft DirectX End-User Runtimes (June 2010): pakk ut pakken og kjør DXSETUP.exe. '
-                  'Åpne Kom i gang → DirectX (Microsoft). Dette installeres på maskinen som kjører DayZ-serveren.')
+    instructions=('Install Microsoft DirectX End-User Runtimes (June 2010): extract the package and run DXSETUP.exe. Open Get started → DirectX (Microsoft). Install it on the machine running the DayZ server.')
     if local is not None:
         dll_machine=pe_machine(local)
-        if dll_machine is None:return str(local)+' er ikke en lesbar Windows-DLL. Flytt den manuelt til en backupmappe utenfor servermappen. '+instructions
+        if dll_machine is None:return str(local)+' is not a readable Windows DLL. Move it manually to a backup folder outside the server folder. '+instructions
         if dll_machine!=machine:
-            return (str(local)+' er '+MACHINES.get(dll_machine,hex(dll_machine))+' mens serveren er '+MACHINES.get(machine,hex(machine))+'. '
-                    'Dette kan gi 0xc000007b. Flytt denne lokale DLL-kopien manuelt til en backupmappe utenfor servermappen. '+instructions)
+            return (str(local)+' is '+MACHINES.get(dll_machine,hex(dll_machine))+' while the server is '+MACHINES.get(machine,hex(machine))+'. This may cause 0xc000007b. Move this local DLL copy manually to a backup folder outside the server folder. '+instructions)
         return ''
     system=Path(os.environ.get('SystemRoot',r'C:\Windows'))/'System32'/DIRECTX_DLL
     if pe_machine(system)==machine:return ''
-    return DIRECTX_DLL+' mangler eller har feil format for serveren. '+instructions
+    return DIRECTX_DLL+' is missing or has the wrong format for the server. '+instructions

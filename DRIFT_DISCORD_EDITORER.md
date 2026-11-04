@@ -1,65 +1,73 @@
-# CruzDoodelZ Server Studio 0.7 – drift, Discord og editorer
+# CruzDoodelZ Server Studio — operations, Discord and editors
 
-## Første oppstart fra 0.6 eller eldre
+## Agent and Windows service
 
-1. Last ned Windows-pakken fra GitHub sin dev-utgave og pakk ut i en ny programmappe.
-2. Lukk det gamle kontrollpanelet. Ikke stopp DayZ-serveren bare for å bytte panel.
-3. Start den nye EXE-en. Den starter en egen bakgrunnsagent, som gjenbruker bekreftede serverprosesser. Samme EXE/config/profiles/port må kunne bekreftes.
-4. Åpne **Discord / tjeneste → Installer / oppdater Windows-tjeneste** hvis driften skal fortsette etter Windows-/RDP-avlogging og starte med Windows. Godta Windows-administratorforespørselen.
+Close an older panel before launching a new release. The background agent reuses existing DayZ processes only when their executable, creation time and arguments can be verified. A process is never adopted solely because its PID matches. Panel and agent version/build numbers appear at the bottom of the window. Use **Program updates → Update / repair background agent** when the agent is older. Wait for SteamCMD, backups and queued work before upgrading. Confirmed DayZ processes remain running during an agent upgrade.
 
-En vanlig agentprosess fortsetter når vinduet lukkes. Avlogging kan avslutte brukerprosesser; installer tjenesten for den bruken. Tjenesten heter `TaldrisServerStudioAgent`. Den bruker samme datamappe som panelet, med eget prosessregister, logger, backup og innstillinger. Servere som sist var ønsket kjørende kan startes ved agentoppstart; feilende vedlikehold startes ikke forbi feilen. SCM gjenstarter agenten ved krasj.
+A normal agent process continues after the panel closes. For operation after Windows/RDP logout and startup with Windows, choose **Discord / service → Install / update Windows service** and accept the administrator prompt. The service retains the compatible technical name `TaldrisServerStudioAgent` and uses the panel's data folder. Windows SCM restarts a crashed agent. Previously requested running servers may restart when the agent starts, but failed maintenance must be resolved first.
 
-Tjenesten kjører som LocalSystem. Eierne og lokale administratorer må derfor være betrodde administratorer av denne maskinen. Bruk fysiske/lokale stier: brukerens mappede nettverksstasjoner er normalt ikke tilgjengelige for en Windows-tjeneste. Agenttilgangen er begrenset til loopback med en tilfeldig nøkkel og Windows-ACL. Discord-token lagres med maskin-DPAPI og samme tilgangsbegrensning. Ingen skyserver kreves.
+The service runs as LocalSystem. Use local paths; mapped network drives generally are not available in the service session. Owners and local administrators must be trusted administrators of the machine. Agent access is loopback-only, authenticated with a random key and protected by Windows ACLs. The Discord token uses machine DPAPI and access restrictions. No cloud service is required.
 
-## Discord-oppsett
+The Windows installer creates desktop and Start menu shortcuts, an Installed apps entry and a stable launcher in `%LOCALAPPDATA%/Programs/TaldrisServerStudio`. Data and side-by-side versions remain in `%LOCALAPPDATA%/TaldrisServerStudio`, or the chosen `--home`. Upgrades preserve server folders. Uninstallation preserves data and running processes; stop servers and remove the service separately before deleting operational data.
 
-Du trenger din egen bot fra https://discord.com/developers/applications .
+## Discord setup
 
-1. Opprett en applikasjon og en bot. Kopier bot-tokenet til passordfeltet i programmet. Ikke legg det i GitHub eller en Discord-kanal.
-2. Inviter boten til Discord-serveren med scopene **bot** og **applications.commands**.
-3. Gi boten tilgang til den valgte driftskanalen: View Channel, Send Messages, Read Message History og Attach Files. Administrator er ikke nødvendig. Boten bruker guild-informasjon; Message Content og Members privileged intents er ikke nødvendige.
-4. Slå på Developer Mode i Discord og kopier Discord-serverens ID, driftskanalens ID og din egen bruker-ID til oppsettet.
-5. Legg inn minst én eier-ID. Bruk komma mellom flere eiere. Eierne får full kontroll innen den konfigurerte Discord-serveren.
-6. Roller kan legges inn per rettighet. `read` leser status/spillere/mods/logger, `control` styrer start/stopp/restart/lås, `moderate` styrer meldinger/kick/ban, `maintenance` styrer oppdatering/backup, og `config` styrer modliste/driftsinnstillinger/tilgangslister. Restore, filtilgang, kloning, tvungen stopp og programoppdatering er eierhandlinger.
-7. Valgfrie rettigheter per DayZ-server-ID erstatter de globale rollene for den serveren. Manglende rettighet gir avslag. Discord sin generelle Administrator-rolle gir ikke automatisk bot-tilgang.
-8. Klikk **Lagre og koble Discord**. Hendelsesstrømmen viser tilkoblingsfeil eller at boten er tilkoblet.
+Create your own application/bot at https://discord.com/developers/applications.
 
-Eksempel på globale roller:
+1. Paste the bot token into the application's hidden token field. Do not publish it in source control or a Discord channel.
+2. Invite the bot with the `bot` and `applications.commands` scopes.
+3. Allow View Channel, Send Messages, Read Message History and Attach Files in the operations channel. Discord Administrator permission is unnecessary. Message Content and Members privileged intents are not required.
+4. Enable Discord Developer Mode and copy the guild/server ID, operations channel ID and your user ID.
+5. Configure at least one owner ID, comma-separated. Owners have full bot access within the configured guild.
+6. Configure roles per permission. Optional per-DayZ-server role settings replace the corresponding global settings for that server.
+7. Select **Save and connect Discord**. The event stream reports connection success or errors.
+
+Permissions:
+
+| Permission | Operations |
+| --- | --- |
+| `read` | Status, players, mods and logs |
+| `control` | Start, stop, restart, lock and unlock |
+| `moderate` | Messages, kick and ban |
+| `maintenance` | Updates and backups |
+| `config` | Mod lists, operations settings and access lists |
+| Owner | Restore, file access, cloning, force-stop and application updates |
+
+Discord's general Administrator role does not automatically grant bot access. Use a private operations channel for staff notifications. Replace example strings with actual numeric role IDs:
 
 ```json
 {
-  "read": ["ROLLE_ID_FOR_LESING"],
-  "control": ["ROLLE_ID_FOR_DRIFT"],
-  "moderate": ["ROLLE_ID_FOR_MODERATORER"],
-  "maintenance": ["ROLLE_ID_FOR_VEDLIKEHOLD"],
-  "config": ["ROLLE_ID_FOR_OPPSETT"]
+  "read": ["READ_ROLE_ID"],
+  "control": ["CONTROL_ROLE_ID"],
+  "moderate": ["MODERATOR_ROLE_ID"],
+  "maintenance": ["MAINTENANCE_ROLE_ID"],
+  "config": ["CONFIG_ROLE_ID"]
 }
 ```
 
-Bytt eksempeltekstene med de faktiske numeriske rolle-ID-ene. Bruk en privat driftskanal: hendelsesvarsler er ment for serverstaben.
+### English Discord commands
 
-### Kommandoer
+The command group retains `/taldris` for compatibility. Its subcommands and parameter names are English:
 
-- `/taldris servere` viser servere du har lesetilgang til, med ID og prosessstatus.
-- `/taldris status server` viser status for valgt server. Serverfeltet har forslag.
-- `/taldris panel server` publiserer knapper i den konfigurerte driftskanalen. Status oppdateres omtrent hvert minutt. Knappene fungerer igjen etter bot-omstart.
-- `/taldris start server`, `/taldris restart server minutter` og `/taldris stopp server minutter` styrer serveren. Restart/stopp bruker RCon-varsler og en avbrytbar nedtelling.
-- `/taldris spillere server` og `/taldris melding server melding` bruker RCon.
-- `/taldris handling server handling parametere` dekker øvrige handlinger. Parametere er et JSON-objekt. `/taldris hjelp` viser eksempler.
-- `/taldris jobb id` viser et jobbresultat. Raske resultater sendes også privat når jobben fullfører; lange resultater kan komme som tekstvedlegg.
-- `/taldris fil server sti` sender en konfigurasjonsfil privat til eieren, med SHA av nåværende innhold.
-- `/taldris fillagre server sti sha fil` laster opp endret UTF-8-konfigurasjon. Eierbekreftelse, innholdskontroll, SHA-kontroll og backup skjer før skriving. Filstien må være inne i den valgte servermappen.
+- `/taldris servers`: servers you can view, with IDs and process status.
+- `/taldris status server`: current server status.
+- `/taldris panel server`: persistent buttons in the configured operations channel, with periodic status refresh.
+- `/taldris start server`, `/taldris restart server minutes`, `/taldris stop server minutes`: process control and announced RCon countdowns.
+- `/taldris players server`, `/taldris message server message`: player list and broadcast message.
+- `/taldris action server action parameters`: other supported actions, with JSON parameters.
+- `/taldris help`: action and JSON examples.
+- `/taldris job id`: result of a job you can access. Short results may also arrive privately after completion; long results can be attachments.
+- `/taldris file server path`: privately download a configuration and its current SHA (owner only).
+- `/taldris savefile server path sha attachment`: upload an edited UTF-8 configuration. Owner confirmation, validation, current-SHA verification and backup precede writing.
 
-Handlinger omfatter `mods`, `backups`, `files`, `logs`, `file_history`, `file_restore`, `schedule_set`, `players`, `bans`, `lock`, `unlock`, `say`, `kick`, `ban`, `unban`, `backup`, `restore`, `rollback_mods`, `maintenance`, `steam`, `check_mods`, `workshop_search`, `mod_add`, `mod_collection`, `mod_remove`, `mod_mode`, `mod_move`, `local_mod_scan`, `local_mod_add`, `list_add`, `clone`, `force_stop`, `cancel_restart` og `program_prepare`.
+The bot synchronizes command names on connection; previous Norwegian subcommand names are replaced. Files must remain within the selected server folder. Existing persistent control panels are checked against their stored message/server mapping and permissions.
 
-Eksempler for `parametere`:
+Actions include `mods`, `backups`, `files`, `logs`, `file_history`, `file_restore`, `schedule_set`, `players`, `bans`, `lock`, `unlock`, `say`, `kick`, `ban`, `unban`, `backup`, `restore`, `rollback_mods`, `maintenance`, `steam`, `check_mods`, `workshop_search`, `mod_add`, `mod_collection`, `mod_remove`, `mod_mode`, `mod_move`, `local_mod_scan`, `local_mod_add`, `list_add`, `clone`, `force_stop`, `cancel_restart` and `program_prepare`.
+
+Example parameter objects:
 
 ```json
-{"minutes": 10}
-```
-
-```json
-{"player": 3, "minutes": 60, "reason": "Regelbrudd"}
+{"player": 3, "minutes": 60, "reason": "Rule violation"}
 ```
 
 ```json
@@ -74,175 +82,98 @@ Eksempler for `parametere`:
 {"scheduled_restart": true, "restart_mode": "clock", "restart_times": "00:00, 06:00, 12:00, 18:00"}
 ```
 
-Indekser i modlisten begynner på 0. `client` betyr `-mod`, `server` betyr `-serverMod`, og `both` betyr begge. Modfiler byttes bare mens serveren er stoppet. Lokale utviklermods erstattes ikke med Workshop-nedlastinger.
+Mod indexes start at 0. `client` means `-mod`, `server` means `-serverMod`, and `both` uses both lists. Mod files are replaced only while the server is stopped. Local development mods are never replaced by Workshop downloads.
 
-## RCon og serverstatus
+## RCon and status
 
-Velg den aktive `BEServer_x64.cfg` under **RCon og spillere**. Filen trenger `RConPort` og `RConPassword`. RCon-porten må være separat fra spill- og query-portene. Passordet leses på servermaskinen ved tilkobling. En tom eller feil port/passord gir en feil; programmet hevder ikke at en kommando er utført uten svar. Timeout på shutdown behandles som ubekreftet: panelet følger prosessen og bruker ikke automatisk tvungen stopp.
+Select the active `BEServer_x64.cfg` under **RCon & players**. It needs `RConPort` and `RConPassword`; the RCon port must differ from game/query ports. The password is read locally when connecting and is not sent to Discord. The application requires a reply before reporting success. A shutdown timeout remains unconfirmed: the process is monitored without automatically force-stopping it.
 
-RCon gir spillerliste, kick, tidsbestemt/permanent ban, unban, melding til alle, lås og opplås. Spiller-ID-er kan endre seg; hent fersk spillerliste før kick/ban. Ved ban/unban skrives BattlEye-banlisten til disk.
+RCon supports player lists, kick, timed/permanent bans, unban, broadcasts, lock and unlock. Player IDs can change, so fetch a current list before moderation. Ban/unban changes are written to the BattlEye ban list.
 
-Status skiller mellom en kjørende prosess og svar fra Steam query. Query-svar er en nettverkskontroll, ikke en test av at en spiller faktisk kan fullføre innlogging. Oppetid, RAM, CPU og ledig disk vises i driftsoversikten. CPU kan være over 100 % for prosesser som bruker flere kjerner. Query-svar med splitting/komprimering er foreløpig ikke dekodet; da kan prosessen kjøre selv om status ikke viser query-svar.
+Status distinguishes process creation from a Steam query reply. Neither alone confirms that a player can finish joining. Operations displays uptime, RAM, CPU and free disk. CPU can exceed 100% for processes using multiple cores. Split/compressed query responses are not currently decoded.
 
-## Konfigurasjonssenter
+## Configuration center
 
-**Konfigurasjon → Finn serverfiler** finner UTF-8 CFG, JSON, XML og TXT inne i servermappen, også missionfiler og genererte modkonfigurasjoner under profiles. Store cache-/spilldata-/@modmapper hoppes over ved søket. Filer over 8 MB er ikke åpnet av editoren.
+**Configuration → Find server files** discovers UTF-8 CFG, JSON, XML and TXT inside the server folder, including missions and generated mod settings under profiles. Large cache/game-data/@mod directories are skipped. The editor accepts files up to 8 MB.
 
-- **Visuell editor** viser scalar CFG-felt, hele JSON-strukturen og XML-elementer/attributter. Kjente brytere har avhuking. Passord maskeres i den visuelle visningen; rå tekst viser originalfilen.
-- Høyreklikk et XML-element for nytt barneelement/attributt, duplisering eller sletting. Endringene er fortsatt bare i editoren til du lagrer.
-- **Types / loot** har søk/filter, nominal/min/lifetime/restock/quantmin/quantmax/cost og category/usage/value/tag. Flere navn skilles med semikolon. Kategorier har redigerbare forslag; du kan skrive egne modverdier.
-- **Importer types** lar deg beholde eller erstatte eksisterende klasser med samme navn. Ukjente XML-felt, attributter og kommentarer beholdes ved strukturerte types-endringer. Masseendring bruker valgte rader og en multiplikator. Mengde -1 beholdes ved skalering.
-- Flagg og øvrige types-detaljer er tilgjengelige i den visuelle XML-strukturen. Nye eller sjeldne modinnstillinger kan alltid redigeres i rå tekst.
-- **Rå tekst** gir tilgang til hele filen. XML/JSON/CFG kontrolleres før lagring; det er ingen komplett DayZ-/modspesifikk schema-validator for alle mulige filer.
-- **Endringer** viser forskjellen fra originalen. **Kontroller og lagre** viser en gjennomgang før det skrives.
-- **Historikk** åpner en tidligere versjon i editoren; gjenopprettingen skrives først ved eksplisitt lagring.
-- Filer lagres gjennom agenten mens serveren er stoppet. Endringer fra en annen klient avvises, slik at de ikke overskrives stille. En backup av opprinnelige bytes lagres først.
+- **Visual editor** displays scalar CFG fields and complete JSON/XML structures. Known booleans use checkboxes. Passwords are masked in visual fields; **Raw text** displays the original file.
+- Right-click an XML node to add a child/attribute, duplicate or delete it. The root cannot be duplicated or deleted.
+- **Types / loot** supports filtering, numeric fields and category/usage/value/tag editing. Separate multiple names with semicolons. Suggestions remain editable for custom mod values.
+- **Import types** can retain or replace matching classes. Structured changes preserve unknown XML fields, attributes and comments. **Bulk edit** applies a multiplier to selected rows; quantity -1 remains unchanged during scaling.
+- **Changes** reviews differences. **Validate and save** requires confirmation and stores the original bytes as a backup before writing through the agent. Files changed by another client are rejected instead of silently overwritten.
+- **History** restores an older version into the editor; it is not written until you save explicitly.
 
-Dette dekker blant annet serverDZ.cfg, cfggameplay.json, types.xml, events.xml, globals.xml, economy.xml, cfgeconomycore.xml, cfgspawnabletypes.xml, cfgrandompresets.xml, messages.xml, spawn-/territoriefiler, BattlEye-konfigurasjon og støttede modfiler. Generiske felt er ikke et løfte om at enhver modinnstilling kan forklares automatisk.
+Covered files include serverDZ.cfg, cfggameplay.json, types.xml, events.xml, globals.xml, economy.xml, cfgeconomycore.xml, cfgspawnabletypes.xml, cfgrandompresets.xml, messages.xml, spawn/territory XML, BattlEye settings and supported mod files. Syntax checks are not a complete semantic validator for every DayZ/mod setting. Changes normally require a server restart.
 
-## Kartverksted
+## Map workshop
 
-Velg kartbilde og korrekt kartstørrelse per server. Bildet strekkes til kartets fulle X/Z-utstrekning, med nord øverst, X mot høyre og Z oppover.
+Choose a square map image and correct world size per profile. North is up, X increases rightward and Z upward. Scroll to zoom and drag to pan.
 
-**+ XML-lag** åpner mission-/spawn-/territoriefiler som har elementer med `x` og `z`. Flere lag kan vises/skjules samtidig. Velg aktivt lag og gruppe. Dra punkter for å flytte dem, dobbeltklikk for å legge til fra samme punktmal, eller skriv inn nøyaktige koordinater. Y, rotasjon og andre attributter beholdes. Radius som allerede ligger i `r` eller `radius` kan vises som sirkler.
+**+ XML layer** opens elements with `x` and `z` coordinates. Show/hide multiple layers, select a layer and group, drag points, double-click to add from the group's point template, or enter coordinates. Y, rotation and other attributes are preserved. Existing `r`/`radius` attributes can be shown as circles and edited in meters.
 
-**Rediger valgt punkt** lar deg endre X/Z og eksisterende radius i meter. Radiussirkelen følger punktet ved flytting. **Angre** og **Gjør om** holder inntil 50 endringer per lag i den åpne økten, også når du bytter server. Endringene skrives først til serverfilen når du lagrer.
+Undo/redo retains up to 50 edits per open layer, including profile switches during the session. **Validate and save layer** displays a diff and saves with backup. The map does not calculate terrain height or update Y automatically. It shows configured points, not live players or actual loot spawns. Arbitrary JSON coordinates and polygon tools are not supported.
 
-**Kontroller og lagre lag** viser filforskjell og lager backup. Kartet beregner ikke terrenghøyde og endrer ikke Y automatisk. Det viser konfigurerte punkter, ikke faktiske loot-spawns eller live spillerposisjoner. Vilkårlige JSON-koordinater, polygonsoneverktøy, automatisk uthenting av kartbilder og live posisjoner fra en egen servermod er videre arbeid.
+## Backup, rollback and test servers
 
-## Backup, rollback og testserver
+Restore selects an archive from that server's backup folder, creates a fresh backup, and swaps complete persistence directories. A transaction journal makes interrupted swaps recoverable on the next agent start. Manual restore leaves the server stopped. Archives can include passwords and player data.
 
-- Gjenoppretting velger arkiv fra serverens egen backupmappe, tar en ny backup først og bytter lagringsmapper som hele mapper. En journal gjør avbrutte bytter reparerbare ved neste agentoppstart. Serveren startes ikke automatisk etter manuell gjenoppretting.
-- Modinstallasjon beholder én `.previous`-versjon. Tilbakerulling bytter til denne versjonen mens serveren er stoppet. Dette kan ikke rulle tilbake Workshop-klienten hos spillerne, og en eldre mod kan være uforenlig med nyere persistence.
-- Kloning til testserver bruker en ny mappe og foreslår egne spill-/query-porter. Standard `storage_*`, logger og tidligere modversjoner hoppes over. Kopierte BattlEye-filer får ny RCon-port og nytt tilfeldig passord. Lokale modstier kan fortsatt peke til samme utviklerkilde; de kopieres ikke om til Workshop-mods.
+Workshop deployment retains one `.previous` version. **Roll back Workshop mods** swaps to it while stopped. This does not roll back players' Workshop clients; older mods may be incompatible with newer persistence. Local mods are preserved.
 
-## Programoppdatering
+**Clone to test server** uses a new folder and suggests separate ports. Standard `storage_*`, logs and previous mod versions are skipped. Copied BattlEye settings receive a new RCon port and random password. Local mod paths can still point to the same development source.
 
-Manuell oppdateringssjekk i Windows-panelet klargjør en nyere utgave med SHA-256-kontroll. Panelet starter på nytt; DayZ beholdes. Agenten oppgraderes separat og overtar bekreftede prosesser. Pågående jobber og ulagrede editorendringer må være ferdige før panelbytte. Discord-handlingen `program_prepare` klargjør og oppgraderer agenten når jobbene er ferdig, også uten åpent Windows-panel. Et tilkoblet panel bytter utgave, og neste paneloppstart bruker den aktive installerte utgaven. Windows-tjenesten beholder DayZ-prosessene når agenten byttes. Eierbekreftelse kreves i Discord.
+## Restart schedules and maintenance
 
-## Verifisering og begrensninger
+Under **Automation**, enable automatic Steam updates, choose the check interval and whether to include DayZ server files. Enable a restart schedule with fixed local Windows times or an interval since server start. Save operations settings. The native schedule is written to mission `db/messages.xml` with backup and applies from the next server start. Other messages are preserved; conflicting shutdown schedules are rejected.
 
-Automatiske tester bruker midlertidige serverfiler, en lokal RCon-testserver, den lokale agent-API-en og Discord-kommandoregistrering uten ekte bot-tilkobling. GitHub bygger Windows-EXE og starter/stopper den ferdige agenten i en tom testmappe. Ekte Discord-rolleoppsett, Steam Guard, SCM-installasjon på din Windows-maskin og DayZ-spillerinnlogging må fortsatt testes med ditt oppsett. Stable publiseres ikke automatisk.
+DayZ handles its native countdown, saving and clean exit. The agent then performs selected backups, SteamCMD updates, confirmed deployment and restart. Manual maintenance requires a stopped server. Steam login or Guard may require console input. Update/deployment/backup failures leave the server stopped for review. Automatic backups rotate by configured count; manual backups are preserved. Optional crash recovery waits 30 seconds and is limited to 3 attempts per 15 minutes.
 
-Primærkilder brukt i implementasjonen:
+For update-triggered restarts, enable **Announce a restart when a Workshop mod has an update** and set a 1–1440 minute delay. Working RCon is required for player warnings and graceful shutdown. An existing countdown is not overwritten or extended by later checks; a native restart already due within the delay is used instead. Cancelling postpones reconsideration for at least one check interval. Disabling automatic updates/mod restarts cancels an ongoing update countdown before shutdown.
+
+Local mods are excluded from Workshop downloads/checks. If another running server shares the installation, file maintenance and update restarts are postponed. Other profiles are not automatically stopped. Coordinate shared-folder maintenance yourself. Independent native schedules require separate mission folders.
+
+## Log rotation
+
+The **Log rotation** tab archives closed `.RPT`, `.LOG` and `.ADM` files at the profiles folder's top level into data-folder `log_archives/<profile-ID>`. After successful archiving, unchanged originals are removed. Changed, locked or inaccessible files are kept; symlinks are not followed. Manual rotation is blocked for active/shared active log folders. Active logs are never truncated.
+
+Choose retention days, archive count and total MB. Limits apply when rotation runs; the newest archive is always retained, even when a single session exceeds the size limit. Only archives created with this feature's naming scheme are cleaned. Rotation is optional and disabled by default.
+
+## Companion EXEs
+
+Select the server profile above the EXE list, then **Add EXE**. Configure a name, executable, arguments, optional working directory and whether checks apply on normal start, restart/crash recovery, or both. An empty working directory uses the executable's folder.
+
+The agent reuses a matching full executable path and, when specified, arguments. A different executable with the same filename is not a match. Required programs cancel server startup when they fail to start or exit during the configured 0–120 second wait. Optional failures are logged and startup continues. PID/status confirms a process, not API readiness.
+
+Add/edit/remove/enable changes are saved automatically. Right-click a row for Start, Restart or Stop, including while DayZ runs. Stop/restart can affect other profiles using that same matching process. Companion programs are not automatically stopped with DayZ, profile deletion or agent upgrades. A program that exits later is checked again on the next server start/restart, not continuously restarted.
+
+When the agent runs as a Windows service, companion programs use the service account/session and have no visible user-desktop windows. Use suitable background programs and explicit configuration paths. Inaccessible processes can be reported as unknown rather than duplicated.
+
+## BAT import and shared installations
+
+**Get started** and **Settings** provide static BAT/CMD import. Review each launch candidate, fields, extra arguments and mod sources. Supported forms include ordinary `set`, `%~dp0`, `%cd%`, `cd /d`, `start` titles and `/D`, direct EXE launches, `call` directly to an EXE and `^` continuations. Dynamic conditions, nested scripts, pipes/redirection, `&&`, delayed `!variable!` expansion and restart loops are not adopted; unresolved content is reported.
+
+Imported mods are local sources, even when folder names resemble Workshop IDs. No files are moved, CFG/world data is untouched and no server starts. The EXE and configuration must exist under the selected root. Paths outside that root must be corrected. The preview supports client/server/both modes and disabling missing mods.
+
+Extra arguments support `-name`, `-cpuCount`, `-maxMem`, `-limitFPS`, `-BEpath`, `-filePatching`, `-netlog`, `-doSimulate`, `-noSound`, `-noSplash`, `-noPause` and `-scrAllowFileWrite`. Unknown options are reported. Config, mods, profiles and ports have dedicated fields; `-dologs`, `-adminlog` and `-freezecheck` are supplied by the application.
+
+**Save mission to CFG** writes the selected template into the existing CFG with backup. Missions are discovered from mpmissions and CFG, with editable custom names and standard suggestions including Nasdara. A shared installation can use separate inactive CFG files, but active/shared active configurations cannot be edited. Set ports/profiles in Settings and persistence `instanceId` in Configuration; the application does not silently move worlds.
+
+## Local DayZ client
+
+**Connect locally** opens client setup for the selected profile/game port. Choose the folder containing `DayZ_x64.exe` and `DayZ_BE.exe`. Launch uses app 221100, `-connect=127.0.0.1`, the selected `-port`, and one absolute-path client mod list. Enabled client/both mods retain profile order; server-only/disabled mods are excluded. Steam Query is not required. Double-click to override a mod's local path. Missing mods block launch and are not automatically subscribed/downloaded. The client settings are local to the desktop, not managed by the Windows service.
+
+## Application updates and integrated loot editor
+
+**Program updates → Save and check** stages a newer release after SHA-256/size verification and switches the panel when jobs and unsaved edits permit. DayZ remains running. The agent upgrades separately and reconnects verified processes. Discord `program_prepare` stages an agent update even without an open panel; owner confirmation is required. Stable is promoted manually.
+
+The integrated DZSA editor opens the selected profile's actual CFG to resolve its active mission and registered CE type files. Import/export projects are detached. Saving a project revision or autosaving does not change mission files. **Save to mission** uses stopped-server checks, target/digest verification and backup. Export uses a separate folder. Unknown XML fields/comments are preserved, but game semantics are not completely validated. No loot reset or persistence wipe is performed. Templates for Chernarus, Livonia, Sakhal and Nasdara are bundled reference data, not automatic live game updates. Credits: CruzDoodelz & NoSignal; original DZSA Tools by NIXON.
+
+## Validation and references
+
+The current build-only releases skip automated suites at the user's request. Local verification includes Python syntax compilation and offscreen window previews. Real Discord roles, Steam Guard, downloads, Windows service installation and player login still require target-machine verification.
+
 - https://www.battleye.com/downloads/BERConProtocol.txt
 - https://www.battleye.com/support/documentation/
 - https://discord.com/developers/docs/interactions/receiving-and-responding
 - https://community.bistudio.com/wiki/DayZ:Central_Economy_Configuration
 - https://community.bistudio.com/wiki/DayZ:Central_Economy_mission_files_modding
-- https://mhammond.github.io/pywin32/servicemanager.html
 - https://pyinstaller.org/en/stable/common-issues-and-pitfalls.html
-
-
-## Installasjon og oppgradering (0.7.1)
-
-Last ned **TaldrisServerStudio-Setup.exe** fra en GitHub-utgave og kjør den. Installasjonen gjelder Windows-brukeren og trenger ikke administrator. Den lager snarveier på skrivebordet og i Start-menyen, og en oppføring under Windows sine installerte apper. Vanlig EXE fra ZIP tilbyr installasjon eller portabel kjøring ved første start. Du kan også velge **Programoppdatering → Installer programmet på denne PC-en** senere.
-
-Programstarteren ligger i `%LOCALAPPDATA%/Programs/TaldrisServerStudio`. Innstillinger og egne programversjoner ligger fortsatt i datamappen `%LOCALAPPDATA%/TaldrisServerStudio` (eller din valgte `--home`). Servermappene flyttes ikke. Snarveien følger aktiv versjon etter oppgradering. Velg dev/stable og **Lagre og sjekk** for å laste ned, kontrollere og installere en nyere utgave. Programvinduet byttes; DayZ-prosessene stoppes ikke. Windows-tjenesten installeres fortsatt separat fra Discord/tjeneste-siden.
-
-Avinstallasjon fjerner programstarter, snarveier og Windows-oppføringen. Den stopper ikke agent, tjeneste eller DayZ og beholder datamappen, versjonsfiler og alle serverdata. Vil du avslutte driften, stopp serverne og fjern tjenesten separat før du sletter data.
-
-## Lokal test uten krav om Steam Query
-
-Stopp valgt server. Åpne **Innstillinger**, huk av **Lokal test – start uten krav om Steam Query**, og lagre. Programmet tillater da at `steamQueryPort` mangler, sender ingen A2S-query og viser prosessstatus i stedet for query-status. Automatisk brannmurregel inkluderer ikke en ekstra query-port i denne modusen. Koble direkte til `127.0.0.1:<spillport>` fra samme maskin.
-
-Dette slår av programmets query-krav og overvåking. Det deaktiverer ikke Steam-autentisering, BattlEye eller DayZ-motorens eventuelle interne standardport, og gjør ikke serveren privat eller bundet til localhost. Bruk brannmur/nettverksoppsett hvis tilgangen må begrenses. Konfigurasjonsfilen endres ikke av avhukingen. Fjern avhukingen for vanlig serverdrift med kontrollert query-port.
-
-
-## Importer en eksisterende server fra BAT / CMD (0.7.2)
-
-Velg **Kom i gang** eller **Innstillinger → Importer eksisterende server fra BAT / CMD**. Velg startskriptet, og velg riktig serverstart hvis filen inneholder flere. Forhåndsvisningen lar deg rette servermappe, konfigurasjon, profiles, spillport, ekstra startvalg og lokale modstier. Du kan velge `mod`, `serverMod` eller begge for hver mod, og deaktivere mods som mangler. Velg ny profil eller en eksisterende profil som skal oppdateres, og bekreft importen.
-
-Filen leses uten å kjøres. Vanlige `set`-variabler, `%~dp0`, `%cd%`, `cd /d`, `start` med tittel og `/D`, direkte EXE-start, `call` direkte til EXE og fortsettelse med `^` støttes. Uløste variabler, ukjente startvalg og skript som krever dynamisk tolkning vises som merknader. Betingelser, eksterne skript, pipe/omdirigering, `&&`, forsinket `!variabel!`-utvidelse og batchens stopp-/restartløkker overtas ikke. Bruk Automatisering til planlagt drift etter import.
-
-Alle mods fra BAT registreres som **lokale kilder**, også mapper med Workshop-ID i navnet. Dermed lastes de ikke ned eller overskrives automatisk. En mod i begge lastelistene importeres én gang med lastemåten begge. Importen flytter ikke filer, endrer ikke CFG eller verdensdata og starter ikke serveren. EXE og konfigurasjon må finnes i valgt servermappe; profiles/CFG utenfor servermappen må tilpasses manuelt. Stopp serveren og vent til jobber er ferdige før en eksisterende profil oppdateres.
-
-Ekstra startvalg finnes også under Innstillinger. Støttede valg er `-name`, `-cpuCount`, `-maxMem`, `-limitFPS`, `-BEpath`, `-filePatching`, `-netlog`, `-doSimulate`, `-noSound`, `-noSplash`, `-noPause` og `-scrAllowFileWrite`. Øvrige valg rapporteres i forhåndsvisningen i stedet for å legges til ubemerket. Mods, konfigurasjon, port og profiles styres av egne felt. Standardvalgene `-dologs`, `-adminlog` og `-freezecheck` legges fortsatt til av programmet.
-
-
-## Flere servere fra samme servermappe (0.7.3)
-
-Profiler kan dele DayZServer_x64.exe og modfiler. Samtidige instanser må ha forskjellige spill-/query-porter og separate profiles-mapper. De må også bruke ulike missionmapper eller ulike `instanceId` i hver sin CFG, slik at de ikke skriver til samme `storage_<instanceId>`. Programmet gir nå en konkret konfliktmelding i stedet for å avvise selve servermappen. Én kjørende prosess registreres bare på én profil.
-
-Native restartplaner skriver til missionens `db/messages.xml`, så uavhengige native planer krever separate missionmapper. Filoppdateringer og backup av den delte servermappen utsettes mens en annen server bruker den. En vanlig restart kan starte serveren igjen uten slikt filvedlikehold. Ingen annen server stoppes automatisk.
-
-**Kom i gang → Mission / kart → Lagre kartvalg til CFG** skriver valgt navn direkte til den eksisterende CFG-filen med backup. Listen henter kart fra `mpmissions` og gjeldende CFG; egne navn kan fortsatt skrives inn. `dayzOffline.nasdara` er også med i standardlisten. BAT-importen leser mission fra CFG i stedet for å lagre et standardkart. Kartvalg kan lagres til en egen CFG i rotmappen mens en annen server bruker samme installasjon, men aldri til en CFG som brukes av en aktiv profil. Spillport og profiles endres under Innstillinger; `instanceId` endres i konfigurasjonseditoren. Ingen verdier endres automatisk til en ny verden.
-
-
-## Slette en serverprofil (0.7.4)
-
-Velg serveren og trykk **Slett server …** ved siden av **Ny server**. Bekreftelsen viser profilnavn og servermappe. Serveren må være stoppet, og ingen jobb for profilen kan være i kø eller under kjøring. Knappen fjerner profilen fra programmet; serverfiler, mods, CFG, verdensdata, backup og konfigurasjonshistorikk slettes ikke. Ulagrede editor-/kartendringer for den fjernede profilen forkastes ved bekreftelse. De andre serverprofilene fortsetter som før.
-
-Hvis siste profil slettes, opprettes en tom **Ny server**-profil. Den har ingen servermappe og starter ingenting. En gammel servermappe kan senere legges til igjen via BAT-import eller Innstillinger.
-
-
-## Panelet er oppdatert, men gammel startfeil vises
-
-Nederst i programvinduet vises **Panel** og **Agent** med hvert sitt versjons-/byggnummer. Hvis agenten er eldre, blokkerer den nye startknappen utsending til gammel startkode og viser hvordan agenten oppdateres. Under **Programoppdatering → Oppdater/reparer bakgrunnsagent** kan bakgrunnsagenten byttes ut separat. Kjørende DayZ-prosesser tvangsstoppes ikke. Vent til SteamCMD, backup og jobber i kø er ferdige. Windows-tjenesten oppdateres via samme eksplisitte knapp og kan be om administratorrettigheter.
-
-Et automatisk agentbytte som blir stående med en gammel vanlig bakgrunnsprosess, får et nytt forsøk etter omtrent 30 sekunder uten paneljobber. En gammel Windows-tjeneste som ikke byttes, repareres fra knappen. Når begge versjonsnumrene er oppdatert, prøv serverstart igjen. Port-, profiles- og verdensdata-konflikter må fortsatt rettes i serveroppsettet.
-
-
-## Loggrotasjon, tilleggsprogrammer og modrestart (0.8.0)
-
-Alle valgene ligger under **Automatisering** og gjelder valgt server. Trykk **Lagre driftsoppsett** etter endringer.
-
-### Loggrotasjon
-
-Fanen **Loggrotasjon** kan arkivere avsluttede `.RPT`, `.LOG` og `.ADM` fra profiles-mappens toppnivå før serverstart og restart. Filene pakkes i ZIP i datamappens `log_archives/<profil-ID>`. Etter vellykket arkivering fjernes uendrede originaler fra profiles. Endrede, låste og utilgjengelige filer beholdes; symlenker følges ikke. Aktiv server eller deling av en aktiv loggmappe blokkerer manuell rotasjon. Det utføres ingen trunkering av aktive logger.
-
-Velg antall dager, maksimalt antall ZIP-arkiver og samlet arkivplass i MB. Grensene brukes når rotasjon kjøres, og det nyeste arkivet beholdes alltid, selv om én stor økt overskrider plassgrensen. Bare arkivfiler opprettet i denne funksjonens navneformat ryddes; andre filer beholdes. **Arkiver logger nå** virker på stoppet server, og **Åpne loggarkiv** åpner mappen. Aktivering er valgfri og er av som standard.
-
-### EXE-programmer
-
-Velg **EXE-programmer → Legg til EXE** og bruk **Bla gjennom**. Du kan angi navn, argumenter og arbeidsmappe. Tom arbeidsmappe bruker EXE-filens mappe. Velg om kontrollen gjelder vanlig serverstart, restart/krasjgjenstart eller begge. Programmet starter bare hvis det ikke allerede kjører med samme fulle filsti og, når argumenter er oppgitt, samme argumenter. En annen fil med samme navn teller ikke som treff.
-
-**Påkrevd** avbryter serverstart hvis programmet ikke kan startes eller avslutter under den valgte ventetiden. For valgfrie programmer logges feilen og serverstart fortsetter. Ventetiden er 0–120 sekunder etter ny prosessstart. Prosessstatus/PID bekrefter at prosessen kjører, ikke at dens API er klar. Status vises i listen og kan hentes med **Sjekk kjørende programmer**. Programkontrollen ved serverstart gjelder også automatiske restarter og krasjgjenstart. Programmer som avslutter senere, startes ikke automatisk på nytt før en ny serverstart/restart. Programmene stoppes ikke automatisk sammen med DayZ, ved profilsletting eller ved agentbytte.
-
-Ved drift som Windows-tjeneste kjører også tilleggsprogrammene i tjenestens konto/sesjon. GUI-vinduer vises da ikke på brukerens skrivebord. Bruk egnet tjeneste-/bakgrunnsprogram og eksplisitte argumenter/konfigurasjonsstier hvis programmet ellers velger kontoavhengige innstillinger. Påloggingsavhengige eller administratorbeskyttede prosesser kan rapporteres som ukjent i stedet for å startes en ekstra gang.
-
-### Automatisk modoppdatering med ventetid
-
-Aktiver **automatiske Steam-oppdateringer**, sett **sjekkintervall**, og huk av **Varslet restart når en Workshop-mod får oppdatering**. Sett ventetiden i minutter (1–1440). Eksempel: sjekk hvert 15. minutt og gi spillerne 10 minutter før restart. Ingen automatisk modrestart aktiveres for gamle profiler uten denne avhukingen.
-
-Når en oppdatering oppdages, varsles spillerne via fungerende BattlEye RCon. Den eksisterende nedtellingen sender flere varsler, ber DayZ avslutte normalt og venter på at serverprosessen faktisk er avsluttet. Deretter kjøres valgt backup, SteamCMD-nedlasting og bekreftet installasjon, loggrotasjon og programkontroll før ny start. Ved oppdateringsfeil forblir serveren stoppet. Lokale utviklermods blir ikke lastet ned eller tatt med i Workshop-sjekken.
-
-En eksisterende nedtelling overskrives ikke og fristen skyves ikke frem av nye modsjekker. En planlagt native restart som allerede kommer innen ventetiden, brukes i stedet. **Avbryt nedtelling** utsetter ny automatisk vurdering minst ett sjekkintervall. Slås automatisk modrestart eller autooppdatering av mens modnedtellingen pågår, avbrytes den lokalt før shutdown. Manglende RCon gir en ventemelding, ingen tvungen stopp. Hvis en annen kjørende server bruker samme installasjonsmappe, utsettes modrestarten: felles EXE-/modfiler kan ikke oppdateres mens den andre bruker dem. Du må koordinere vedlikeholdet for disse profilene.
-
-
-### EXE-styring (0.8.1)
-Velg serverprofil rett over EXE-listen. Listen følger denne profilen; legg samme EXE til i flere profiler dersom flere servere bruker den. Legg til, rediger, fjern og aktivering lagres automatisk. Høyreklikk en rad for Start, Restart eller Stopp, også mens DayZ kjører. Start gjenbruker en identisk prosess. Stopp/restart avslutter prosesser med samme fulle EXE-sti og konfigurerte argumenter, og kan derfor påvirke andre profiler som bruker prosessen. Ingen automatisk stopp av tilleggsprogrammer ved DayZ-stopp. Ved Windows-tjenestedrift kjører programmer i tjenesteøkten uten synlige skrivebordsvinduer. Se host.log for feilmeldinger og PID.
-
-
-### Lokal DayZ-klient (0.8.2)
-«Koble til lokalt» åpner klientoppsett med valgt serverprofil og spillport. Velg DayZ-klientens mappe (DayZ_x64.exe og DayZ_BE.exe), ikke servermappen. Steam-biblioteker oppdages automatisk når tilgjengelig. Start skjer på skrivebordet gjennom DayZ_BE.exe med Steam-app 221100, -connect=127.0.0.1, -port og én -mod-liste med absolutte stier. Ingen Steam Query er nødvendig.
-
-Aktiverte mod/begge tas med i profilrekkefølge; servermod og deaktiverte mods utelates. Lokale utviklermods bruker kildemappen. Workshop-mods finnes i serverinstallasjonen, Steam-bibliotekets Workshop-mappe eller DayZ/!Workshop. Dobbeltklikk modraden for å overstyre lokal sti. Manglende mods blokkerer start og vises i listen; de lastes ikke automatisk ned eller abonneres på. Klientens mappevalg lagres lokalt og styres ikke av Windows-tjenesten.
-
-Steam må være innlogget med tilgang til DayZ. En åpen DayZ-klient må lukkes før ny modliste kan lastes. PID i loggen bekrefter prosessstart, ikke vellykket innlogging eller kompatible modversjoner. Serverpassord oppgis i spillet. 127.0.0.1 gjelder server på samme PC; ved RDP er det PC-en som kjører panelet/spillet.
-
-
-# CruzDoodelZ Server Studio 0.9 — fusion
-
-The uploaded `TaldrisServerStudio_0.6_source (1).zip` improvements are merged into the existing 0.8.2 host, not used as a replacement. Existing agent/service, multi-server, updates, BAT import, EXE lifecycle, maps and local client launch remain.
-
-## Merged improvements
-- English text from the supplied desktop, Workshop, local mod and update UI. Newer hosting screens retain some Norwegian text.
-- Explicit SteamCMD stage label alongside the live console, with completion/failure state.
-- Overview runtime checker for DirectX x64 and Visual C++ x64. The existing PE architecture validation remains authoritative at server start. Microsoft download buttons are explicit; runtimes are not silently installed.
-- Export/import settings and mods as `.cruz.json`, with legacy flat `.taldris.json` import. No credentials, process state or companion command arguments are exported. Import creates a new stopped profile and never starts it. Review paths and ports before starting.
-
-## Integrated DZSA Loot Editor
-The editor UI comes from our `Krussedull86/CrusDoodelz-DayZ-Loot-Editor` stable source, and its loss-aware row model/revisions are adapted to Python and Qt WebChannel. No second EXE, PHP, web server, token or login is required. Credits: CruzDoodelz & NoSignal; original DZSA Tools by NIXON. Third-party library notices remain in the bundled sources.
-
-- Embedded search/filter table, Ctrl/Shift selection, numeric and flag editors, bulk operations and local saved revisions with undo/redo.
-- Import XML, export a separate edited XML and starter templates for Chernarus, Livonia, Sakhal and Nasdara from the supplied loot-editor data (not automatically downloaded game updates).
-- Reads the active mission from the selected profile's actual server CFG, not just the cached profile dropdown. Resolves `mpmissions/<template>/db/types.xml` and type files registered in `cfgeconomycore.xml`. Choose the target when several files exist.
-- The open project shows its target server/file and stays bound to that target even if the main server selector changes. Import and template projects are detached.
-- `Save changes`/autosave only creates a local project revision. **Save to mission** saves the table first, then writes through the agent's existing stopped-server guard, compare-before-write and backup. Reopening an old project also checks the original target digest and current active mission.
-- Export never writes into registered server roots. Use the guarded mission writer for server files.
-- Unknown XML attributes/nodes and comments are preserved (XML formatting can change). Validation covers syntax, duplicate names, integer ranges and flags; no claim of complete XSD/game semantic validation. Existing support for custom nodes is retained.
-- No live loot reset is performed. DayZ normally reads mission economy data at server start; saving does not restart servers or reset persistence.
-
-## Compatibility
-The visible product name, installer entry, shortcuts, service display name and firewall description use CruzDoodelZ Server Studio. Existing technical data/service/EXE identifiers and GitHub repository remain for upgrade compatibility. Old desktop shortcuts pointing at this installation are removed when installing the new shortcuts. A branded Setup EXE is published alongside the legacy-named updater assets; both contain the same application. Settings, live DayZ processes and worlds are retained.

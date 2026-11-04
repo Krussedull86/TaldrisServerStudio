@@ -17,15 +17,15 @@ def stage(text):
     lines=[line.strip() for line in plain_terminal(text).splitlines() if line.strip()]
     for line in reversed(lines[-40:]):
         lower=line.casefold()
-        if any(s in lower for s in ['password:','password for','enter your password','enter password']):return 'Venter på Steam-passord — bruk feltet nedenfor'
-        if any(s in lower for s in ['steam guard','auth code','two-factor','two factor','confirmation code']):return 'Innlogging / Steam Guard — les meldingen i konsollen'
-        if any(s in lower for s in ['error!','no subscription','access denied','invalid password','failed to install']):return 'Steam melder en feil — se konsollen'
-        if any(s in lower for s in ['downloading','download item','download workshop']):return 'Laster ned — '+line[:180]
-        if any(s in lower for s in ['validating','verifying','reconfiguring','preallocating']):return 'Kontrollerer / klargjør filer — '+line[:180]
-        if "success! app" in lower or 'success. downloaded item' in lower:return 'Steam har bekreftet en nedlasting — jobben fortsetter til alle trinn er ferdige'
-        if any(s in lower for s in ['logging in','connecting anonymously','waiting for user info','logged in']):return 'Kobler til / logger inn på Steam — '+line[:160]
-        if 'checking for available updates' in lower or 'updating steamcmd' in lower:return 'Oppdaterer SteamCMD'
-    return 'SteamCMD er startet — venter på neste melding'
+        if any(s in lower for s in ['password:','password for','enter your password','enter password']):return 'Waiting for Steam password — use the field below'
+        if any(s in lower for s in ['steam guard','auth code','two-factor','two factor','confirmation code']):return 'Login / Steam Guard — read the console message'
+        if any(s in lower for s in ['error!','no subscription','access denied','invalid password','failed to install']):return 'Steam reported an error — see the console'
+        if any(s in lower for s in ['downloading','download item','download workshop']):return 'Downloading — '+line[:180]
+        if any(s in lower for s in ['validating','verifying','reconfiguring','preallocating']):return 'Checking / preparing files — '+line[:180]
+        if "success! app" in lower or 'success. downloaded item' in lower:return 'Steam confirmed a download — the job continues until all steps finish'
+        if any(s in lower for s in ['logging in','connecting anonymously','waiting for user info','logged in']):return 'Connecting / logging in to Steam — '+line[:160]
+        if 'checking for available updates' in lower or 'updating steamcmd' in lower:return 'Updating SteamCMD'
+    return 'SteamCMD started — waiting for the next message'
 
 
 def phase(text):

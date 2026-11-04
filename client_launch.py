@@ -44,21 +44,21 @@ def client_mods(profile,game,roots,overrides=None):
 
 def command(game,profile,mods):
     folder=Path(game).resolve()
-    if not (folder/'DayZ_x64.exe').is_file():raise ValueError('Velg DayZ-spillmappen med DayZ_x64.exe, ikke DayZServer-mappen.')
+    if not (folder/'DayZ_x64.exe').is_file():raise ValueError('Choose the DayZ game folder containing DayZ_x64.exe, rather than the DayZServer folder.')
     be=folder/'DayZ_BE.exe'
-    if not be.is_file():raise ValueError('DayZ_BE.exe mangler. Verifiser DayZ-klienten i Steam.')
+    if not be.is_file():raise ValueError('DayZ_BE.exe is missing. Verify the DayZ client files in Steam.')
     port=int(profile['port'])
-    if not 1<=port<=65535:raise ValueError('Ugyldig spillport.')
+    if not 1<=port<=65535:raise ValueError('Invalid game port.')
     paths=[]
     for mod in mods:
-        if not mod['path']:raise ValueError('Mangler klientmod: '+mod['title']+'. Velg lokal modmappe eller installer den via Steam Workshop.')
+        if not mod['path']:raise ValueError('Missing client mod: '+mod['title']+'. Choose a local mod folder or install it through Steam Workshop.')
         path=Path(mod['path']).resolve()
-        if ';' in str(path) or any(ord(c)<32 for c in str(path)):raise ValueError('Modsti kan ikke inneholde semikolon eller kontrolltegn.')
-        if not ((path/'addons').is_dir() or (path/'Addons').is_dir()):raise ValueError('Modmappen finnes ikke lenger: '+str(path))
+        if ';' in str(path) or any(ord(c)<32 for c in str(path)):raise ValueError('Mod paths cannot contain semicolons or control characters.')
+        if not ((path/'addons').is_dir() or (path/'Addons').is_dir()):raise ValueError('The mod folder no longer exists: '+str(path))
         if str(path) not in paths:paths.append(str(path))
     args=[str(be),'0','1','1','-exe','DayZ_x64.exe','-connect=127.0.0.1','-port='+str(port)]
     if paths:args.append('-mod='+';'.join(paths))
-    if len(subprocess.list2cmdline(args))>30000:raise ValueError('Modlisten er for lang for Windows. Bruk kortere modstier.')
+    if len(subprocess.list2cmdline(args))>30000:raise ValueError('The mod list is too long for Windows. Use shorter mod paths.')
     return args
 
 def launch(args):

@@ -148,7 +148,7 @@ class DiscordRegistrationTests(unittest.IsolatedAsyncioTestCase):
                 await client._async_setup_hook();await client.setup_hook();registered.extend(client.tree.get_commands(guild=discord.Object(id=123)));await client.close()
             with patch.object(discord.Client,'start',fake_start),patch('discord.app_commands.CommandTree.sync',AsyncMock(return_value=[])):
                 await host.main('test-token-not-a-real-account')
-            commands=registered[0].commands;self.assertIn('fillagre',[c.name for c in commands]);self.assertIn('restart',[c.name for c in commands]);self.assertIn('panel',[c.name for c in commands])
+            commands=registered[0].commands;self.assertIn('savefile',[c.name for c in commands]);self.assertIn('restart',[c.name for c in commands]);self.assertIn('panel',[c.name for c in commands])
 
 class SafetyTests(unittest.TestCase):
     setUp=EngineTests.setUp
@@ -160,7 +160,7 @@ class SafetyTests(unittest.TestCase):
             except Exception as error:errors.append(error)
         with patch.object(self.e.manager,'backup',side_effect=backup):
             thread=threading.Thread(target=run);thread.start();self.assertTrue(entered.wait(2))
-            with self.assertRaisesRegex(ValueError,'jobb'):self.e.manager.start(self.p)
+            with self.assertRaisesRegex(ValueError,'job'):self.e.manager.start(self.p)
             release.set();thread.join()
         self.assertFalse(errors);self.assertNotIn(self.p['id'],self.e.manager.busy)
     def test_query_response_parse_and_truncation(self):
@@ -222,7 +222,7 @@ class ExistingProcessStartupTests(unittest.TestCase):
         from core import Manager
         with tempfile.TemporaryDirectory() as folder:
             def restoring_manager(home,log):
-                log('Eksisterende serverprosess bekreftet under oppstart.')
+                log('Existing server process verified during startup.')
                 return Manager(home,log)
             with patch('host_engine.Manager',side_effect=restoring_manager):engine=HostEngine(Path(folder))
             self.assertTrue(any('Eksisterende serverprosess' in event['text'] for event in engine.events))

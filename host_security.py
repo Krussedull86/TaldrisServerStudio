@@ -52,7 +52,7 @@ class AgentLock:
             else:
                 import fcntl
                 fcntl.flock(self.file,fcntl.LOCK_EX|fcntl.LOCK_NB)
-        except OSError:self.file.close();self.file=None;raise RuntimeError('En bakgrunnsagent eier allerede denne datamappen.')
+        except OSError:self.file.close();self.file=None;raise RuntimeError('A background agent already owns this data folder.')
     def close(self):
         if self.file:self.file.close();self.file=None
 

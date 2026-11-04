@@ -17,7 +17,7 @@ def launcher_target(home):
     active=Path(home)/'active_program.json'
     target=Path(json.loads(active.read_text('utf-8'))['exe']) if active.is_file() else Path(info['initial_exe'])
     target=target.resolve()
-    if not target.is_relative_to((Path(home)/'program_versions').resolve()) or target.name!='TaldrisServerStudio.exe' or not target.is_file():raise ValueError('Installert programfil mangler. Installer programmet på nytt fra nedlastet EXE.')
+    if not target.is_relative_to((Path(home)/'program_versions').resolve()) or target.name!='TaldrisServerStudio.exe' or not target.is_file():raise ValueError('The installed application file is missing. Reinstall from the downloaded EXE.')
     return target
 
 def register_windows(root,home,launcher):
@@ -40,7 +40,7 @@ def register_windows(root,home,launcher):
     # settings and DayZ data stay outside this folder and are never stopped.
     script.write_text("$ErrorActionPreference='Stop'\n"+'\n'.join('Remove-Item -LiteralPath '+ps_quote(p)+' -Force -ErrorAction SilentlyContinue' for p in links)+"\nRemove-Item -LiteralPath 'HKCU:\\"+REGKEY+"' -Recurse -Force -ErrorAction SilentlyContinue\nRemove-Item -LiteralPath "+ps_quote(Path(home)/'installation.json')+" -Force -ErrorAction SilentlyContinue\nSet-Location $env:TEMP\nRemove-Item -LiteralPath "+ps_quote(root)+" -Recurse -Force\n",encoding='utf-8-sig')
     with winreg.CreateKey(winreg.HKEY_CURRENT_USER,REGKEY) as key:
-        values={'DisplayName':NAME,'DisplayVersion':f'{VERSION} (bygg {BUILD})','Publisher':'CruzDoodelZ','InstallLocation':str(root),'DisplayIcon':str(launcher),'UninstallString':f'"{powershell}" -NoProfile -ExecutionPolicy Bypass -File "{script}"'}
+        values={'DisplayName':NAME,'DisplayVersion':f'{VERSION} (build {BUILD})','Publisher':'CruzDoodelZ','InstallLocation':str(root),'DisplayIcon':str(launcher),'UninstallString':f'"{powershell}" -NoProfile -ExecutionPolicy Bypass -File "{script}"'}
         for name,value in values.items():winreg.SetValueEx(key,name,0,winreg.REG_SZ,value)
         for name in ('NoModify','NoRepair'):winreg.SetValueEx(key,name,0,winreg.REG_DWORD,1)
     del shell
@@ -53,14 +53,14 @@ def register_windows(root,home,launcher):
         warnings.warn('Could not refresh CDS taskbar shortcuts: '+str(error),RuntimeWarning)
 
 def install(home):
-    if sys.platform!='win32' or not getattr(sys,'frozen',False):raise ValueError('Installer fra den nedlastede Windows-EXE-filen.')
+    if sys.platform!='win32' or not getattr(sys,'frozen',False):raise ValueError('Install from the downloaded Windows EXE.')
     home=Path(home).resolve();source=Path(sys.executable).resolve()
     root=(Path(os.environ['LOCALAPPDATA'])/'Programs'/'TaldrisServerStudio').resolve()
-    if home==root or home.is_relative_to(root) or root.is_relative_to(home):raise ValueError('Datamappen må ligge utenfor programmets installasjonsmappe.')
+    if home==root or home.is_relative_to(root) or root.is_relative_to(home):raise ValueError('The data folder must be outside the application installation folder.')
     tag=f'v{VERSION}.b{BUILD}';target=home/'program_versions'/tag/'TaldrisServerStudio.exe';target.parent.mkdir(parents=True,exist_ok=True)
     def copy_once(src,dest):
         if dest.exists():
-            if hashlib.sha256(dest.read_bytes()).digest()!=hashlib.sha256(src.read_bytes()).digest():raise ValueError('Versjonsmappen inneholder en annen programfil. Installer en nyere utgave.')
+            if hashlib.sha256(dest.read_bytes()).digest()!=hashlib.sha256(src.read_bytes()).digest():raise ValueError('The version folder contains a different executable. Install a newer release.')
             return
         temp=dest.with_suffix('.installing');shutil.copy2(src,temp);temp.replace(dest)
     copy_once(source,target);root.mkdir(parents=True,exist_ok=True);launcher=root/'TaldrisServerStudio.exe'
@@ -84,7 +84,7 @@ def refresh_version(home):
     if sys.platform!='win32' or not info:return
     import winreg
     try:
-        with winreg.OpenKey(winreg.HKEY_CURRENT_USER,REGKEY,0,winreg.KEY_SET_VALUE) as key:winreg.SetValueEx(key,'DisplayVersion',0,winreg.REG_SZ,f'{VERSION} (bygg {BUILD})')
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER,REGKEY,0,winreg.KEY_SET_VALUE) as key:winreg.SetValueEx(key,'DisplayVersion',0,winreg.REG_SZ,f'{VERSION} (build {BUILD})')
     except OSError:pass
     try:
         from shell_identity import refresh_shortcuts

@@ -8,7 +8,7 @@ def archive_folder(home,profile):return Path(home)/'log_archives'/profile['id']
 
 def rotate(profile,home,log=lambda message:None):
     folder=local_path(profile['root'],profile['profiles']);destination=archive_folder(home,profile);destination.mkdir(parents=True,exist_ok=True)
-    if folder.resolve()==destination.resolve() or destination.resolve().is_relative_to(folder.resolve()):raise ValueError('Loggarkivet må ligge utenfor profiles-mappen.')
+    if folder.resolve()==destination.resolve() or destination.resolve().is_relative_to(folder.resolve()):raise ValueError('The log archive must be outside the profiles folder.')
     files=[]
     if folder.is_dir():
         for path in folder.iterdir():
@@ -40,5 +40,5 @@ def rotate(profile,home,log=lambda message:None):
         info=path.stat();total+=info.st_size
         over=index>=profile.get('log_keep_archives',20) or now-info.st_mtime>profile.get('log_keep_days',14)*86400 or total>profile.get('log_max_mb',1024)*1024**2
         if over and index>0:path.unlink();removed+=1
-    if files or removed:log(f'Loggrotasjon: {count} logger arkivert/fjernet fra profiles, {skipped} beholdt/ikke tilgjengelig, {removed} gamle arkiver fjernet.')
+    if files or removed:log(f'Log rotation: {count} logs archived/removed from profiles, {skipped} kept/unavailable, {removed} old archives removed.')
     return dict(archived=count,skipped=skipped,removed_archives=removed,archive=str(archive) if archive else '',folder=str(destination))

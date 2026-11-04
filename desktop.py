@@ -108,7 +108,7 @@ class Studio(QMainWindow):
     def overview(self):
         outer=self.page();scroll=QScrollArea();scroll.setWidgetResizable(True);content=QWidget();l=QVBoxLayout(content);l.setContentsMargins(0,0,0,0);l.setSpacing(18);scroll.setWidget(content);outer.addWidget(scroll)
         hero,h=card('SERVER CONTROL'); self.server_title=label('Your DayZ server','title'); h.addWidget(self.server_title)
-        self.server_status=label('STOPPED','eyebrow'); h.addWidget(self.server_status); self.launch_detail=label('Ingen serveroppstart er registrert i denne økten.','muted'); h.addWidget(self.launch_detail); h.addWidget(label('Start, monitor and maintain the server from one place.','muted'))
+        self.server_status=label('STOPPED','eyebrow'); h.addWidget(self.server_status); self.launch_detail=label('No server launch has been recorded in this session.','muted'); h.addWidget(self.launch_detail); h.addWidget(label('Start, monitor and maintain the server from one place.','muted'))
         from responsive_layout import ActionLayout
         from PySide6.QtWidgets import QLayout,QSizePolicy
         h.setSizeConstraint(QLayout.SetMinimumSize);hero.setSizePolicy(QSizePolicy.Expanding,QSizePolicy.Minimum)
@@ -118,13 +118,13 @@ class Studio(QMainWindow):
         for title,foot in [('ACTIVE MODS','Load order'),('MAP MARKERS','Your places'),('GAME PORT','Local server profile'),('PLAYERS','Live data not connected')]:
             f,c=card(title); value=label('—','metric'); c.addWidget(value); c.addWidget(label(foot,'muted')); metrics.addWidget(f); self.metrics.append(value)
         l.addLayout(metrics)
-        self.all_servers=QTableWidget(0,5); self.all_servers.setHorizontalHeaderLabels(['Server','Status','Game port','Steam query','Mappe']); self.all_servers.setEditTriggers(QAbstractItemView.NoEditTriggers); self.all_servers.setSelectionBehavior(QAbstractItemView.SelectRows); self.all_servers.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch); self.all_servers.setMinimumHeight(145); self.all_servers.setMaximumHeight(170); self.all_servers.cellDoubleClicked.connect(lambda row,column:self.selector.setCurrentIndex(row)); l.addWidget(self.all_servers)
+        self.all_servers=QTableWidget(0,5); self.all_servers.setHorizontalHeaderLabels(['Server','Status','Game port','Steam query','Folder']); self.all_servers.setEditTriggers(QAbstractItemView.NoEditTriggers); self.all_servers.setSelectionBehavior(QAbstractItemView.SelectRows); self.all_servers.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch); self.all_servers.setMinimumHeight(145); self.all_servers.setMaximumHeight(170); self.all_servers.cellDoubleClicked.connect(lambda row,column:self.selector.setCurrentIndex(row)); l.addWidget(self.all_servers)
         row=QHBoxLayout(); quick,q=card('MAINTENANCE','Update and backup require the server to be stopped.')
-        q.addWidget(button('↓  Oppdater server og Workshop',self.action(lambda:self.update_server())))
-        q.addWidget(button('◇  Opprett sikkerhetskopi',self.action(lambda:self.manager.job(self.p,self.manager.backup))))
-        q.addWidget(button('⚙  Åpne serveroppsett',lambda:self.go(7))); q.addStretch(); row.addWidget(quick,1)
+        q.addWidget(button('↓  Update server and Workshop',self.action(lambda:self.update_server())))
+        q.addWidget(button('◇  Create backup',self.action(lambda:self.manager.job(self.p,self.manager.backup))))
+        q.addWidget(button('⚙  Open server setup',lambda:self.go(7))); q.addStretch(); row.addWidget(quick,1)
         activity,a=card('ACTIVITY'); self.activity=QPlainTextEdit(); self.activity.setReadOnly(True); self.activity.setMaximumBlockCount(1000); self.activity.setPlaceholderText('Startup, updates, backups and errors appear here.'); a.addWidget(self.activity); row.addWidget(activity,2); l.addLayout(row,1)
-        l.addWidget(label('Dobbeltklikk på en server i tabellen for å velge den. Flere servere kan kjøre samtidig. Kontroller RPT for å bekrefte at DayZ er klar.','muted'))
+        l.addWidget(label('Double-click a server in the table to select it. Multiple servers can run at once. Check RPT to confirm DayZ is ready.','muted'))
     def map_page(self):
         l=self.page(); bar=QHBoxLayout(); bar.addWidget(label('A working map for places, bases and zones.','muted')); bar.addStretch(); bar.addWidget(button('Add map image',self.map_file)); bar.addWidget(button('Reset view',lambda:self.map.reset_view())); l.addLayout(bar)
         split=QSplitter(); self.map=MapView(self); split.addWidget(self.map); panel=QWidget(); panel.setMinimumWidth(250); pl=QVBoxLayout(panel); pl.addWidget(label('PLACES ON MAP','eyebrow'))
@@ -155,20 +155,20 @@ class Studio(QMainWindow):
         l=self.page(); row=QHBoxLayout(); self.mod_search=QLineEdit(); self.mod_search.setPlaceholderText('Search mod name or Workshop ID…'); self.mod_search.textChanged.connect(self.filter_mods); row.addWidget(self.mod_search); row.addWidget(button('+ Add mod',self.action(self.mod_add),'primary')); l.addLayout(row)
         self.mods=QTableWidget(0,5); self.mods.setHorizontalHeaderLabels(['ORDER','MOD FOLDER','WORKSHOP ID','LOAD MODE','STATUS']); self.mods.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch); self.mods.setAlternatingRowColors(True); self.mods.setSelectionBehavior(QAbstractItemView.SelectRows); self.mods.setSelectionMode(QAbstractItemView.SingleSelection); self.mods.setEditTriggers(QAbstractItemView.NoEditTriggers); self.mods.verticalHeader().hide(); l.addWidget(self.mods,1)
         row=QHBoxLayout()
-        for name,fn in [('↑ Opp',lambda:self.mod_move(-1)),('↓ Ned',lambda:self.mod_move(1)),('Aktiver / deaktiver',self.mod_toggle),('Remove',self.mod_remove),('Installer nedlastede mods',lambda:self.manager.job(self.p,self.manager.deploy))]:row.addWidget(button(name,self.action(fn)))
+        for name,fn in [('↑ Up',lambda:self.mod_move(-1)),('↓ Down',lambda:self.mod_move(1)),('Enable / disable',self.mod_toggle),('Remove',self.mod_remove),('Deploy downloaded mods',lambda:self.manager.job(self.p,self.manager.deploy))]:row.addWidget(button(name,self.action(fn)))
         l.addLayout(row); l.addWidget(label('Mods load in this order. Check dependencies on Workshop. CF must come before mods that need CF.','muted'))
     def editable(self):
         if self.manager.running(self.p) or self.p['id'] in self.manager.busy:raise ValueError('Stop the server and wait until jobs finish first.')
     def mod_add(self):
-        self.editable(); name,ok=QInputDialog.getText(self,'Legg til mod','Mod folder, e.g. @CF:')
+        self.editable(); name,ok=QInputDialog.getText(self,'Add mod','Mod folder, e.g. @CF:')
         if not ok or not name.strip():return
         wid,ok=QInputDialog.getText(self,'Workshop','Workshop ID, empty for local mods:')
         if not ok:return
-        scope,ok=QInputDialog.getItem(self,'Lasting','Modtype:',['Mod (-mod)','Servermod (-serverMod)','Both (-mod + -serverMod)'],0,False)
+        scope,ok=QInputDialog.getItem(self,'Load mode','Mod type:',['Mod (-mod)','Servermod (-serverMod)','Both (-mod + -serverMod)'],0,False)
         if not ok:return
         mode={'Mod (-mod)':'client','Servermod (-serverMod)':'server','Both (-mod + -serverMod)':'both'}[scope]
         m=dict(folder=name.strip(),id=wid.strip(),enabled=True,server=mode=='server',load_mode=mode); validate(dict(self.p,mods=self.p['mods']+[m]))
-        if any(x['folder'].casefold()==m['folder'].casefold() for x in self.p['mods']):raise ValueError('Modmappen finnes allerede.')
+        if any(x['folder'].casefold()==m['folder'].casefold() for x in self.p['mods']):raise ValueError('The mod folder already exists.')
         self.p['mods'].append(m); self.mod_save()
     def mod_index(self):
         i=self.mods.currentRow()
@@ -184,28 +184,28 @@ class Studio(QMainWindow):
     def refresh_mods(self):
         self.mods.setRowCount(len(self.p['mods']))
         for i,m in enumerate(self.p['mods']):
-            for j,t in enumerate([f'{i+1:02d}',m['folder'],m['id'] or 'Local mod',{'client':'Mod','server':'Servermod','both':'Both'}[mod_load_mode(m)],'● Aktiv' if m['enabled'] else 'Inactive']):self.mods.setItem(i,j,QTableWidgetItem(t))
+            for j,t in enumerate([f'{i+1:02d}',m['folder'],m['id'] or 'Local mod',{'client':'Mod','server':'Servermod','both':'Both'}[mod_load_mode(m)],'● Enabled' if m['enabled'] else 'Inactive']):self.mods.setItem(i,j,QTableWidgetItem(t))
             self.mods.item(i,4).setForeground(QColor('#6ae1bd' if m['enabled'] else '#8192aa'))
         self.filter_mods()
     def filter_mods(self):
         text=self.mod_search.text().casefold()
         for i in range(self.mods.rowCount()):self.mods.setRowHidden(i,not any(text in self.mods.item(i,j).text().casefold() for j in [1,2]))
     def logs_page(self):
-        l=self.page(); row=QHBoxLayout(); row.addWidget(button('Open log file',self.open_log)); row.addWidget(button('Nyeste RPT',self.action(self.latest_log))); self.log_path=QLineEdit(); self.log_path.setReadOnly(True); self.log_path.setPlaceholderText('Ingen logg valgt'); row.addWidget(self.log_path,1); l.addLayout(row)
-        self.log_text=QPlainTextEdit(); self.log_text.setReadOnly(True); self.log_text.setFont(QFont('Consolas',11)); self.log_text.setPlaceholderText('Velg en DayZ-logg. De siste 100 KB oppdateres automatisk.'); l.addWidget(self.log_text,1)
+        l=self.page(); row=QHBoxLayout(); row.addWidget(button('Open log file',self.open_log)); row.addWidget(button('Latest RPT',self.action(self.latest_log))); self.log_path=QLineEdit(); self.log_path.setReadOnly(True); self.log_path.setPlaceholderText('No log selected'); row.addWidget(self.log_path,1); l.addLayout(row)
+        self.log_text=QPlainTextEdit(); self.log_text.setReadOnly(True); self.log_text.setFont(QFont('Consolas',11)); self.log_text.setPlaceholderText('Choose a DayZ log. The last 100 KB refresh automatically.'); l.addWidget(self.log_text,1)
     def open_log(self):
-        p,_=QFileDialog.getOpenFileName(self,'Open log','','Logger (*.RPT *.rpt *.log *.ADM);;Alle filer (*)')
+        p,_=QFileDialog.getOpenFileName(self,'Open log','','Logs (*.RPT *.rpt *.log *.ADM);;All files (*)')
         if p:self.log_path.setText(p); self.log_signature=None
     def latest_log(self):
         validate(self.p); files=list(local_path(self.p['root'],self.p['profiles']).glob('*.RPT'))
-        if not files:raise ValueError('Ingen RPT i profilmappen.')
+        if not files:raise ValueError('No RPT in the profile folder.')
         self.log_path.setText(str(max(files,key=lambda f:f.stat().st_mtime))); self.log_signature=None
     def config_page(self):
-        l=self.page(); row=QHBoxLayout(); row.addWidget(button('Read from disk',self.action(self.read_config))); row.addWidget(button('Lagre med backup',self.action(self.save_config),'primary')); row.addWidget(button('Steam query-port',self.action(self.edit_query_port))); row.addWidget(button('Bohemia: konfigurasjon',lambda:QDesktopServices.openUrl(QUrl('https://community.bistudio.com/wiki/DayZ:Server_Configuration')))); row.addStretch(); l.addLayout(row)
+        l=self.page(); row=QHBoxLayout(); row.addWidget(button('Read from disk',self.action(self.read_config))); row.addWidget(button('Save with backup',self.action(self.save_config),'primary')); row.addWidget(button('Steam query-port',self.action(self.edit_query_port))); row.addWidget(button('Bohemia: configuration',lambda:QDesktopServices.openUrl(QUrl('https://community.bistudio.com/wiki/DayZ:Server_Configuration')))); row.addStretch(); l.addLayout(row)
         self.editor=QPlainTextEdit(); self.editor.setFont(QFont('Consolas',12)); self.editor.setPlaceholderText('Choose a server folder in Settings to edit the server configuration.'); l.addWidget(self.editor,1); l.addWidget(label('Existing configuration is backed up before saving. Restart required for changes to take effect.','muted'))
     def edit_query_port(self):
         from windows_firewall import set_query_port
-        port,ok=QInputDialog.getInt(self,'Steam query-port','UDP-port for Steam-serverlisten. Lagre konfigurasjonen etterpå.',int(self.p['port'])+3,1,65535)
+        port,ok=QInputDialog.getInt(self,'Steam query-port','UDP port for the Steam server browser. Save the configuration afterward.',int(self.p['port'])+3,1,65535)
         if ok:self.editor.setPlainText(set_query_port(self.editor.toPlainText(),port))
     def read_config(self):
         self.editor.clear(); self.config_source=None
@@ -217,9 +217,9 @@ class Studio(QMainWindow):
         if current!=self.config_source:raise ValueError('The file was changed externally. Read from disk first.')
         path.parent.mkdir(parents=True,exist_ok=True)
         if path.exists():shutil.copy2(path,path.with_name(path.name+'.'+uuid.uuid4().hex[:8]+'.bak'))
-        path.write_text(self.editor.toPlainText(),'utf-8'); self.read_config(); self.events.put('Konfigurasjon lagret.')
+        path.write_text(self.editor.toPlainText(),'utf-8'); self.read_config(); self.events.put('Configuration saved.')
     def backups_page(self):
-        l=self.page(); f,c=card('SIKKERHETSNETT','Back up server data before changing setup or mods. The server must be stopped.'); row=QHBoxLayout(); row.addWidget(button('◇  Opprett backup',self.action(lambda:self.manager.job(self.p,self.manager.backup)),'primary')); row.addWidget(button('Open backup folder',self.open_backups)); row.addWidget(button('Oppdater liste',self.refresh_backups)); row.addStretch(); c.addLayout(row); l.addWidget(f)
+        l=self.page(); f,c=card('BACKUP SAFETY','Back up server data before changing setup or mods. The server must be stopped.'); row=QHBoxLayout(); row.addWidget(button('◇  Create backup',self.action(lambda:self.manager.job(self.p,self.manager.backup)),'primary')); row.addWidget(button('Open backup folder',self.open_backups)); row.addWidget(button('Refresh list',self.refresh_backups)); row.addStretch(); c.addLayout(row); l.addWidget(f)
         self.backups=QTableWidget(0,3); self.backups.setHorizontalHeaderLabels(['ARCHIVE','SIZE','CREATED']); self.backups.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch); self.backups.setEditTriggers(QAbstractItemView.NoEditTriggers); l.addWidget(self.backups,1)
         l.addWidget(label('Includes configuration, profiles, mpmissions and battleye. Restore manually while the server is stopped. Archives may contain passwords and player data.','muted'))
     def open_backups(self):
@@ -229,11 +229,11 @@ class Studio(QMainWindow):
         for i,p in enumerate(files):
             for j,t in enumerate([p.name,f'{p.stat().st_size/1024/1024:.2f} MB',time.strftime('%d.%m.%Y %H:%M',time.localtime(p.stat().st_mtime))]):self.backups.setItem(i,j,QTableWidgetItem(t))
     def automation_page(self):
-        l=self.page(); f,c=card('AUTOMATISK VEDLIKEHOLD','Update server files and download active Workshop mods on a schedule.'); self.auto=QCheckBox('Enable automatic SteamCMD jobs while the server is stopped'); c.addWidget(self.auto); self.interval=QLineEdit(); self.interval.setPlaceholderText('60'); c.addWidget(label('Interval in minutes (minimum 5)','muted')); c.addWidget(self.interval); c.addWidget(button('Save automation',self.action(self.save_automation),'primary')); l.addWidget(f)
+        l=self.page(); f,c=card('AUTOMATIC MAINTENANCE','Update server files and download active Workshop mods on a schedule.'); self.auto=QCheckBox('Enable automatic SteamCMD jobs while the server is stopped'); c.addWidget(self.auto); self.interval=QLineEdit(); self.interval.setPlaceholderText('60'); c.addWidget(label('Interval in minutes (minimum 5)','muted')); c.addWidget(self.interval); c.addWidget(button('Save automation',self.action(self.save_automation),'primary')); l.addWidget(f)
         f,c=card('OPERATING RULES'); c.addWidget(label('• The panel must stay open.\n• Running server processes are not stopped automatically.\n• Steam Guard is entered in the SteamCMD Console.\n• Workshop mods are installed after confirmed download.\n• The server is not started automatically after an update.','muted')); l.addWidget(f); l.addStretch()
     def save_automation(self):
         self.editable(); n=int(self.interval.text())
-        if n<5:raise ValueError('Minst 5 minutter.')
+        if n<5:raise ValueError('At least 5 minutes.')
         self.p.update(auto_update=self.auto.isChecked(),update_minutes=n); self.manager.save(); self.deadlines.pop(self.p['id'],None); self.events.put('Automation saved.')
     def settings_page(self):
         l=self.page(); scroll=QScrollArea(); scroll.setWidgetResizable(True); content=QWidget(); form=QFormLayout(content); form.setSpacing(15); self.fields={}
@@ -241,14 +241,14 @@ class Studio(QMainWindow):
             row=QWidget(); r=QHBoxLayout(row); r.setContentsMargins(0,0,0,0); v=QLineEdit(); self.fields[key]=v; r.addWidget(v)
             if key in ['root','steamcmd','workshop']:r.addWidget(button('Browse…',lambda checked=False,k=key:self.browse(k)))
             form.addRow(title,row)
-        self.extra_start_args=QLineEdit();form.addRow('Ekstra startvalg',self.extra_start_args)
-        self.firewall_auto=QCheckBox('Opprett Windows-brannmurregler automatisk ved serverstart'); form.addRow('',self.firewall_auto)
-        self.local_test=QCheckBox('Lokal test – start uten krav om Steam Query');form.addRow('',self.local_test)
-        form.addRow('',label('Hopper over krav om query-port og query-overvåking. Koble direkte til spillporten. Dette sperrer ikke nettverkstilgang.','muted'))
+        self.extra_start_args=QLineEdit();form.addRow('Extra launch options',self.extra_start_args)
+        self.firewall_auto=QCheckBox('Automatically create Windows Firewall rules on server startup'); form.addRow('',self.firewall_auto)
+        self.local_test=QCheckBox('Local test — start without requiring Steam Query');form.addRow('',self.local_test)
+        form.addRow('',label('Skips query-port requirements and query monitoring. Connect directly to the game port. This does not block network access.','muted'))
         form.addRow('',button('Save server settings',self.action(self.save_settings),'primary')); scroll.setWidget(content); l.addWidget(scroll,1)
-        l.addWidget(label('Steam-passord lagres ikke av panelet. Lokal test påvirker bare krav og overvåking av Steam Query.','muted'))
+        l.addWidget(label('Steam passwords are not stored by the panel. Local test only affects Steam Query requirements and monitoring.','muted'))
     def browse(self,k):
-        p=QFileDialog.getOpenFileName(self,'Velg SteamCMD','','Program (*.exe)')[0] if k=='steamcmd' else QFileDialog.getExistingDirectory(self,'Choose folder')
+        p=QFileDialog.getOpenFileName(self,'Choose SteamCMD','','Program (*.exe)')[0] if k=='steamcmd' else QFileDialog.getExistingDirectory(self,'Choose folder')
         if p:self.fields[k].setText(p)
     def save_settings(self):
         self.editable(); candidate=dict(self.p)
@@ -275,9 +275,9 @@ class Studio(QMainWindow):
         connect_local(self)
     def show_launch_log(self):
         record=self.manager.launches.get(self.p['id'])
-        if not record:raise ValueError('Start serveren først for å finne logg fra akkurat denne oppstarten.')
+        if not record:raise ValueError('Start the server first to locate logs from this specific launch.')
         paths=current_logs(record)
-        if not paths:raise ValueError('Ingen ny RPT/feillogg fra denne oppstarten ennå. Se det separate servervinduet eller åpne loggmappen: '+record['profiles'])
+        if not paths:raise ValueError('No new RPT/error log from this launch yet. Check the separate server window or open the log folder: '+record['profiles'])
         path=next((p for p in paths if p.suffix.lower()=='.rpt'),paths[0]); self.log_path.setText(str(path)); self.log_signature=None; self.go(3)
     def tick(self):
         exits=self.manager.poll_processes()
@@ -285,20 +285,20 @@ class Studio(QMainWindow):
             if event['profile_id']==self.p['id'] and event['logs']:
                 self.log_path.setText(next((p for p in event['logs'] if p.lower().endswith('.rpt')),event['logs'][0])); self.log_signature=None
         while not self.events.empty():self.activity.appendPlainText(time.strftime('%H:%M:%S')+'   '+self.events.get())
-        record=self.manager.launches.get(self.p['id']); self.launch_detail.setText(describe(record)+'\n'+record['exe'] if record else 'Ingen serveroppstart er registrert i denne økten.')
-        running=self.manager.running(self.p); busy=self.p['id'] in self.manager.busy; self.server_status.setText('◌  JOB RUNNING' if busy else '●  PROCESS RUNNING' if running else '○  STOPPET / IKKE ADMINISTRERT')
+        record=self.manager.launches.get(self.p['id']); self.launch_detail.setText(describe(record)+'\n'+record['exe'] if record else 'No server launch has been recorded in this session.')
+        running=self.manager.running(self.p); busy=self.p['id'] in self.manager.busy; self.server_status.setText('◌  JOB RUNNING' if busy else '●  PROCESS RUNNING' if running else '○  STOPPED / NOT MANAGED')
         self.start_btn.setEnabled(not running and not busy); self.stop_btn.setEnabled(running)
         for w,t in zip(self.metrics,[str(sum(m['enabled'] for m in self.p['mods'])),str(len(self.p['markers'])),str(self.p['port']),'—']):w.setText(t)
         self.all_servers.setRowCount(len(self.manager.state['servers']))
         for row,p in enumerate(self.manager.state['servers']):
-            status='Job in progress' if p['id'] in self.manager.busy else 'Prosess kjører' if self.manager.running(p) else 'Stoppet'
-            query='Ikke satt'
+            status='Job in progress' if p['id'] in self.manager.busy else 'Process running' if self.manager.running(p) else 'Stopped'
+            query='Not configured'
             try:
                 from windows_firewall import mask_config
                 import re
                 text=mask_config(local_path(p['root'],p['config']).read_text('utf-8-sig')); values=re.findall(r'\bsteamQueryPort\s*=\s*(\d+)\s*;',text,re.I)
                 if len(values)==1:query=values[0]
-                if not p.get('query_enabled',True):query='Lokal test / ingen sjekk'
+                if not p.get('query_enabled',True):query='Local test / no check'
             except (OSError,ValueError):pass
             for col,value in enumerate([p['name'],status,str(p['port']),query,p['root']]):self.all_servers.setItem(row,col,QTableWidgetItem(value))
         for p in self.manager.state['servers']:
@@ -321,7 +321,7 @@ class Studio(QMainWindow):
     def closeEvent(self,event):
         if self.manager.busy:QMessageBox.information(self,'Job in progress','Wait until the update or backup finishes.'); event.ignore(); return
         if any(self.manager.running(p) for p in self.manager.state['servers']):
-            if QMessageBox.question(self,'Exit the panel?','Serverprosessene fortsetter. Panelet kobler seg til bekreftede serverprosesser igjen ved neste oppstart. Automatisering krever at panelet kjører. Avslutte?',QMessageBox.Yes|QMessageBox.No,QMessageBox.No)!=QMessageBox.Yes:event.ignore(); return
+            if QMessageBox.question(self,'Exit the panel?','Server processes keep running. The panel reconnects to verified server processes on the next launch. Automation requires the panel to be running. Exit?',QMessageBox.Yes|QMessageBox.No,QMessageBox.No)!=QMessageBox.Yes:event.ignore(); return
         from process_registry import save_processes
         save_processes(self.manager); self.manager.save(); event.accept()
 

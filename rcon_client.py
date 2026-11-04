@@ -10,14 +10,14 @@ def packet(payload):
 
 
 def unpack(data):
-    if len(data)<8 or data[:2]!=b'BE' or data[6]!=255:raise ValueError('Ugyldig RCon-pakke.')
-    if struct.unpack('<I',data[2:6])[0]!=(zlib.crc32(data[6:])&0xffffffff):raise ValueError('RCon-kontrollsum stemmer ikke.')
+    if len(data)<8 or data[:2]!=b'BE' or data[6]!=255:raise ValueError('Invalid RCon packet.')
+    if struct.unpack('<I',data[2:6])[0]!=(zlib.crc32(data[6:])&0xffffffff):raise ValueError('RCon checksum mismatch.')
     return data[7:]
 
 
 def command(host,port,password,text,timeout=5):
-    if not 1<=int(port)<=65535 or any(c in text for c in '\x00\r\n'):raise ValueError('Ugyldig RCon-kommando eller port.')
-    if len(text.encode('utf-8'))>1000:raise ValueError('RCon-kommandoen er for lang.')
+    if not 1<=int(port)<=65535 or any(c in text for c in '\x00\r\n'):raise ValueError('Invalid RCon command or port.')
+    if len(text.encode('utf-8'))>1000:raise ValueError('The RCon command is too long.')
     with socket.socket(socket.AF_INET,socket.SOCK_DGRAM) as sock:
         sock.connect((host,int(port)));sock.settimeout(.7)
         def receive(until,kind):
@@ -29,17 +29,17 @@ def command(host,port,password,text,timeout=5):
                 if payload[0]==2 and len(payload)>=2:sock.send(packet(payload[:2]));continue
                 if payload[0]!=kind:continue
                 if kind==0:
-                    if payload!=b'\x00\x01':raise ValueError('RCon avviste passordet.')
+                    if payload!=b'\x00\x01':raise ValueError('RCon rejected the password.')
                     return b''
                 if len(payload)<2 or payload[1]!=0:continue
                 body=payload[2:]
                 if body.startswith(b'\x00') and len(body)>=3:
                     total,index=body[1:3]
-                    if total<1 or index>=total or (count is not None and total!=count):raise ValueError('Ugyldig RCon-flerpakke.')
+                    if total<1 or index>=total or (count is not None and total!=count):raise ValueError('Invalid multi-part RCon packet.')
                     count=total;parts[index]=body[3:]
                     if len(parts)==count:return b''.join(parts[i] for i in range(count))
                 else:return body
-            raise TimeoutError('RCon svarte ikke innen tidsfristen. Kontroller RCon-port, passord og BattlEye.')
+            raise TimeoutError('RCon did not respond in time. Check the RCon port, password and BattlEye.')
         sock.send(packet(b'\x00'+password.encode('ascii')));receive(time.monotonic()+timeout,0)
         # Never resend destructive commands automatically after an ambiguous timeout.
         sock.send(packet(b'\x01\x00'+text.encode('utf-8')))
@@ -47,9 +47,9 @@ def command(host,port,password,text,timeout=5):
 
 
 def credentials(profile):
-    if not profile.get('root','').strip():raise ValueError('Velg servermappe først.')
+    if not profile.get('root','').strip():raise ValueError('Choose a server folder first.')
     relative=profile.get('rcon_config','')
-    if not relative:raise ValueError('Velg BattlEye sin aktive BEServer_x64.cfg i RCon-oppsettet.')
+    if not relative:raise ValueError('Choose the active BattlEye BEServer_x64.cfg file in RCon settings.')
     path=local_path(profile['root'],relative)
     if not path.exists() and path.name.casefold().startswith('beserver'):
         candidates=[p for p in path.parent.glob('*.cfg') if p.name.casefold().startswith('beserver_x64')]
@@ -61,7 +61,7 @@ def credentials(profile):
         pair=line.split(None,1)
         if len(pair)==2:values[pair[0].casefold()]=pair[1].strip()
     password=values.get('rconpassword','');port=int(values.get('rconport','0'))
-    if not password or not 1<=port<=65535:raise ValueError('BattlEye-filen må ha RConPassword og en egen RConPort.')
+    if not password or not 1<=port<=65535:raise ValueError('The BattlEye file must contain RConPassword and a separate RConPort.')
     host=values.get('rconip') or '127.0.0.1'
     if host=='0.0.0.0':host='127.0.0.1'
     return host,port,password

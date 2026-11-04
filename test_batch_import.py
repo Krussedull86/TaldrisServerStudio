@@ -97,7 +97,7 @@ class DialogTests(unittest.TestCase):
             root=Path(folder).resolve();server=root/'server';server.mkdir();(server/'DayZServer_x64.exe').touch();cfg=server/'serverDZ.cfg';cfg.write_text('hostname="Existing";');mod=server/'@Dev';(mod/'addons').mkdir(parents=True);(mod/'addons'/'dev.pbo').touch()
             path=root/'start.bat';path.write_text('cd /d "'+str(server)+'"\nstart "Test" DayZServer_x64.exe -config=serverDZ.cfg -mod=@Dev -serverMod=@Dev -name=Test')
             studio=QWidget();studio.manager=Manager(root/'data');dialog=BatchImportDialog(studio,path)
-            self.assertEqual(dialog.mods.rowCount(),1);self.assertEqual(dialog.mods.cellWidget(0,2).currentData(),'both');self.assertEqual(dialog.mods.item(0,3).text(),'Finnes');self.assertTrue(dialog.local.isChecked());self.assertEqual(len(studio.manager.state['servers']),1)
+            self.assertEqual(dialog.mods.rowCount(),1);self.assertEqual(dialog.mods.cellWidget(0,2).currentData(),'both');self.assertEqual(dialog.mods.item(0,3).text(),'Found');self.assertTrue(dialog.local.isChecked());self.assertEqual(len(studio.manager.state['servers']),1)
             dialog.fields['name'].setText('Reviewed')
             with patch.object(QMessageBox,'question',return_value=QMessageBox.Yes):dialog.commit()
             self.assertEqual(dialog.result_profile['name'],'Reviewed');self.assertEqual(len(studio.manager.state['servers']),2);self.assertEqual(cfg.read_text(),'hostname="Existing";');self.assertTrue(mod.is_dir());dialog.deleteLater();studio.deleteLater()

@@ -42,10 +42,10 @@ def error_excerpt(paths):
 
 def exit_label(code):
     value=int(code); unsigned=value&0xffffffff
-    details={0xC0000135:'Windows fant ikke en nødvendig DLL/runtime.',0xC000007B:'Windows kunne ikke laste en programfil eller DLL (ugyldig format).',0xC0000005:'Prosessen stoppet med en minnetilgangsfeil.',0xC0000142:'Windows klarte ikke å initialisere en DLL.'}
+    details={0xC0000135:'Windows could not find a required DLL/runtime.',0xC000007B:'Windows could not load an executable or DLL (invalid format).',0xC0000005:'The process stopped with a memory access violation.',0xC0000142:'Windows could not initialize a DLL.'}
     return f'{value} (0x{unsigned:08X})',details.get(unsigned,'')
 
 def describe(record):
     pid=record['pid']; state=record.get('state','starting'); seconds=int(time.monotonic()-record['started'])
-    if state=='exited':return f"STOPPET • PID {pid} • kode {record['exit_label']} • etter {record.get('uptime',seconds)} s"
-    return f"{'STARTER' if seconds<15 else 'PROSESS KJØRER'} • PID {pid} • {seconds} s • klar for spill er ikke bekreftet"
+    if state=='exited':return f"STOPPED • PID {pid} • code {record['exit_label']} • after {record.get('uptime', seconds)} s"
+    return f"{('STARTING' if seconds < 15 else 'PROCESS RUNNING')} • PID {pid} • {seconds} s • readiness for players is not confirmed"
