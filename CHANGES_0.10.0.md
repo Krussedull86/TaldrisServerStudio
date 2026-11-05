@@ -43,3 +43,7 @@ Feature organization was informed by mr-guard/dayz-server-manager (status, metri
 Python syntax and local collector data flow are checked. Offscreen UI previews cover the new views. A successful Windows build is not proof that live CPU/memory controls or the DayZ addon work on the target server. The PBO container can be validated locally; actual Enforce compilation and native FPS behavior require a DayZ test server. This is a development release. Automated test suites are skipped for the requested build-only publishing workflow.
 
 No automatic ban/wipe, remote cloud backend, global player database or exhaustive map-wide entity scan is added. File editing and backups continue through the existing guarded configuration workflow.
+
+## 0.10.1 hotfix
+
+Renames the telemetry snapshot field World to WorldName to avoid the built-in Enforce World type. The collector accepts both names for compatibility. Reinstall/update the server-only bridge while the server is stopped to replace the PBO.

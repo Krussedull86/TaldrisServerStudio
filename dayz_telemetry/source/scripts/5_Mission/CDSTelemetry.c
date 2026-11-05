@@ -31,7 +31,7 @@ class CDSSnapshot
     string Session;
     int Sequence;
     float Uptime;
-    string World;
+    string WorldName;
     int WorldSize;
     float EngineFps;
     float EngineMinFps;
@@ -114,7 +114,7 @@ modded class MissionServer
         m_CDSSequence++;
         sample.Sequence = m_CDSSequence;
         sample.Uptime = GetGame().GetTickTime();
-        sample.World = GetGame().GetWorldName();
+        sample.WorldName = GetGame().GetWorldName();
         sample.WorldSize = GetGame().GetWorld().GetWorldSize();
         sample.EngineFps = GetGame().GetAvgFPS(64);
         sample.EngineMinFps = GetGame().GetMinFPS(64);
