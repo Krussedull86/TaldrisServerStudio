@@ -11,45 +11,45 @@ class CDSModConfig
 };
 class CDSPlayerSample
 {
-    int Slot;
-    string Name;
-    float X;
-    float Z;
-    float Health;
-    int Ping;
+    int CDSSlot;
+    string CDSName;
+    float CDSX;
+    float CDSZ;
+    float CDSHealth;
+    int CDSPing;
 };
 class CDSLootSample
 {
-    string Type;
-    float X;
-    float Z;
+    string CDSType;
+    float CDSX;
+    float CDSZ;
 };
 class CDSSnapshot
 {
-    int Schema = 1;
-    string BridgeId;
-    string Session;
-    int Sequence;
-    float Uptime;
-    string WorldName;
-    int WorldSize;
-    float EngineFps;
-    float EngineMinFps;
-    float EngineMaxFps;
-    float UpdateFps;
-    float MeanFrameMs;
-    float PeakFrameMs;
-    int SlowFrames;
-    int PlayerCount;
-    ref array<ref CDSPlayerSample> Players = new array<ref CDSPlayerSample>;
-    ref array<ref CDSLootSample> Loot = new array<ref CDSLootSample>;
-    int LootRadius;
-    float LootX;
-    float LootZ;
-    float LootAge;
-    int Infected;
-    int Vehicles;
-    bool LootTruncated;
+    int CDSSchema = 1;
+    string CDSBridgeId;
+    string CDSSession;
+    int CDSSequence;
+    float CDSUptime;
+    string CDSWorldName;
+    int CDSWorldSize;
+    float CDSEngineFps;
+    float CDSEngineMinFps;
+    float CDSEngineMaxFps;
+    float CDSUpdateFps;
+    float CDSMeanFrameMs;
+    float CDSPeakFrameMs;
+    int CDSSlowFrames;
+    int CDSPlayerCount;
+    ref array<ref CDSPlayerSample> CDSPlayers = new array<ref CDSPlayerSample>;
+    ref array<ref CDSLootSample> CDSLoot = new array<ref CDSLootSample>;
+    int CDSLootRadius;
+    float CDSLootX;
+    float CDSLootZ;
+    float CDSLootAge;
+    int CDSInfected;
+    int CDSVehicles;
+    bool CDSLootTruncated;
 };
 modded class MissionServer
 {
@@ -109,23 +109,23 @@ modded class MissionServer
     protected void CDSWriteSnapshot()
     {
         CDSSnapshot sample = new CDSSnapshot;
-        sample.BridgeId = m_CDSConfig.BridgeId;
-        sample.Session = m_CDSSession;
+        sample.CDSBridgeId = m_CDSConfig.BridgeId;
+        sample.CDSSession = m_CDSSession;
         m_CDSSequence++;
-        sample.Sequence = m_CDSSequence;
-        sample.Uptime = GetGame().GetTickTime();
-        sample.WorldName = GetGame().GetWorldName();
-        sample.WorldSize = GetGame().GetWorld().GetWorldSize();
-        sample.EngineFps = GetGame().GetAvgFPS(64);
-        sample.EngineMinFps = GetGame().GetMinFPS(64);
-        sample.EngineMaxFps = GetGame().GetMaxFPS(64);
-        sample.UpdateFps = m_CDSFrames / m_CDSWindow;
-        sample.MeanFrameMs = 1000 * m_CDSWindow / m_CDSFrames;
-        sample.PeakFrameMs = 1000 * m_CDSPeak;
-        sample.SlowFrames = m_CDSSlow;
+        sample.CDSSequence = m_CDSSequence;
+        sample.CDSUptime = GetGame().GetTickTime();
+        sample.CDSWorldName = GetGame().GetWorldName();
+        sample.CDSWorldSize = GetGame().GetWorld().GetWorldSize();
+        sample.CDSEngineFps = GetGame().GetAvgFPS(64);
+        sample.CDSEngineMinFps = GetGame().GetMinFPS(64);
+        sample.CDSEngineMaxFps = GetGame().GetMaxFPS(64);
+        sample.CDSUpdateFps = m_CDSFrames / m_CDSWindow;
+        sample.CDSMeanFrameMs = 1000 * m_CDSWindow / m_CDSFrames;
+        sample.CDSPeakFrameMs = 1000 * m_CDSPeak;
+        sample.CDSSlowFrames = m_CDSSlow;
         array<Man> players = new array<Man>;
         GetGame().GetPlayers(players);
-        sample.PlayerCount = players.Count();
+        sample.CDSPlayerCount = players.Count();
         for (int index = 0; index < players.Count() && index < 128; index++)
         {
             PlayerBase player = PlayerBase.Cast(players[index]);
@@ -135,36 +135,36 @@ modded class MissionServer
             {
                 CDSPlayerSample point = new CDSPlayerSample;
                 vector position = player.GetPosition();
-                point.X = position[0];
-                point.Z = position[2];
-                point.Slot = player.GetIdentity().GetPlayerId();
-                point.Name = "";
+                point.CDSX = position[0];
+                point.CDSZ = position[2];
+                point.CDSSlot = player.GetIdentity().GetPlayerId();
+                point.CDSName = "";
                 if (m_CDSConfig.CollectNames)
-                    point.Name = player.GetIdentity().GetName();
-                point.Health = player.GetHealth("", "Health");
-                point.Ping = player.GetIdentity().GetPingAvg();
-                sample.Players.Insert(point);
+                    point.CDSName = player.GetIdentity().GetName();
+                point.CDSHealth = player.GetHealth("", "Health");
+                point.CDSPing = player.GetIdentity().GetPingAvg();
+                sample.CDSPlayers.Insert(point);
             }
         }
         // Scan one rotating player area every 15 seconds, never the whole map.
-        if (m_CDSConfig.ScanLoot && players.Count() > 0 && sample.Uptime - m_CDSLastScan >= 15)
+        if (m_CDSConfig.ScanLoot && players.Count() > 0 && sample.CDSUptime - m_CDSLastScan >= 15)
         {
             m_CDSScanIndex = m_CDSScanIndex % players.Count();
             Man anchor = players[m_CDSScanIndex];
             m_CDSScanIndex++;
             if (anchor)
-                CDSScanLoot(anchor.GetPosition(), sample.Uptime);
+                CDSScanLoot(anchor.GetPosition(), sample.CDSUptime);
         }
         if (m_CDSConfig.ScanLoot && m_CDSLastScan > 0)
         {
-            sample.Loot = m_CDSLoot;
-            sample.LootRadius = m_CDSConfig.LootRadius;
-            sample.LootX = m_CDSScanPosition[0];
-            sample.LootZ = m_CDSScanPosition[2];
-            sample.LootAge = sample.Uptime - m_CDSLastScan;
-            sample.Infected = m_CDSInfected;
-            sample.Vehicles = m_CDSVehicles;
-            sample.LootTruncated = m_CDSTruncated;
+            sample.CDSLoot = m_CDSLoot;
+            sample.CDSLootRadius = m_CDSConfig.LootRadius;
+            sample.CDSLootX = m_CDSScanPosition[0];
+            sample.CDSLootZ = m_CDSScanPosition[2];
+            sample.CDSLootAge = sample.CDSUptime - m_CDSLastScan;
+            sample.CDSInfected = m_CDSInfected;
+            sample.CDSVehicles = m_CDSVehicles;
+            sample.CDSLootTruncated = m_CDSTruncated;
         }
         string error;
         string output = "$profile:CDSTelemetry/snapshot" + (m_CDSSequence % 2).ToString() + ".json";
@@ -203,9 +203,9 @@ modded class MissionServer
             }
             CDSLootSample point = new CDSLootSample;
             vector position = item.GetPosition();
-            point.Type = item.GetType();
-            point.X = position[0];
-            point.Z = position[2];
+            point.CDSType = item.GetType();
+            point.CDSX = position[0];
+            point.CDSZ = position[2];
             m_CDSLoot.Insert(point);
         }
         if (objects.Count() > 10000)

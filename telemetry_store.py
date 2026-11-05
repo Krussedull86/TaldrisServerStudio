@@ -85,6 +85,17 @@ class TelemetryStore:
         except (OSError,ValueError,TypeError):return
     @staticmethod
     def validate(raw,bridge,p):
+        # Enforce member names share a namespace with engine/mod types. New
+        # snapshots prefix every DTO member; accept legacy JSON as well.
+        def members(value):
+            return {(key[3:] if key.startswith('CDS') else key): item for key,item in value.items()}
+        if isinstance(raw,dict):
+            raw=members(raw)
+            for key,limit in (('Players',128),('Loot',250)):
+                values=raw.get(key)
+                if isinstance(values,list):
+                    if len(values)>limit:raise ValueError('Telemetry list exceeds limits.')
+                    raw[key]=[members(item) if isinstance(item,dict) else item for item in values]
         if not isinstance(raw,dict) or not bridge or raw.get('BridgeId')!=bridge or raw.get('Schema')!=1:raise ValueError('Unknown telemetry source.')
         def number(v,lo,hi):
             if type(v) not in (int,float) or not math.isfinite(v) or not lo<=v<=hi:raise ValueError('Invalid telemetry number.')

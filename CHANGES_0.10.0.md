@@ -47,3 +47,7 @@ No automatic ban/wipe, remote cloud backend, global player database or exhaustiv
 ## 0.10.1 hotfix
 
 Renames the telemetry snapshot field World to WorldName to avoid the built-in Enforce World type. The collector accepts both names for compatibility. Reinstall/update the server-only bridge while the server is stopped to replace the PBO.
+
+## 0.10.2 hotfix
+
+Prefixes every player, loot and snapshot DTO member with CDS, including the engine type collision Slot. The collector normalizes the prefixed fields and still accepts older snapshots. Existing bridge configuration is preserved. Reinstall/update the server-only bridge after updating Studio.
