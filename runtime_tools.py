@@ -7,6 +7,9 @@ def arguments(value):
     return [v for v,_ in tokenize(value)]
 
 def validate_runtime(profile):
+    from performance_policy import policy
+    from telemetry_store import settings
+    policy(profile);settings(profile)
     for key in ('log_rotation_enabled','mod_restart_enabled'):
         if not isinstance(profile.get(key,False),bool):raise ValueError(key+' must be on/off.')
     for key,default,low,high in [('log_keep_days',14,1,3650),('log_keep_archives',20,1,1000),('log_max_mb',1024,10,102400),('mod_grace_minutes',15,1,1440)]:

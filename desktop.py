@@ -31,6 +31,11 @@ QHeaderView::section {background:#19263a;color:#94a8c5;padding:12px;border:0;fon
 QTableWidget::item {padding:8px;} QScrollArea {border:0;}
 QScrollBar:vertical {background:#101725;width:9px;} QScrollBar::handle:vertical {background:#34465f;border-radius:4px;min-height:25px;}
 QStatusBar {color:#8d9eb9;border-top:1px solid #263449;}
+QSpinBox {background:#101a29;border:1px solid #2c3c53;border-radius:8px;padding:9px;color:#e4ebf7;min-height:20px;}
+QTabWidget::pane {border:1px solid #263449;border-radius:9px;}
+QTabBar::tab {background:#141e2e;color:#94a8c5;border:1px solid #263449;padding:9px 16px;min-height:20px;}
+QTabBar::tab:selected {background:#1e343b;color:#7ceacc;border-bottom:2px solid #65dfc5;}
+
 QCheckBox {spacing:10px;padding:8px;} QToolTip {background:#23344d;color:white;border:1px solid #476080;}
 '''
 def label(text,style=None):

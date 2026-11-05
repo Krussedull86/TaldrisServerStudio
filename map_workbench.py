@@ -67,6 +67,10 @@ class MapWorkbench(QWidget):
         row=QHBoxLayout();row.addWidget(button('Undo',lambda:studio.guard(lambda:self.history_step(False))));row.addWidget(button('Redo',lambda:studio.guard(lambda:self.history_step(True))));row.addStretch();layout.addLayout(row)
         self.view=MapView(self);layout.addWidget(self.view,1);self.cursor=label('X / Z','eyebrow');layout.addWidget(self.cursor);self.status=label('Zoom with the mouse wheel. Drag the map to pan. Double-click to add a point to the selected group. Drag a point to move it.','muted');layout.addWidget(self.status)
         self.layer_choice.currentIndexChanged.connect(self.choose_layer)
+        self.live_items=[];live=QHBoxLayout();self.live_players=QCheckBox('Live players');self.live_players.setChecked(True);self.live_heat=QCheckBox('Player heatmap');self.live_loot=QCheckBox('Sampled loot')
+        for box in (self.live_players,self.live_heat,self.live_loot):live.addWidget(box);box.toggled.connect(lambda:self.draw_live(getattr(self.studio,'analytics_cache',{}).get(self.studio.p['id'],{})))
+        self.live_status=label('Telemetry: not connected','muted');live.addWidget(self.live_status);layout.insertLayout(2,live)
+
     def world_to_scene(self,x,z):
         size=float(self.studio.p['map_size']);return x/size*1000,(1-z/size)*1000
     def scene_to_world(self,x,y):
@@ -103,6 +107,7 @@ class MapWorkbench(QWidget):
         layer=self.active_layer()
         if layer:layer['visible']=not layer['visible'];self.render()
     def render(self):
+        self.live_items=[]
         scene=self.view.scene();scene.clear();pix=QPixmap(self.studio.p.get('map_image',''))
         if not pix.isNull():scene.addPixmap(pix.scaled(1000,1000,Qt.IgnoreAspectRatio,Qt.SmoothTransformation))
         else:
@@ -120,7 +125,31 @@ class MapWorkbench(QWidget):
                         if r>0:
                             x,y=self.world_to_scene(point['x'],point['z']);item.radius_item=scene.addEllipse(-r,-r,2*r,2*r,QPen(QColor(layer['color'])));item.radius_item.setPos(x,y);item.radius_item.setZValue(1)
                     except ValueError:pass
-        scene.setSceneRect(QRectF(-20,-20,1040,1040));self.fit()
+        scene.setSceneRect(QRectF(-20,-20,1040,1040));self.draw_live(getattr(self.studio,'analytics_cache',{}).get(self.studio.p['id'],{}));self.fit()
+    def draw_live(self,data):
+        if not hasattr(self,'live_items'):return
+        import html
+        scene=self.view.scene()
+        for item in self.live_items:scene.removeItem(item)
+        self.live_items=[];status=data.get('status',{});sample=status.get('sample') if status.get('connected') else None
+        self.live_status.setText('Telemetry: '+status.get('message','not connected'))
+        heat=data.get('heat',[])
+        if self.live_heat.isChecked() and heat:
+            maximum=max(v['seconds'] for v in heat);width=100/float(self.studio.p['map_size'])*1000
+            for point in heat:
+                x,y=self.world_to_scene(point['x'],point['z']);color=QColor('#ff9b54');color.setAlpha(int(35+155*point['seconds']/max(1,maximum)))
+                item=scene.addRect(x-width/2,y-width/2,width,width,QPen(Qt.NoPen),QBrush(color));item.setZValue(3);item.setToolTip(f"Occupancy: {point['seconds']:.0f} player-seconds / 100 m cell");self.live_items.append(item)
+        if not sample:return
+        if abs(sample['world_size']-float(self.studio.p['map_size']))>1:self.live_status.setText('Telemetry connected — map size differs from game world; check map calibration')
+        if self.live_loot.isChecked() and sample['loot_age']<=60:
+            if sample['loot_radius']>0:
+                x,y=self.world_to_scene(sample['loot_x'],sample['loot_z']);r=sample['loot_radius']/float(self.studio.p['map_size'])*1000
+                item=scene.addEllipse(x-r,y-r,r*2,r*2,QPen(QColor('#a78aff')),QBrush(QColor(167,138,255,25)));item.setZValue(3);item.setToolTip(f"Current loot sample area • age {sample['loot_age']:.1f} s");self.live_items.append(item)
+            for point in sample['loot']:
+                x,y=self.world_to_scene(point['x'],point['z']);item=scene.addRect(-2,-2,4,4,QPen(QColor('#e1acff')),QBrush(QColor('#a78aff')));item.setPos(x,y);item.setFlag(QGraphicsItem.ItemIgnoresTransformations);item.setZValue(4);item.setToolTip(html.escape(point['type'])+' (sampled ground loot)');self.live_items.append(item)
+        if self.live_players.isChecked():
+            for point in sample['players']:
+                x,y=self.world_to_scene(point['x'],point['z']);item=scene.addEllipse(-4,-4,8,8,QPen(QColor('#e5fff8')),QBrush(QColor('#65dfc5')));item.setPos(x,y);item.setFlag(QGraphicsItem.ItemIgnoresTransformations);item.setZValue(6);item.setToolTip(html.escape(point['name'])+f" — health {point['health']:.0f}, ping {point['ping']} ms");self.live_items.append(item)
     def fit(self):self.view.fitInView(self.view.sceneRect(),Qt.KeepAspectRatio)
     def update_document(self,layer):layer['doc'].text=xml_text(layer['root'])
     def add_point(self,x,y):

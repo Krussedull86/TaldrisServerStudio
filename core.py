@@ -69,12 +69,15 @@ def command(p):
         folders=[str(mod_path(p,m)) if m.get('source')=='local' else m['folder'] for m in p['mods'] if m.get('enabled',True) and mod_load_mode(m) in (('server','both') if server else ('client','both'))]
         if folders: args.append(flag+';'.join(folders))
     args.extend(p.get('extra_args',[]))
-    return args
+    from performance_policy import launch_arguments
+    return launch_arguments(p,args)
 
 class Manager:
     def __init__(self, home, log=lambda s:None):
         self.home=Path(home); self.home.mkdir(parents=True,exist_ok=True)
         self.file=self.home/'settings.json'; self.log=log; self.procs={}; self.launches={}; self.busy=set(); self.lock=threading.RLock()
+        from performance_policy import ProcessPolicies
+        self.performance=ProcessPolicies()
         self.state=json.loads(self.file.read_text('utf-8')) if self.file.exists() else {'servers':[]}
         if not self.state['servers']: self.add()
         for p in self.state['servers']:
@@ -150,6 +153,12 @@ class Manager:
             try:proc=subprocess.Popen(args,cwd=str(root),creationflags=flags)
             except OSError as e:
                 self.log('Could not start '+args[0]+': '+str(e)); raise
+            try:record['performance']=self.performance.apply(p,proc.pid)
+            except Exception as error:
+                proc.terminate()
+                try:proc.wait(timeout=5)
+                except subprocess.TimeoutExpired:proc.kill();proc.wait(timeout=5)
+                raise ValueError('Performance policy could not be applied; the newly created server was stopped: '+str(error)) from error
             record.update(proc=proc,pid=proc.pid); self.procs[p['id']]=proc; self.launches[p['id']]=record
             save_processes(self)
             self.log('Launching EXE: '+args[0])

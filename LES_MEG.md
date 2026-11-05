@@ -77,3 +77,9 @@ Uninstallation removes the launcher, shortcuts and Installed apps entry. It pres
 ## Validation
 
 The current English release is built without automated test suites, as requested. Python syntax checks and window previews cover local verification; Windows Steam login, Guard, downloads, service operation and actual player connections still require confirmation on the target machine. External game/mod content and user-created names retain their original text.
+
+## Performance and Live analytics
+
+Select a server tab, then use Performance for CPU affinity, priority, worker count, FPS ceiling, CPU budget and RAM settings. A hard private-commit memory ceiling may crash DayZ when reached; it is disabled by default. Use warning-only monitoring first.
+
+For Live analytics, stop the server, enable collection settings, install/update the server-only bridge and restart. Native engine FPS and script-update timing are separate measurements; network tick rate is not inferred. Loot counts cover sampled player areas only. See the included 0.10.0 guide for setup, retention, Discord reporting and limitations. The community invite is configured separately under Discord / service.

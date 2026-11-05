@@ -1,0 +1,9 @@
+{
+  "BridgeId": "REPLACE_WITH_32_HEXADECIMAL_CHARACTERS",
+  "Enabled": true,
+  "IntervalSeconds": 5,
+  "CollectPlayers": true,
+  "CollectNames": false,
+  "ScanLoot": false,
+  "LootRadius": 75
+}

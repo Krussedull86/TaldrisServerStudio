@@ -49,3 +49,7 @@ python -m unittest discover -v
 ```
 
 The application does not provide live player positions without an additional integration, configure router/NAT rules, automatically resolve every mod dependency, or perform automatic world wipes.
+
+## 0.10.0 — per-server workspace and analytics
+
+Server tabs, CPU/priority/memory controls, native engine FPS and frame-time telemetry, local history, live player/loot overlays, occupancy heatmaps and a configurable community Discord link. See [0.10.0 setup and limits](CHANGES_0.10.0.md). The new server-only addon is a development build and needs DayZ test-server verification.

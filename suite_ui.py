@@ -34,6 +34,30 @@ class SuiteStudio(OperationsStudio):
         transfer=QHBoxLayout();transfer.addWidget(button('Export profile …',lambda:self.guard(self.export_server_profile)));transfer.addWidget(button('Import profile …',lambda:self.guard(self.import_server_profile)));self.stack.widget(7).layout().insertLayout(0,transfer)
         self.stack.widget(0).layout().addWidget(button('Fix dependencies …',lambda:self.guard(self.fix_dependencies)))
         self.stage_label=label('Stage: Idle','eyebrow');self.terminal_detail.parentWidget().layout().insertWidget(0,self.stage_label)
+        from PySide6.QtWidgets import QTabBar
+        self.server_tabs=QTabBar();self.server_tabs.setExpanding(False);self.server_tabs.setUsesScrollButtons(True);self.server_tabs.setDocumentMode(True);self.server_tabs.setMinimumHeight(38)
+        self.centralWidget().layout().itemAt(1).layout().insertWidget(1,self.server_tabs)
+        self.file_context=label('File editor • backups are created before every saved edit','eyebrow');self.stack.widget(4).layout().insertWidget(0,self.file_context)
+        self.server_tabs.currentChanged.connect(lambda index:self.selector.setCurrentIndex(index) if index>=0 else None)
+        self.sync_server_tabs()
+        from analytics_ui import PerformancePage,AnalyticsPage
+        self.performance_page=PerformancePage(self);self.analytics_page=AnalyticsPage(self)
+        for title,widget in [('Performance',self.performance_page),('Live analytics',self.analytics_page)]:
+            index=self.stack.addWidget(widget);self.page_names.append(title);b=button(title,lambda checked=False,n=index:self.go(n),'nav');b.setCheckable(True);side.insertWidget(side.count()-4,b);self.nav.append(b)
+        from community_ui import CommunityControls
+        self.community=CommunityControls(self)
+
+    def sync_server_tabs(self):
+        self.server_tabs.blockSignals(True)
+        profiles=self.manager.state['servers'];keys=[self.server_tabs.tabData(i) for i in range(self.server_tabs.count())]
+        if keys!=[p['id'] for p in profiles]:
+            while self.server_tabs.count():self.server_tabs.removeTab(0)
+            for p in profiles:
+                index=self.server_tabs.addTab(p['name']);self.server_tabs.setTabData(index,p['id'])
+        for i,p in enumerate(profiles):
+            self.server_tabs.setTabText(i,p['name']);self.server_tabs.setTabToolTip(i,p.get('root','') or 'Choose a server folder')
+            if p['id']==self.p['id']:self.server_tabs.setCurrentIndex(i)
+        self.server_tabs.blockSignals(False)
     def repair_background_agent(self):
         if getattr(self,'repair_in_progress',False):return
         from agent_repair import repair
@@ -71,6 +95,10 @@ class SuiteStudio(OperationsStudio):
     def load(self):
         super().load()
         if hasattr(self,'loot'):self.loot.update_target()
+        if hasattr(self,'server_tabs'):self.sync_server_tabs()
+        if hasattr(self,'file_context'):self.file_context.setText('File editor • '+self.p['name']+' • every save keeps a backup')
+        if hasattr(self,'performance_page'):self.performance_page.load()
+        if hasattr(self,'analytics_page'):self.analytics_page.load()
         if hasattr(self,'rcon_path'):self.rcon_path.setText(self.p.get('rcon_config',''))
     def overview(self):
         super().overview()

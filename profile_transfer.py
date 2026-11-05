@@ -2,7 +2,7 @@
 import copy,json,uuid
 from pathlib import Path
 from core import DEFAULT,validate
-FIELDS={'name','root','steamcmd','login_mode','workshop','config','profiles','port','mods','markers','map_size','map_image','extra_args','auto_firewall','query_enabled','auto_update','update_minutes','mission','max_players','update_game','scheduled_restart','restart_mode','restart_times','restart_interval','maintenance_backup','backup_keep','crash_recovery','log_rotation_enabled','log_keep_days','log_keep_archives','log_max_mb','mod_restart_enabled','mod_grace_minutes'}
+FIELDS={'performance','telemetry','name','root','steamcmd','login_mode','workshop','config','profiles','port','mods','markers','map_size','map_image','extra_args','auto_firewall','query_enabled','auto_update','update_minutes','mission','max_players','update_game','scheduled_restart','restart_mode','restart_times','restart_interval','maintenance_backup','backup_keep','crash_recovery','log_rotation_enabled','log_keep_days','log_keep_archives','log_max_mb','mod_restart_enabled','mod_grace_minutes'}
 MOD_FIELDS={'folder','id','title','source','path','enabled','server','load_mode','installed_updated','remote_updated'}
 
 def sanitized(raw):

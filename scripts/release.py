@@ -20,10 +20,17 @@ def package():
     shutil.copy2(binary,out/'CruzDoodelZServerStudio-Setup.exe')
     target=out/'TaldrisServerStudio-Windows.zip'
     with zipfile.ZipFile(target,'w',zipfile.ZIP_DEFLATED) as z:
-        z.write(binary,binary.name); z.writestr('LES_MEG.md',(ROOT/'LES_MEG.md').read_text('utf-8')+'\n\n'+(ROOT/'DRIFT_DISCORD_EDITORER.md').read_text('utf-8'))
+        z.write(binary,binary.name); z.writestr('LES_MEG.md',(ROOT/'LES_MEG.md').read_text('utf-8')+'\n\n'+(ROOT/'DRIFT_DISCORD_EDITORER.md').read_text('utf-8')+'\n\n'+(ROOT/'CHANGES_0.10.0.md').read_text('utf-8'))
     info=dict(version=v.VERSION,build=v.BUILD,sha256=sha(target),size=target.stat().st_size,asset=target.name)
     (out/'build.json').write_text(json.dumps(info,indent=2),encoding='utf-8')
-    (out/'SHA256SUMS.txt').write_text(info['sha256']+'  '+target.name+'\n'+sha(out/'TaldrisServerStudio-Setup.exe')+'  TaldrisServerStudio-Setup.exe\n'+sha(out/'CruzDoodelZServerStudio-Setup.exe')+'  CruzDoodelZServerStudio-Setup.exe\n',encoding='utf-8')
+    modzip=out/'CDSTelemetry-ServerMod.zip'
+    with zipfile.ZipFile(modzip,'w',zipfile.ZIP_DEFLATED) as z:
+        for file in sorted((ROOT/'dayz_telemetry/@CDSTelemetry').rglob('*')):
+            if file.is_file():z.write(file,file.relative_to(ROOT/'dayz_telemetry').as_posix())
+        z.write(ROOT/'dayz_telemetry/README.md','README.md');z.write(ROOT/'dayz_telemetry/config.example.json','config.example.json')
+    files=[target,out/'TaldrisServerStudio-Setup.exe',out/'CruzDoodelZServerStudio-Setup.exe',modzip]
+    (out/'SHA256SUMS.txt').write_text(''.join(sha(file)+'  '+file.name+'\n' for file in files),encoding='utf-8')
+
 def publish_dev():
     out=ROOT/'release_output'; info=json.loads((out/'build.json').read_text())
     tag=f"dev-v{info['version']}.b{info['build']}"

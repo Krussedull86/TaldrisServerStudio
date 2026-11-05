@@ -10,7 +10,7 @@ from steam_status import plain_terminal
 from process_registry import save_processes
 from rcon_client import server_command
 
-EDITABLE={'name','root','steamcmd','steam_user','login_mode','workshop','config','profiles','port','mods','markers','map_size','map_image','extra_args','auto_firewall','query_enabled','auto_update','update_minutes','mission','max_players','start_after_install','update_game','scheduled_restart','restart_mode','restart_times','restart_interval','maintenance_backup','backup_keep','crash_recovery','rcon_config','local_scan_root','autostart','programs','log_rotation_enabled','log_keep_days','log_keep_archives','log_max_mb','mod_restart_enabled','mod_grace_minutes'}
+EDITABLE={'performance','telemetry','name','root','steamcmd','steam_user','login_mode','workshop','config','profiles','port','mods','markers','map_size','map_image','extra_args','auto_firewall','query_enabled','auto_update','update_minutes','mission','max_players','start_after_install','update_game','scheduled_restart','restart_mode','restart_times','restart_interval','maintenance_backup','backup_keep','crash_recovery','rcon_config','local_scan_root','autostart','programs','log_rotation_enabled','log_keep_days','log_keep_archives','log_max_mb','mod_restart_enabled','mod_grace_minutes'}
 
 
 def offline_job(fn):
@@ -29,6 +29,8 @@ def offline_job(fn):
 class HostEngine:
     def __init__(self,home,service=False):
         self.home=Path(home);self.home.mkdir(parents=True,exist_ok=True);self.service=service;self.events=deque(maxlen=1000);self.event_id=0;self.event_lock=threading.RLock();self.secrets=[];self.manager=Manager(self.home,self.log)
+        from telemetry_store import TelemetryStore
+        self.analytics=TelemetryStore(self.home);self.analytics_procs={};self.analytics_due={};self.resource_warnings={};self.warning_last={}
         self.jobs={};self.queue=queue.Queue();self.stop_event=threading.Event();self.worker=None;self.schedule_thread=None;self.console='';self.pty=None;self.secrets=[];self.steam_profile=None;self.check_due={};self.retries={};self.crashes={};self.health={};self.health_due={};self.metric_procs={};self.rcon_locks={};self.pending_upgrade_exe=None;self.fast_threads=[];self.program_due={};self.program_runtime={};self.pending_keys=set();self.pending_lock=threading.Lock();self.discord=None
         from companion_programs import CompanionPrograms
         self.companions=CompanionPrograms()
@@ -79,6 +81,9 @@ class HostEngine:
                             if proc is None:proc=psutil.Process(record['pid']);self.metric_procs[(record['pid'],record['started_wall'])]=proc
                             entry['ram_mb']=round(proc.memory_info().rss/1024**2);entry['cpu_percent']=round(proc.cpu_percent(None),1);entry['disk_free_gb']=round(shutil.disk_usage(p['root']).free/1024**3,1)
                         except (psutil.Error,OSError):pass
+                telemetry=self.analytics.status(p)
+                if not running:telemetry.update(connected=False,sample=None,message='Server stopped')
+                entry['telemetry']=telemetry;entry['performance']=record.get('performance',{}) if record else {};entry['resource_warning']=self.resource_warnings.get(p['id'],'')
                 runtime[p['id']]=entry
             state=copy.deepcopy(self.manager.state)
             with self.event_lock:events=[copy.deepcopy(e) for e in self.events if e['id']>since]
@@ -97,6 +102,7 @@ class HostEngine:
                     if key in boolean and not isinstance(pair['after'],bool):raise ValueError(key+' must be on/off.')
                     candidate[key]=pair['after']
                 if any(k in {'name','root','steamcmd','steam_user','login_mode','workshop','config','profiles','port','mods','mission','extra_args','auto_firewall','query_enabled'} for k in change['fields']) and (self.manager.running(p) or p['id'] in self.manager.busy):raise ValueError('Stop the server before changing server settings.')
+                if 'telemetry' in change['fields'] and self.manager.running(p):raise ValueError('Stop the server before changing telemetry collection settings, then install/update the bridge.')
                 from runtime_tools import validate_runtime
                 validate_runtime(candidate)
                 if 'programs' in change['fields'] and p['id'] in self.manager.busy:raise ValueError('Wait for the server job to finish before changing the EXE list.')
@@ -226,6 +232,22 @@ class HostEngine:
                 with self.manager.lock:self.manager.busy.discard(p['id'])
         if action=='program_status':
             result=self.companions.statuses(p.get('programs',[]));self.program_runtime[p['id']]=result;return result
+        if action=='performance_apply':
+            with self.manager.lock:
+                if not self.manager.running(p):raise ValueError('Start the server before applying live process controls.')
+                record=self.manager.launches[p['id']]
+                result=self.manager.performance.apply(p,record['pid']);record['performance']=result
+                return 'CPU scheduling and memory policy applied. Worker count and FPS limit take effect after restart.'
+        if action=='telemetry_install':
+            self.editable(p)
+            from telemetry_store import install
+            with self.manager.lock:
+                self.editable(p);result=install(p);self.manager.save()
+            return result
+        if action=='analytics':
+            result=self.analytics.query(p,params.get('hours',1))
+            if not self.manager.running(p):result['status'].update(connected=False,sample=None,message='Server stopped')
+            return result
         if action=='rotate_logs':return self.rotate_logs(p)
         if action=='mods':return [{'index':i,**{key:m.get(key) for key in ('folder','id','title','enabled','load_mode','source','installed_updated','remote_updated')}} for i,m in enumerate(p['mods'])]
         if action=='backups':return [{'archive':f.name,'size_mb':round(f.stat().st_size/1024**2,2),'created':f.stat().st_mtime} for f in sorted((self.home/'backups'/p['id']).glob('*.zip'),reverse=True)]
@@ -562,7 +584,7 @@ class HostEngine:
         if self.pending_upgrade_exe and not self.manager.busy and not any(j['status'] in ('queued','running') for j in self.jobs.values()) and hasattr(self,'api'):
             self.api.call('upgrade',{'exe':self.pending_upgrade_exe});self.pending_upgrade_exe=None;return
         if getattr(self,'upgrade_pending',False):return
-        now=time.time();events=self.manager.poll_processes()
+        now=time.time();events=self.manager.poll_processes();self.manager.performance.prune()
         for event in events:
             p=self.profile(event['profile_id']);record=self.manager.launches[p['id']];request=p.get('shutdown_request');due=record.get('restart_due')
             planned=bool(due and abs(now-due)<300 and event['code']==0 and not event['expected_stop'])
@@ -577,6 +599,25 @@ class HostEngine:
                 else:self.log(p['name']+': crash recovery blocked after 3 attempts in 15 minutes.')
         for p in self.manager.state['servers']:
             key=p['id'];running=self.manager.running(p);request=p.get('shutdown_request')
+            if running and now>=self.analytics_due.get(key,0):
+                self.analytics_due[key]=now+5
+                try:
+                    record=self.manager.launches[key];identity=(record['pid'],record['started_wall'])
+                    proc=self.analytics_procs.get(identity)
+                    if proc is None:proc=psutil.Process(record['pid']);self.analytics_procs[identity]=proc
+                    if not record.get('performance'):record['performance']=self.manager.performance.inspect(record['pid'])
+                    memory=proc.memory_info();metrics=dict(cpu_percent=proc.cpu_percent(None),ram_mb=memory.rss/1024**2)
+                    self.analytics.sample(p,record,metrics)
+                    from performance_policy import policy
+                    desired=policy(p);warning=''
+                    if desired['ram_warning_mb'] and metrics['ram_mb']>=desired['ram_warning_mb']:warning='RAM warning: '+str(round(metrics['ram_mb']))+' MB working set'
+                    sample=self.analytics.status(p).get('sample')
+                    if sample and sample['fps']<p.get('telemetry',{}).get('low_fps',15):warning+=(' • ' if warning else '')+'Low server update FPS: '+str(round(sample['fps'],1))
+                    if warning and now-self.warning_last.get(key,0)>=300:self.log(p['name']+': '+warning);self.warning_last[key]=now
+                    self.resource_warnings[key]=warning
+                except (OSError,ValueError,psutil.Error) as error:self.resource_warnings[key]='Analytics unavailable: '+str(error)
+            elif not running:self.analytics.latest.pop(key,None);self.resource_warnings.pop(key,None)
+
             if p.get('programs') and now>=self.program_due.get(key,0):
                 self.program_due[key]=now+15;self.program_runtime[key]=self.companions.statuses(p['programs'])
             if not p.get('query_enabled',True):self.health[key]={'responding':False,'disabled':True,'checked':now}

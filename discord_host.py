@@ -3,7 +3,7 @@ import asyncio,io,json,threading,time
 from pathlib import Path
 from host_security import load_secrets
 
-PERMISSIONS={
+PERMISSIONS={'analytics':'read',
  'status':'read','players':'read','bans':'moderate','start':'control','stop':'control','restart':'control','cancel_restart':'control','lock':'control','unlock':'control','say':'moderate','kick':'moderate','ban':'moderate','unban':'moderate',
  'mods':'read','backups':'maintenance','files':'owner','file_history':'owner','file_restore':'owner','logs':'read','schedule_set':'config','workshop_search':'read','local_mod_scan':'owner','local_mod_add':'owner','mod_collection':'config','backup':'maintenance','restore':'owner','rollback_mods':'maintenance','maintenance':'maintenance','steam':'maintenance','check_mods':'read','mod_add':'config','mod_remove':'config','mod_mode':'config','mod_move':'config','document_save':'owner','list_add':'config','clone':'owner','force_stop':'owner','program_prepare':'owner','program_status':'read','rotate_logs':'maintenance'}
 DANGEROUS={'file_restore','restore','force_stop','rollback_mods','ban','unban','document_save','mod_remove','clone','program_prepare'}
@@ -52,6 +52,11 @@ class DiscordHost:
         async def dispatch(interaction,server,action,data=None,confirmed=False):
             try:
                 p=engine.profile(server);check(interaction,p['id'],action)
+                if action=='analytics':
+                    sample=engine.analytics.status(p).get('sample') if engine.manager.running(p) else None
+                    if not sample:await interaction.response.send_message('No fresh server-mod telemetry is connected.',ephemeral=True);return
+                    text=f"**{p['name']}**\nEngine FPS: {sample.get('engine_fps',0):.1f} • script updates/s: {sample['fps']:.1f}\nMean / peak frame: {sample['frame_ms']:.2f} / {sample['peak_ms']:.2f} ms\nPlayers: {sample['player_count']}\nLocal ground-loot sample: {len(sample['loot'])} items in {sample['loot_radius']:.0f} m (age {sample['loot_age']:.1f} s)"
+                    await interaction.response.send_message(text,ephemeral=True,allowed_mentions=discord.AllowedMentions.none());return
                 if action=='status':
                     snap=engine.snapshot();runtime=snap['runtime'][p['id']];record=runtime.get('launch',{});text=f"**{p['name']}**\n{('Process running' if runtime['running'] else 'Stopped')} • port {p['port']}\nRAM: {runtime.get('ram_mb', '—')} MB\nMaintenance: {p.get('maintenance_state', 'idle')}"
                     if record.get('restart_due'):
@@ -69,8 +74,8 @@ class DiscordHost:
                             try:
                                 check(interaction,p['id'],action);value=current.get('error',current.get('result','Completed.'));text=engine.redact(json.dumps(value,indent=2,ensure_ascii=False) if isinstance(value,(dict,list)) else str(value))
                                 if isinstance(value,dict) and value.get('artifact'):
-                                    path=engine.home/'job_results'/value['artifact'];await interaction.followup.send('Jobbresultat:',file=discord.File(path),ephemeral=True)
-                                elif len(text)>1900:await interaction.followup.send('Jobbresultat:',file=discord.File(io.BytesIO(text.encode()),filename='resultat.txt'),ephemeral=True)
+                                    path=engine.home/'job_results'/value['artifact'];await interaction.followup.send('Job result:',file=discord.File(path),ephemeral=True)
+                                elif len(text)>1900:await interaction.followup.send('Job result:',file=discord.File(io.BytesIO(text.encode()),filename='result.txt'),ephemeral=True)
                                 else:await interaction.followup.send(text,ephemeral=True,allowed_mentions=discord.AllowedMentions.none())
                             except Exception:pass
                             return
@@ -88,7 +93,7 @@ class DiscordHost:
             @discord.ui.button(label='Cancel',style=discord.ButtonStyle.secondary)
             async def cancel(self,interaction:discord.Interaction,button:discord.ui.Button):
                 if interaction.user.id!=self.user:await interaction.response.send_message('This confirmation belongs to another user.',ephemeral=True);return
-                self.used=True;self.stop();await interaction.response.edit_message(content='Avbrutt.',view=None)
+                self.used=True;self.stop();await interaction.response.edit_message(content='Cancelled.',view=None)
         class ControlView(discord.ui.View):
             def __init__(self):super().__init__(timeout=None)
             async def server(self,interaction):
@@ -121,6 +126,8 @@ class DiscordHost:
         async def restart(interaction:discord.Interaction,server:str,minutes:app_commands.Range[int,1,1440]=10):await dispatch(interaction,server,'restart',{'minutes':minutes})
         @group.command(name='stop',description='Stop with player warning and countdown')
         async def stop(interaction:discord.Interaction,server:str,minutes:app_commands.Range[int,1,1440]=10):await dispatch(interaction,server,'stop',{'minutes':minutes})
+        @group.command(name='analytics',description='Show engine FPS, frame times and sampled world metrics')
+        async def analytics(interaction:discord.Interaction,server:str):await dispatch(interaction,server,'analytics')
         @group.command(name='players',description='Get player list from RCon')
         async def players(interaction:discord.Interaction,server:str):await dispatch(interaction,server,'players')
         @group.command(name='message',description='Send a message to all players')
@@ -179,7 +186,7 @@ class DiscordHost:
                     channel=self.client.get_channel(int(settings.get('channel_id') or 0))
                     if not channel or str(getattr(channel.guild,'id',''))!=str(settings['guild_id']):continue
                     events=engine.snapshot(cursor)['events'];cursor=engine.event_id
-                    important=[e['text'] for e in events if any(word in e['text'].casefold() for word in ('failed','crash','exited','completed','restart','restart','started'))]
+                    important=[e['text'] for e in events if any(word in e['text'].casefold() for word in ('failed','crash','exited','completed','restart','started','ram warning','low server update fps'))]
                     if important:await channel.send('\n'.join(important[-8:])[:1900],allowed_mentions=discord.AllowedMentions.none())
                     if time.time()-last_panels>60:
                         last_panels=time.time()

@@ -33,6 +33,19 @@ class AgentAPI:
     def call(self,method,params):
         e=self.engine
         if method=='snapshot':return e.snapshot(int(params.get('since',0)))
+        if method=='community':
+            from community_settings import validate_invite
+            invite=validate_invite(str(params.get('invite','')))
+            if type(params.get('show_startup',True)) is not bool:raise ValueError('Startup welcome must be on/off.')
+            with e.manager.lock:e.manager.state['community']={'invite':invite,'show_startup':params.get('show_startup',True)};e.manager.save()
+            return True
+        if method=='hardware':
+            from performance_policy import hardware
+            return hardware()
+        if method=='analytics':
+            p=e.profile(params['server']);result=e.analytics.query(p,params.get('hours',1))
+            if not e.manager.running(p):result['status'].update(connected=False,sample=None,message='Server stopped')
+            return result
         if method=='enqueue':return e.enqueue(params['action'],params.get('server',''),params.get('data'),params.get('actor','Windows-panel'))
         if method=='patch':return e.patch_state(params['changes'])
         if method=='add':
