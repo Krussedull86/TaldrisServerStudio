@@ -7,7 +7,7 @@ android {
         minSdk 26
         targetSdk 35
         versionCode = Integer.parseInt(System.getenv('BUILD') ?: '1')
-        versionName '0.11.0-dev'
+        versionName '0.11.1-dev'
     }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
 }

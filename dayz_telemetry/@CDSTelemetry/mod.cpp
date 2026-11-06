@@ -1,1 +1,1 @@
-name="CDS Telemetry v0.1.2 TEST";
+name="DZSA Tools Telemetry v0.1.2 TEST";

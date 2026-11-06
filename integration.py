@@ -92,7 +92,7 @@ class SteamSession(QObject):
 class IntegratedStudio(Studio):
     def __init__(self,home=None):
         self.tasks=set(); self.steam=None; self.workshop_results=[]; self.lookup_seq=0
-        super().__init__(home); self.setWindowTitle('CruzDoodelZ Server Studio • '+VERSION)
+        super().__init__(home); self.setWindowTitle('DZSA Tools • '+VERSION)
         self.steam=SteamSession(self.manager,self); self.steam.output.connect(self.terminal_output); self.steam.completed.connect(self.steam_done); self.steam.active.connect(self.steam_active); self.steam.progress.connect(self.set_progress); self.steam.detail.connect(lambda text:self.terminal_detail.setText(text))
         self.page_names+=['Get started','Steam Workshop']; self.setup_page(); self.workshop_page()
         side=self.nav[0].parentWidget().layout()

@@ -1,4 +1,4 @@
-# CruzDoodelZ Server Studio — operations, Discord and editors
+# DZSA Tools — operations, Discord and editors
 
 ## Agent and Windows service
 

@@ -28,12 +28,12 @@ def install(profile):
     if not re.fullmatch('[0-9a-f]{32}',bridge):bridge=uuid.uuid4().hex
     # The marker prevents overwriting an unrelated local mod folder.
     marker=target/'cds-telemetry.json'
-    if target.exists() and not marker.is_file():raise ValueError('@CDSTelemetry already exists without a CDS install marker. Choose another server folder or move that folder manually.')
+    if target.exists() and not marker.is_file():raise ValueError('@CDSTelemetry already exists without an application install marker. Choose another server folder or move that folder manually.')
     target.mkdir(parents=True,exist_ok=True);shutil.copytree(source,target,dirs_exist_ok=True)
     marker.write_text(json.dumps(dict(version=VERSION)),encoding='utf-8')
     payload=dict(BridgeId=bridge,Enabled=s['enabled'],IntervalSeconds=s['interval'],CollectPlayers=s['collect_players'],CollectNames=s['collect_names'],ScanLoot=s['scan_loot'],LootRadius=s['loot_radius'])
     temp=config.with_suffix('.tmp');temp.write_text(json.dumps(payload,indent=2),encoding='utf-8');temp.replace(config)
-    mod=dict(folder='@CDSTelemetry',title='CDS Telemetry',id='',source='local',path=str(target),load_mode='server',server=True,enabled=True)
+    mod=dict(folder='@CDSTelemetry',title='DZSA Tools Telemetry',id='',source='local',path=str(target),load_mode='server',server=True,enabled=True)
     existing=next((m for m in profile['mods'] if m.get('folder','').casefold()=='@cdstelemetry'),None)
     if existing:existing.update(mod)
     else:profile['mods'].append(mod)

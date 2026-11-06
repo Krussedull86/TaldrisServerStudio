@@ -22,7 +22,7 @@ final class Api {
             public X509Certificate[] getAcceptedIssuers(){return new X509Certificate[0];}
             public void checkClientTrusted(X509Certificate[] chain,String auth) throws CertificateException {throw new CertificateException("Client certificates are not used.");}
             public void checkServerTrusted(X509Certificate[] chain,String auth) throws CertificateException {
-                try{if(chain.length==0)throw new Exception("Missing certificate");chain[0].checkValidity();if(!MessageDigest.isEqual(pin.getBytes(StandardCharsets.US_ASCII),fingerprint(chain[0]).getBytes(StandardCharsets.US_ASCII)))throw new Exception("Certificate fingerprint changed. Verify the server in CDS before pairing again.");}
+                try{if(chain.length==0)throw new Exception("Missing certificate");chain[0].checkValidity();if(!MessageDigest.isEqual(pin.getBytes(StandardCharsets.US_ASCII),fingerprint(chain[0]).getBytes(StandardCharsets.US_ASCII)))throw new Exception("Certificate fingerprint changed. Verify the server in DZSA Tools before pairing again.");}
                 catch(Exception error){throw new CertificateException(error);}
             }
         };

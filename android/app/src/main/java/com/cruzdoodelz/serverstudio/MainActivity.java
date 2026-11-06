@@ -41,11 +41,11 @@ public final class MainActivity extends Activity {
     private Button button(String title,Runnable action){Button b=new Button(this);b.setText(title);b.setTextColor(BG);b.setBackgroundTintList(android.content.res.ColorStateList.valueOf(ACCENT));b.setAllCaps(false);b.setOnClickListener(v->action.run());return b;}
     private LinearLayout column(){LinearLayout layout=new LinearLayout(this);layout.setOrientation(LinearLayout.VERTICAL);return layout;}
     private EditText input(String hint){EditText edit=new EditText(this);edit.setTextColor(TEXT);edit.setHintTextColor(MUTED);edit.setHint(hint);return edit;}
-    private void error(Exception e){if(!isFinishing()&&!isDestroyed())new AlertDialog.Builder(this).setTitle("CDS connection").setMessage(e.getMessage()==null?"The request could not be completed.":e.getMessage()).setPositiveButton("OK",null).show();}
+    private void error(Exception e){if(!isFinishing()&&!isDestroyed())new AlertDialog.Builder(this).setTitle("DZSA Tools connection").setMessage(e.getMessage()==null?"The request could not be completed.":e.getMessage()).setPositiveButton("OK",null).show();}
     private void base(){
         root=column();root.setBackgroundColor(BG);root.setPadding(dp(18),dp(18),dp(18),dp(18));
         root.setOnApplyWindowInsetsListener((v,insets)->{int top=insets.getSystemWindowInsetTop(),bottom=insets.getSystemWindowInsetBottom();v.setPadding(dp(18),dp(12)+top,dp(18),dp(12)+bottom);return insets;});
-        ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);scroll.addView(root);setContentView(scroll);root.addView(text("CRUZDOODELZ",24,ACCENT));root.addView(text("SERVER STUDIO · ANDROID",12,MUTED));
+        ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);scroll.addView(root);setContentView(scroll);root.addView(text("DZSA TOOLS",24,ACCENT));root.addView(text("SERVER CONTROL · ANDROID",12,MUTED));
     }
     private void home(){
         try{
@@ -70,7 +70,7 @@ public final class MainActivity extends Activity {
     private void pairScreen(){
         connection=null;lastStatus=null;base();root.addView(text("Pair your server host",24,TEXT));root.addView(text("In Windows: Android access → enable HTTPS → choose permissions → Create pairing QR code.",15,MUTED));
         invitation=input("Paste pairing invitation JSON");invitation.setMinLines(4);invitation.setMaxLines(7);invitation.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_FLAG_MULTI_LINE);root.addView(invitation);EditText name=input("Phone name");name.setText(Build.MODEL);root.addView(name);
-        root.addView(button("Scan pairing QR",()->new IntentIntegrator(this).setDesiredBarcodeFormats(java.util.Collections.singletonList("QR_CODE")).setPrompt("Scan the QR code shown in CDS on your Windows host").setBeepEnabled(false).initiateScan()));
+        root.addView(button("Scan pairing QR",()->new IntentIntegrator(this).setDesiredBarcodeFormats(java.util.Collections.singletonList("QR_CODE")).setPrompt("Scan the QR code shown in DZSA Tools on your Windows host").setBeepEnabled(false).initiateScan()));
         root.addView(button("Review and pair",()->{
             try{JSONObject setup=new JSONObject(invitation.getText().toString());String url=setup.getString("url"),pin=setup.getString("fingerprint");if(setup.optInt("protocol")!=1)throw new Exception("Unsupported pairing protocol.");
                 new AlertDialog.Builder(this).setTitle("Verify server identity").setMessage("Address:\n"+url+"\n\nCertificate SHA-256:\n"+pin+"\n\nCompare this fingerprint with the Windows application. Pair only if it matches.").setPositiveButton("Pair",(dialog,which)->{

@@ -1,6 +1,6 @@
-# CDS Android access — 0.11.0 development release
+# DZSA Tools Android access — 0.11.1 development release
 
-The Windows background agent can expose a **separate opt-in HTTPS gateway** on TCP 8788 (configurable). Android uses this gateway, not the loopback owner API or a raw RCon connection. All product UI remains English. The existing product name is retained pending the owner's new name.
+The Windows background agent can expose a **separate opt-in HTTPS gateway** on TCP 8788 (configurable). Android uses this gateway, not the loopback owner API or a raw RCon connection. The Windows program and Android app are now named DZSA Tools. Existing installations and phone pairings keep their stable identities.
 
 ## Included in this first version
 
@@ -14,7 +14,7 @@ The Windows background agent can expose a **separate opt-in HTTPS gateway** on T
 
 ## Set up on the Windows host
 
-1. Update Studio and its background agent to 0.11.0. Existing DayZ processes can remain managed by the background agent.
+1. Update Studio and its background agent to 0.11.1. Existing DayZ processes can remain managed by the background agent.
 2. Open **Android access**. Choose the dedicated TCP port (default 8788).
 3. Enter the address the phone will use, e.g. `https://192.168.1.50:8788` on your LAN, or your public hostname/IP and external port for internet use. No path, query or credentials belong in this address.
 4. Enable the gateway and choose automatic Windows Firewall management. Save/apply and accept the Windows administrator prompt if required. Check that the page says Listening.
@@ -23,7 +23,7 @@ The Windows background agent can expose a **separate opt-in HTTPS gateway** on T
 
 ## Pair on Android
 
-Install `CDS-Android-dev.apk` from the same GitHub dev release. Android will ask you to allow installation from the browser/file manager. This is a development-signed sideload APK, not a Play Store release.
+Install `DZSA-Tools-Android-dev.apk` from the same GitHub dev release. Android will ask you to allow installation from the browser/file manager. This is a development-signed sideload APK, not a Play Store release.
 
 Choose Scan pairing QR or paste the invitation JSON, choose a phone name, then review the HTTPS address and SHA-256 certificate fingerprint. Compare the fingerprint to the Windows page before pairing. The app trusts only that exact certificate, including for the pairing request. It does not accept arbitrary self-signed certificates, HTTP redirects or cleartext HTTP.
 

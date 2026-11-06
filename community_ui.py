@@ -25,6 +25,6 @@ class CommunityControls:
         if not cfg.get('invite') or not cfg.get('show_startup',True):return
         try:validate_invite(cfg['invite'])
         except ValueError:return
-        d=QDialog(self.studio);d.setWindowTitle('Welcome to CruzDoodelZ Server Studio');layout=QVBoxLayout(d);layout.addWidget(label('Your server workspace','title'));layout.addWidget(label('Join the community Discord for support, announcements and development discussion.'));layout.addWidget(button('Join Discord',self.open,'primary'));show=QCheckBox('Show this welcome at startup');show.setChecked(True);layout.addWidget(show);layout.addWidget(button('Continue to Studio',d.accept))
+        d=QDialog(self.studio);d.setWindowTitle('Welcome to DZSA Tools');layout=QVBoxLayout(d);layout.addWidget(label('Your server workspace','title'));layout.addWidget(label('Join the community Discord for support, announcements and development discussion.'));layout.addWidget(button('Join Discord',self.open,'primary'));show=QCheckBox('Show this welcome at startup');show.setChecked(True);layout.addWidget(show);layout.addWidget(button('Continue to DZSA Tools',d.accept))
         d.exec()
         if not show.isChecked():self.studio.manager.client.call('community',{'invite':cfg['invite'],'show_startup':False});self.studio.manager.refresh()

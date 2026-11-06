@@ -4,7 +4,7 @@ from pathlib import Path
 from release_info import VERSION,BUILD
 from windows_firewall import ps_quote
 
-NAME='CruzDoodelZ Server Studio'
+NAME='DZSA Tools'
 REGKEY=r'Software\Microsoft\Windows\CurrentVersion\Uninstall\TaldrisServerStudio'
 
 def read_install(home):
@@ -27,7 +27,7 @@ def register_windows(root,home,launcher):
     pythoncom.CoInitialize()
     shell=win32com.client.Dispatch('WScript.Shell')
     links=[Path(shell.SpecialFolders('Programs'))/NAME/(NAME+'.lnk'),Path(shell.SpecialFolders('Desktop'))/(NAME+'.lnk')]
-    legacy=[Path(shell.SpecialFolders('Programs'))/'Taldris Server Studio'/'Taldris Server Studio.lnk',Path(shell.SpecialFolders('Desktop'))/'Taldris Server Studio.lnk']
+    legacy=[path for previous_name in ('Taldris Server Studio','CruzDoodelZ Server Studio') for path in (Path(shell.SpecialFolders('Programs'))/previous_name/(previous_name+'.lnk'),Path(shell.SpecialFolders('Desktop'))/(previous_name+'.lnk'))]
     for old in legacy:
         if old.is_file():
             previous=shell.CreateShortcut(str(old))
@@ -47,7 +47,9 @@ def register_windows(root,home,launcher):
     pythoncom.CoUninitialize()
     try:
         from shell_identity import refresh_shortcuts
-        refresh_shortcuts(root,home,launcher)
+        icon=refresh_shortcuts(root,home,launcher)
+        if icon:
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER,REGKEY,0,winreg.KEY_SET_VALUE) as key:winreg.SetValueEx(key,'DisplayIcon',0,winreg.REG_SZ,icon)
     except Exception as error:
         import warnings
         warnings.warn('Could not refresh CDS taskbar shortcuts: '+str(error),RuntimeWarning)
@@ -82,14 +84,21 @@ def install(home):
 def refresh_version(home):
     info=read_install(home)
     if sys.platform!='win32' or not info:return
-    import winreg
     try:
-        with winreg.OpenKey(winreg.HKEY_CURRENT_USER,REGKEY,0,winreg.KEY_SET_VALUE) as key:winreg.SetValueEx(key,'DisplayVersion',0,winreg.REG_SZ,f'{VERSION} (build {BUILD})')
-    except OSError:pass
-    try:
-        from shell_identity import refresh_shortcuts
-        launcher=Path(info['launcher']);refresh_shortcuts(launcher.parent,home,launcher)
+        import winreg
+        migrate=False
+        try:
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER,REGKEY,0,winreg.KEY_QUERY_VALUE|winreg.KEY_SET_VALUE) as key:
+                migrate=winreg.QueryValueEx(key,'DisplayName')[0]!=NAME
+                winreg.SetValueEx(key,'DisplayVersion',0,winreg.REG_SZ,f'{VERSION} (build {BUILD})')
+        except OSError:migrate=True
+        launcher=Path(info['launcher'])
+        if migrate:register_windows(launcher.parent,home,launcher)
+        else:
+            from shell_identity import refresh_shortcuts
+            icon=refresh_shortcuts(launcher.parent,home,launcher)
+            if icon:
+                with winreg.OpenKey(winreg.HKEY_CURRENT_USER,REGKEY,0,winreg.KEY_SET_VALUE) as key:winreg.SetValueEx(key,'DisplayIcon',0,winreg.REG_SZ,icon)
     except Exception as error:
-        # Shell customization must not prevent the panel from opening.
         import warnings
-        warnings.warn('Could not refresh CDS taskbar shortcuts: '+str(error),RuntimeWarning)
+        warnings.warn('Could not refresh DZSA Tools registration: '+str(error),RuntimeWarning)

@@ -12,7 +12,7 @@ from network_tls import network_message
 
 class ReleaseStudio(IntegratedStudio):
     def __init__(self,home=None):
-        super().__init__(home); self.setWindowTitle(f'CruzDoodelZ Server Studio • {VERSION} / build {BUILD}'); self.latest_update=None; self.update_running=False; self.update_handoff=False; self.staged_exe=None
+        super().__init__(home); self.setWindowTitle(f'DZSA Tools • {VERSION} / build {BUILD}'); self.latest_update=None; self.update_running=False; self.update_handoff=False; self.staged_exe=None
         self.update_settings=self.manager.state.setdefault('updates',dict(repository=REPOSITORY,channel='stable',auto_check=True))
         if not self.update_settings.get('repository') and REPOSITORY:self.update_settings['repository']=REPOSITORY
         self.page_names.append('Program updates'); l=self.page(); f,c=card('DEV / STABLE',f'Installed: {VERSION} • build {BUILD}. Control panel updates are separate from DayZ and mods.')

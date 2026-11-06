@@ -1,4 +1,4 @@
-# CruzDoodelZ Server Studio — user guide
+# DZSA Tools — user guide
 
 ## Install or launch
 
@@ -6,7 +6,7 @@ Download `CruzDoodelZServerStudio-Setup.exe` from the project's GitHub Releases 
 
 Source-code users need Python 3.12 or newer. Extract or clone the complete project and run `START.bat`. The first launch requires internet access to install dependencies in `.venv`. `BUILD_EXE.bat` creates a Windows executable locally.
 
-Application data defaults to `%LOCALAPPDATA%/TaldrisServerStudio`. The installed launcher is in `%LOCALAPPDATA%/Programs/TaldrisServerStudio`. Server folders remain where you selected them. Existing technical names are retained for compatibility; the visible product name is CruzDoodelZ Server Studio.
+Application data defaults to `%LOCALAPPDATA%/TaldrisServerStudio`. The installed launcher is in `%LOCALAPPDATA%/Programs/TaldrisServerStudio`. Server folders remain where you selected them. Existing technical names are retained for compatibility; the visible product name is DZSA Tools.
 
 ## Create a server
 

@@ -1,4 +1,4 @@
-# CruzDoodelZ Server Studio
+# DZSA Tools
 
 A Windows desktop application for installing, configuring and managing DayZ servers. The interface, application messages, Discord commands and bundled user guides are in English.
 
@@ -14,7 +14,7 @@ A Windows desktop application for installing, configuring and managing DayZ serv
 
 ## Download and launch
 
-Download a Windows installer or ZIP from [Releases](https://github.com/Krussedull86/TaldrisServerStudio/releases). The packaged EXE does not require Python. Use `CruzDoodelZServerStudio-Setup.exe` for installation, or extract the ZIP and run `TaldrisServerStudio.exe`.
+Download a Windows installer or ZIP from [Releases](https://github.com/Krussedull86/TaldrisServerStudio/releases). The packaged EXE does not require Python. Use `DZSA-Tools-Setup.exe` for installation, or extract the ZIP and run `TaldrisServerStudio.exe`.
 
 For source-code use, install Python 3.12 or newer and run `START.bat`. The first launch creates a local virtual environment and installs dependencies. `BUILD_EXE.bat` creates `dist/TaldrisServerStudio.exe` on Windows.
 

@@ -18,9 +18,10 @@ def package():
     if not binary.is_file():raise ValueError('Missing Windows executable')
     shutil.copy2(binary,out/'TaldrisServerStudio-Setup.exe')
     shutil.copy2(binary,out/'CruzDoodelZServerStudio-Setup.exe')
+    shutil.copy2(binary,out/'DZSA-Tools-Setup.exe')
     target=out/'TaldrisServerStudio-Windows.zip'
     with zipfile.ZipFile(target,'w',zipfile.ZIP_DEFLATED) as z:
-        z.write(binary,binary.name); z.writestr('LES_MEG.md',(ROOT/'LES_MEG.md').read_text('utf-8')+'\n\n'+(ROOT/'DRIFT_DISCORD_EDITORER.md').read_text('utf-8')+'\n\n'+(ROOT/'CHANGES_0.10.0.md').read_text('utf-8')+'\n\n'+(ROOT/'MOBILE_ACCESS.md').read_text('utf-8'))
+        z.write(binary,binary.name); z.writestr('LES_MEG.md',(ROOT/'LES_MEG.md').read_text('utf-8')+'\n\n'+(ROOT/'DRIFT_DISCORD_EDITORER.md').read_text('utf-8')+'\n\n'+(ROOT/'CHANGES_0.10.0.md').read_text('utf-8')+'\n\n'+(ROOT/'MOBILE_ACCESS.md').read_text('utf-8')+'\n\n'+(ROOT/'CHANGES_0.11.1.md').read_text('utf-8'))
     info=dict(version=v.VERSION,build=v.BUILD,sha256=sha(target),size=target.stat().st_size,asset=target.name)
     (out/'build.json').write_text(json.dumps(info,indent=2),encoding='utf-8')
     modzip=out/'CDSTelemetry-ServerMod.zip'
@@ -28,7 +29,7 @@ def package():
         for file in sorted((ROOT/'dayz_telemetry/@CDSTelemetry').rglob('*')):
             if file.is_file():z.write(file,file.relative_to(ROOT/'dayz_telemetry').as_posix())
         z.write(ROOT/'dayz_telemetry/README.md','README.md');z.write(ROOT/'dayz_telemetry/config.example.json','config.example.json')
-    files=[target,out/'TaldrisServerStudio-Setup.exe',out/'CruzDoodelZServerStudio-Setup.exe',modzip]
+    files=[target,out/'TaldrisServerStudio-Setup.exe',out/'CruzDoodelZServerStudio-Setup.exe',out/'DZSA-Tools-Setup.exe',modzip]
     (out/'SHA256SUMS.txt').write_text(''.join(sha(file)+'  '+file.name+'\n' for file in files),encoding='utf-8')
 
 def publish_dev():
@@ -43,7 +44,7 @@ def promote():
     out=ROOT/'release_output'; out.mkdir(exist_ok=True)
     gh('release','download',tag,'--dir',str(out),'--pattern','TaldrisServerStudio-Windows.zip','--pattern','build.json','--pattern','SHA256SUMS.txt')
     if any(a['name']=='TaldrisServerStudio-Setup.exe' for a in source.get('assets',[])):gh('release','download',tag,'--dir',str(out),'--pattern','TaldrisServerStudio-Setup.exe')
-    for name in ('CDSTelemetry-ServerMod.zip','CDS-Android-dev.apk'):
+    for name in ('CDSTelemetry-ServerMod.zip','CDS-Android-dev.apk','DZSA-Tools-Android-dev.apk'):
         if any(a['name']==name for a in source.get('assets',[])):gh('release','download',tag,'--dir',str(out),'--pattern',name)
     expected_sums={line.split('  ',1)[1]:line.split('  ',1)[0] for line in (out/'SHA256SUMS.txt').read_text().splitlines() if '  ' in line}
     for file in out.iterdir():
@@ -59,6 +60,9 @@ def promote():
         # Publish the branded installer from the verified bytes, including when
         # promoting an older dev release that only had the legacy filename.
         shutil.copy2(setup,out/'CruzDoodelZServerStudio-Setup.exe')
+        shutil.copy2(setup,out/'DZSA-Tools-Setup.exe')
+    files=sorted(p for p in out.iterdir() if p.suffix in ('.exe','.zip','.apk'))
+    (out/'SHA256SUMS.txt').write_text(''.join(sha(p)+'  '+p.name+'\n' for p in files),encoding='utf-8')
     stable=tag.removeprefix('dev-')
     # Use exact commit resolved from source tag, not a branch name or latest dev head.
     commit=gh('api',f'repos/{os.environ["GH_REPO"]}/commits/{tag}','--jq','.sha')

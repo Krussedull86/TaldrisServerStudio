@@ -35,7 +35,7 @@ class MobilePage(QScrollArea):
         params=dict(servers=[key for key,b in self.boxes.items() if b.isChecked()],scopes=['read']+(['control'] if self.control.isChecked() else [])+(['message'] if self.message.isChecked() else []));self.call('mobile_pair',params,self.show_pair)
     def show_pair(self,data):
         import qrcode
-        raw=json.dumps(data,separators=(',',':'));d=QDialog(self);d.setWindowTitle('Pair Android device');layout=QVBoxLayout(d);layout.addWidget(label('Scan with CDS Android • invitation expires in five minutes','eyebrow'));qr=qrcode.QRCode(border=4,error_correction=qrcode.constants.ERROR_CORRECT_M);qr.add_data(raw);qr.make(fit=True);matrix=qr.get_matrix();scale=max(3,400//len(matrix));pix=QPixmap(len(matrix)*scale,len(matrix)*scale);pix.fill(Qt.white);painter=QPainter(pix);painter.setPen(Qt.NoPen);painter.setBrush(QColor('black'))
+        raw=json.dumps(data,separators=(',',':'));d=QDialog(self);d.setWindowTitle('Pair Android device');layout=QVBoxLayout(d);layout.addWidget(label('Scan with DZSA Tools Android • invitation expires in five minutes','eyebrow'));qr=qrcode.QRCode(border=4,error_correction=qrcode.constants.ERROR_CORRECT_M);qr.add_data(raw);qr.make(fit=True);matrix=qr.get_matrix();scale=max(3,400//len(matrix));pix=QPixmap(len(matrix)*scale,len(matrix)*scale);pix.fill(Qt.white);painter=QPainter(pix);painter.setPen(Qt.NoPen);painter.setBrush(QColor('black'))
         for y,row in enumerate(matrix):
             for x,value in enumerate(row):
                 if value:painter.drawRect(x*scale,y*scale,scale,scale)

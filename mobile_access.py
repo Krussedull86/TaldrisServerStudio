@@ -27,7 +27,7 @@ def cert_files(home):
     home=Path(home);cert=home/'mobile-cert.pem';keyfile=home/'mobile-key.pem'
     if cert.exists()!=keyfile.exists():raise ValueError('Mobile certificate/key pair is incomplete. Restore both files before enabling access.')
     if not cert.exists():
-        key=ec.generate_private_key(ec.SECP256R1());name=x509.Name([x509.NameAttribute(NameOID.COMMON_NAME,'CDS Mobile Gateway')]);now=datetime.now(timezone.utc)
+        key=ec.generate_private_key(ec.SECP256R1());name=x509.Name([x509.NameAttribute(NameOID.COMMON_NAME,'DZSA Tools Mobile Gateway')]);now=datetime.now(timezone.utc)
         certificate=(x509.CertificateBuilder().subject_name(name).issuer_name(name).public_key(key.public_key()).serial_number(x509.random_serial_number()).not_valid_before(now-timedelta(minutes=5)).not_valid_after(now+timedelta(days=3650)).add_extension(x509.SubjectAlternativeName([x509.DNSName('localhost'),x509.IPAddress(ipaddress.ip_address('127.0.0.1'))]),False).add_extension(x509.BasicConstraints(ca=False,path_length=None),True).sign(key,hashes.SHA256()))
         keyfile.touch(mode=0o600,exist_ok=False);protect_file(keyfile)
         keyfile.write_bytes(key.private_bytes(serialization.Encoding.PEM,serialization.PrivateFormat.PKCS8,serialization.NoEncryption()));protect_file(keyfile)
@@ -146,7 +146,7 @@ class Gateway:
         if not 1<=len(name)<=60 or any(ord(c)<32 for c in name):raise ValueError('Choose a device name (1–60 characters).')
         with self.lock:
             digest=hashlib.sha256(code.encode()).hexdigest();invitation=self.pairings.get(digest)
-            if not invitation or invitation['expires']<time.time():raise PermissionError('Pairing invitation expired or invalid. Create a new QR code in CDS.')
+            if not invitation or invitation['expires']<time.time():raise PermissionError('Pairing invitation expired or invalid. Create a new QR code in DZSA Tools.')
             if len(self.data['devices'])>=50:raise PermissionError('Device limit reached.')
             self.pairings.pop(digest);token=secrets.token_urlsafe(48);device=dict(id=uuid.uuid4().hex,name=name,token_hash=hashlib.sha256(token.encode()).hexdigest(),servers=invitation['servers'],scopes=invitation['scopes'],created=time.time(),expires=time.time()+90*86400)
             self.data['devices'].append(device);self.save();self.engine.log('Mobile device paired: '+device['id'])
@@ -160,7 +160,7 @@ class Gateway:
         digest=hashlib.sha256(token.encode()).hexdigest()
         for device in self.data['devices']:
             if hmac.compare_digest(digest,device['token_hash']) and device['expires']>time.time():return copy.deepcopy(device)
-        raise PermissionError('Device access expired or revoked. Pair again in CDS.')
+        raise PermissionError('Device access expired or revoked. Pair again in DZSA Tools.')
     def request(self,token,body):
         # Revocation and command acceptance share a lock. Only explicit, bounded
         # actions cross this boundary; no arbitrary RCon, files or owner methods.

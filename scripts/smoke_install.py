@@ -6,7 +6,7 @@ import win32com.client
 
 REGKEY=r'Software\Microsoft\Windows\CurrentVersion\Uninstall\TaldrisServerStudio'
 def smoke(exe):
-    shell=win32com.client.Dispatch('WScript.Shell');links=[Path(shell.SpecialFolders('Programs'))/'CruzDoodelZ Server Studio'/'CruzDoodelZ Server Studio.lnk',Path(shell.SpecialFolders('Desktop'))/'CruzDoodelZ Server Studio.lnk']
+    shell=win32com.client.Dispatch('WScript.Shell');links=[Path(shell.SpecialFolders('Programs'))/'DZSA Tools'/'DZSA Tools.lnk',Path(shell.SpecialFolders('Desktop'))/'DZSA Tools.lnk']
     if any(p.exists() for p in links):raise RuntimeError('Use an isolated runner without an existing Taldris installation.')
     with tempfile.TemporaryDirectory() as folder:
         base=Path(folder).resolve();home=base/'data';home.mkdir();sentinel=home/'keep-server-data.txt';sentinel.write_text('keep')
@@ -16,7 +16,7 @@ def smoke(exe):
             info=json.loads((home/'installation.json').read_text());assert Path(info['initial_exe']).is_file();assert Path(info['launcher']).is_file()
             for link in links:
                 assert link.is_file();shortcut=shell.CreateShortcut(str(link));assert Path(shortcut.TargetPath)==Path(info['launcher']);assert str(home) in shortcut.Arguments
-            with winreg.OpenKey(winreg.HKEY_CURRENT_USER,REGKEY) as key:assert winreg.QueryValueEx(key,'DisplayName')[0]=='CruzDoodelZ Server Studio'
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER,REGKEY) as key:assert winreg.QueryValueEx(key,'DisplayName')[0]=='DZSA Tools'
             subprocess.run(['powershell.exe','-NoProfile','-ExecutionPolicy','Bypass','-File',str(root/'Avinstaller.ps1')],check=True,timeout=30)
             assert sentinel.read_text()=='keep';assert Path(info['initial_exe']).is_file();assert not root.exists();assert not (home/'installation.json').exists();assert not any(p.exists() for p in links)
             print('Packaged per-user installation, repeat installation, Windows shortcuts, registration and data-preserving uninstall passed.')

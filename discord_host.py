@@ -110,7 +110,7 @@ class DiscordHost:
             async def cancel(self,i:discord.Interaction,b:discord.ui.Button):await dispatch(i,await self.server(i),'cancel_restart')
             @discord.ui.button(label='Backup',custom_id='taldris:backup',style=discord.ButtonStyle.secondary)
             async def backup(self,i:discord.Interaction,b:discord.ui.Button):await dispatch(i,await self.server(i),'backup')
-        group=app_commands.Group(name='taldris',description='CruzDoodelZ Server Studio — operations and administration')
+        group=app_commands.Group(name='taldris',description='DZSA Tools — operations and administration')
         @group.command(name='servers',description='Show servers you have permission to view')
         async def servers(interaction:discord.Interaction):
             rows=[]

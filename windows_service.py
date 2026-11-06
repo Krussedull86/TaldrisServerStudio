@@ -21,8 +21,8 @@ def install_service(home,source=None):
     script=f"""$ErrorActionPreference='Stop'
 $existing=Get-Service -Name '{NAME}' -ErrorAction SilentlyContinue
 if ($existing -and $existing.Status -ne 'Stopped') {{ Stop-Service -Name '{NAME}'; (Get-Service '{NAME}').WaitForStatus('Stopped',[TimeSpan]::FromSeconds(45)) }}
-if ($existing) {{ & sc.exe config '{NAME}' binPath= {ps_quote(command)} start= auto | Out-Null }}
-else {{ & sc.exe create '{NAME}' binPath= {ps_quote(command)} start= auto DisplayName= 'CruzDoodelZ Server Studio Agent' | Out-Null }}
+if ($existing) {{ & sc.exe config '{NAME}' binPath= {ps_quote(command)} start= auto DisplayName= 'DZSA Tools Agent' | Out-Null }}
+else {{ & sc.exe create '{NAME}' binPath= {ps_quote(command)} start= auto DisplayName= 'DZSA Tools Agent' | Out-Null }}
 if ($LASTEXITCODE -ne 0) {{ exit $LASTEXITCODE }}
 & sc.exe failure '{NAME}' reset= 86400 actions= restart/10000/restart/30000 | Out-Null
 Start-Service -Name '{NAME}'
@@ -38,7 +38,7 @@ Start-Service -Name '{NAME}'
 def run_service(home):
     import servicemanager,win32service,win32serviceutil
     class Service(win32serviceutil.ServiceFramework):
-        _svc_name_=NAME;_svc_display_name_='CruzDoodelZ Server Studio Agent';_svc_description_='DayZ operations, Discord, updates and restarts without an open application window.'
+        _svc_name_=NAME;_svc_display_name_='DZSA Tools Agent';_svc_description_='DayZ operations, Discord, updates and restarts without an open application window.'
         def __init__(self,args):super().__init__(args);self.stop_request=threading.Event();self.finished=threading.Event()
         def SvcStop(self):
             self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING);self.stop_request.set()
@@ -60,6 +60,6 @@ def replace_running_service(home,source):
     if not target.exists():shutil.copy2(source,target)
     scm=win32service.OpenSCManager(None,None,win32service.SC_MANAGER_CONNECT)
     handle=win32service.OpenService(scm,NAME,win32service.SERVICE_CHANGE_CONFIG)
-    try:win32service.ChangeServiceConfig(handle,win32service.SERVICE_NO_CHANGE,win32service.SERVICE_NO_CHANGE,win32service.SERVICE_NO_CHANGE,subprocess.list2cmdline([str(target),'--windows-service','--home',str(home)]),None,0,None,None,None,None)
+    try:win32service.ChangeServiceConfig(handle,win32service.SERVICE_NO_CHANGE,win32service.SERVICE_NO_CHANGE,win32service.SERVICE_NO_CHANGE,subprocess.list2cmdline([str(target),'--windows-service','--home',str(home)]),None,0,None,None,None,'DZSA Tools Agent')
     finally:win32service.CloseServiceHandle(handle);win32service.CloseServiceHandle(scm)
     win32serviceutil.StopService(NAME);win32serviceutil.WaitForServiceStatus(NAME,win32service.SERVICE_STOPPED,60);win32serviceutil.StartService(NAME)

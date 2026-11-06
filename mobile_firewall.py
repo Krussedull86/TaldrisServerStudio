@@ -6,8 +6,8 @@ from windows_firewall import ps_quote,encoded
 def run(home,port,log,remove=False):
     if sys.platform!='win32':return
     name='CDS-Mobile-'+hashlib.sha256(str(Path(home).resolve()).casefold().encode()).hexdigest()[:20]
-    action=f"New-NetFirewallRule -Name $name -DisplayName 'CDS Mobile HTTPS' -Group 'CruzDoodelZ Server Studio' -Direction Inbound -Action Allow -Enabled True -Profile Any -Protocol TCP -LocalPort {int(port)} | Out-Null" if not remove else ''
-    check=(f"$p=$r | Get-NetFirewallPortFilter; if ($r.Enabled -eq 'True' -and $r.Action -eq 'Allow' -and $r.Direction -eq 'Inbound' -and $r.Profile -eq 'Any' -and ($p.Protocol -eq 'TCP' -or $p.Protocol -eq '6') -and @($p.LocalPort).Count -eq 1 -and $p.LocalPort -eq '{int(port)}') {{ exit 0 }}" if not remove else '')
+    action=f"New-NetFirewallRule -Name $name -DisplayName 'DZSA Tools Mobile HTTPS' -Group 'DZSA Tools' -Direction Inbound -Action Allow -Enabled True -Profile Any -Protocol TCP -LocalPort {int(port)} | Out-Null" if not remove else ''
+    check=(f"$p=$r | Get-NetFirewallPortFilter; if ($r.Group -eq 'DZSA Tools' -and $r.Enabled -eq 'True' -and $r.Action -eq 'Allow' -and $r.Direction -eq 'Inbound' -and $r.Profile -eq 'Any' -and ($p.Protocol -eq 'TCP' -or $p.Protocol -eq '6') -and @($p.LocalPort).Count -eq 1 -and $p.LocalPort -eq '{int(port)}') {{ exit 0 }}" if not remove else '')
     script=f"""$ErrorActionPreference='Stop'
 $name={ps_quote(name)}
 $r=Get-NetFirewallRule -PolicyStore PersistentStore -Name $name -ErrorAction SilentlyContinue

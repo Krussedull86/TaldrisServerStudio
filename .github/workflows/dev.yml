@@ -1,4 +1,4 @@
-name: CruzDoodelZ Server Studio dev
+name: DZSA Tools dev
 on:
   push:
     branches: [dev]
@@ -45,7 +45,7 @@ jobs:
           BUILD: ${{ github.run_number }}
           REPOSITORY: ${{ github.repository }}
         run: python scripts/release.py stamp
-      - run: python -m PyInstaller --noconfirm --clean --onefile --windowed --collect-data certifi --collect-data discord --hidden-import win32timezone --hidden-import servicemanager --add-data "loot_web;loot_web" --add-data "loot_maps;loot_maps" --collect-all winpty --add-data "assets;assets" --icon assets/cds.ico --add-data "dayz_telemetry;dayz_telemetry" --name TaldrisServerStudio app.py
+      - run: python -m PyInstaller --noconfirm --clean --onefile --windowed --collect-data certifi --collect-data discord --hidden-import win32timezone --hidden-import servicemanager --add-data "loot_web;loot_web" --add-data "loot_maps;loot_maps" --collect-all winpty --add-data "assets;assets" --icon assets/dzsa_tools.ico --add-data "dayz_telemetry;dayz_telemetry" --name TaldrisServerStudio app.py
       - name: Smoke test integrated loot editor
         if: ${{ !contains(github.event.head_commit.message, '[build only]') }}
         shell: pwsh
@@ -101,7 +101,8 @@ jobs:
       - name: Name Android APK
         run: |
           mkdir -p android_release
-          cp android/app/build/outputs/apk/debug/app-debug.apk android_release/CDS-Android-dev.apk
+          cp android/app/build/outputs/apk/debug/app-debug.apk android_release/DZSA-Tools-Android-dev.apk
+          cp android_release/DZSA-Tools-Android-dev.apk android_release/CDS-Android-dev.apk
       - uses: actions/upload-artifact@v4
         with:
           name: android-release
@@ -127,7 +128,7 @@ jobs:
           name: android-release
           path: release_output
       - name: Add Android checksum
-        run: python -c "from pathlib import Path; import hashlib; p=Path('release_output/CDS-Android-dev.apk'); f=Path('release_output/SHA256SUMS.txt'); f.write_text(f.read_text()+hashlib.sha256(p.read_bytes()).hexdigest()+'  '+p.name+'\n')"
+        run: python -c "from pathlib import Path; import hashlib; p=Path('release_output/CDS-Android-dev.apk'); f=Path('release_output/SHA256SUMS.txt'); f.write_text(f.read_text()+''.join(hashlib.sha256(a.read_bytes()).hexdigest()+'  '+a.name+'\n' for a in sorted(Path('release_output').glob('*.apk'))))"
       - name: Publish dev prerelease
         env:
           GH_TOKEN: ${{ github.token }}

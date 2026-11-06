@@ -1,8 +1,8 @@
-# CDS Telemetry — server-only development addon
+# DZSA Tools Telemetry — server-only development addon
 
-This addon reports read-only DayZ server telemetry to CruzDoodelZ Server Studio. Clients do not need it. Use `-serverMod`, not a client mod list. It does not change player inventory, loot settings or persistence.
+This addon reports read-only DayZ server telemetry to DZSA Tools. Clients do not need it. Use `-serverMod`, not a client mod list. It does not change player inventory, loot settings or persistence.
 
-Recommended installation: stop the selected server, open Studio → Live analytics → Collection settings, enable collection, then choose Install / update server-only bridge. Restart the server. Each profile gets a bridge ID and config under `<profiles>/CDSTelemetry/config.json`.
+Recommended installation: stop the selected server, open DZSA Tools → Live analytics → Collection settings, enable collection, then choose Install / update server-only bridge. Restart the server. Each profile gets a bridge ID and config under `<profiles>/CDSTelemetry/config.json`.
 
 The bridge writes alternating `snapshot0.json` and `snapshot1.json` files. The local agent validates source, schema, freshness, sizes and coordinates. No Discord token, web service or client RPC is used. Engine FPS uses native GetAvgFPS/GetMinFPS/GetMaxFPS with 64-frame windows. Script-update rate/frame times are measured separately from MissionServer.OnUpdate; network tick rate is not guessed.
 

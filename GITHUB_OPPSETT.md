@@ -2,7 +2,7 @@
 
 Repository: https://github.com/Krussedull86/TaldrisServerStudio
 
-Development is published on `dev`. Stable promotion is a separate, deliberate action. Existing technical repository/executable/service names are retained for upgrade compatibility; visible branding is CruzDoodelZ Server Studio.
+Development is published on `dev`. Stable promotion is a separate, deliberate action. Existing technical repository/executable/service names are retained for upgrade compatibility; visible branding is DZSA Tools.
 
 ## Development releases
 

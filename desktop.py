@@ -1,4 +1,4 @@
-"""CruzDoodelZ Server Studio — native Qt desktop interface."""
+"""DZSA Tools — native Qt desktop interface."""
 from release_info import VERSION
 import sys, os, json, queue, time, shutil, uuid, subprocess
 from pathlib import Path
@@ -80,12 +80,12 @@ class MapView(QGraphicsView):
 
 class Studio(QMainWindow):
     def __init__(self,home=None):
-        super().__init__(); self.setWindowTitle('CruzDoodelZ Server Studio • '+VERSION); self.resize(1440,940); self.setMinimumSize(900,600)
+        super().__init__(); self.setWindowTitle('DZSA Tools • '+VERSION); self.resize(1440,940); self.setMinimumSize(900,600)
         self.events=queue.Queue(); self.manager=getattr(self,'manager_class',Manager)(home or Path(os.getenv('LOCALAPPDATA',Path.home()))/'TaldrisServerStudio',self.events.put)
         self.p=self.manager.state['servers'][0]; self.deadlines={}; self.log_signature=None; self.page_names=['Overview','Map & markers','Mod library','Logs','Configuration','Backups','Automation','Settings']
         shell=QWidget(); self.setCentralWidget(shell); outer=QHBoxLayout(shell); outer.setContentsMargins(0,0,0,0); outer.setSpacing(0)
         sidebar=QFrame(); sidebar.setObjectName('sidebar'); sidebar.setFixedWidth(248); left=QVBoxLayout(sidebar); left.setContentsMargins(18,28,18,22); left.setSpacing(9)
-        left.addWidget(label('◈  CRUZDOODELZ','brand')); left.addWidget(label('SERVER STUDIO','muted')); left.addSpacing(28); left.addWidget(label('WORKSPACE','eyebrow'))
+        left.addWidget(label('◈  DZSA TOOLS','brand')); left.addWidget(label('DAYZ SERVER MANAGEMENT','muted')); left.addSpacing(28); left.addWidget(label('WORKSPACE','eyebrow'))
         self.nav=[]
         for i,(name,icon) in enumerate(zip(self.page_names,['◫','⌖','▦','≡','⚙','◇','◷','☷'])):
             b=button(icon+'   '+name,lambda checked=False,n=i:self.go(n),'nav'); b.setCheckable(True); left.addWidget(b); self.nav.append(b)
@@ -100,7 +100,7 @@ class Studio(QMainWindow):
         self.load(); self.go(0); self.timer=QTimer(self); self.timer.timeout.connect(self.tick); self.timer.start(1500); self.tick()
     def guard(self,fn):
         try:return fn()
-        except Exception as e:QMessageBox.warning(self,'CruzDoodelZ Server Studio',str(e))
+        except Exception as e:QMessageBox.warning(self,'DZSA Tools',str(e))
     def action(self,fn):return lambda:self.guard(fn)
     def page(self):
         w=QWidget(); layout=QVBoxLayout(w); layout.setContentsMargins(0,0,0,0); layout.setSpacing(18); self.stack.addWidget(w); return layout

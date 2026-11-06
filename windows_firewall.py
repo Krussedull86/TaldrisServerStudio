@@ -70,12 +70,12 @@ if ($r) {{
     $p = $r | Get-NetFirewallPortFilter
     $a = $r | Get-NetFirewallApplicationFilter
     $samePorts = (@(Compare-Object @($p.LocalPort | Sort-Object) @($ports | Sort-Object)).Count -eq 0)
-    if ($r.Enabled -eq 'True' -and $r.Action -eq 'Allow' -and $r.Direction -eq 'Inbound' -and $r.Profile -eq 'Any' -and ($p.Protocol -eq 'UDP' -or $p.Protocol -eq '17') -and $a.Program -eq $exe -and $samePorts) {{ exit 0 }}
+    if ($r.Group -eq 'DZSA Tools' -and $r.Enabled -eq 'True' -and $r.Action -eq 'Allow' -and $r.Direction -eq 'Inbound' -and $r.Profile -eq 'Any' -and ($p.Protocol -eq 'UDP' -or $p.Protocol -eq '17') -and $a.Program -eq $exe -and $samePorts) {{ exit 0 }}
 }}
 $admin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $admin) {{ exit 5 }}
 if ($r) {{ Remove-NetFirewallRule -PolicyStore PersistentStore -Name $name }}
-New-NetFirewallRule -PolicyStore PersistentStore -Name $name -DisplayName {ps_quote('Taldris DayZ ' + str(profile['name']))} -Group 'CruzDoodelZ Server Studio' -Direction Inbound -Action Allow -Enabled True -Profile Any -Program $exe -Protocol UDP -LocalPort $ports | Out-Null
+New-NetFirewallRule -PolicyStore PersistentStore -Name $name -DisplayName {ps_quote('DZSA Tools DayZ ' + str(profile['name']))} -Group 'DZSA Tools' -Direction Inbound -Action Allow -Enabled True -Profile Any -Program $exe -Protocol UDP -LocalPort $ports | Out-Null
 exit 0
 """
 
