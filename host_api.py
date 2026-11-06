@@ -32,6 +32,14 @@ class AgentAPI:
     def stop(self):self.server.shutdown();self.server.server_close()
     def call(self,method,params):
         e=self.engine
+        if method in ('mobile_status','mobile_configure','mobile_pair','mobile_revoke'):
+            if not getattr(e,'mobile',None):
+                from mobile_access import Gateway
+                e.mobile=Gateway(e)
+            if method=='mobile_status':return e.mobile.local_status()
+            if method=='mobile_configure':return e.mobile.configure(params)
+            if method=='mobile_pair':return e.mobile.new_pairing(params)
+            return e.mobile.revoke(params['device'])
         if method=='snapshot':return e.snapshot(int(params.get('since',0)))
         if method=='community':
             from community_settings import validate_invite
@@ -143,8 +151,14 @@ def serve(home,service=False,external_stop=None):
     from host_engine import HostEngine
     engine=HostEngine(home,service);api=AgentAPI(engine);api.start();engine.start()
     try:
+        from mobile_access import Gateway
+        engine.mobile=Gateway(engine);engine.mobile.start()
+    except Exception as error:engine.log('Mobile gateway could not initialize: '+str(error))
+    try:
         from discord_host import DiscordHost
         engine.discord=DiscordHost(engine);engine.discord.start()
         while not engine.stop_event.wait(.5):
             if external_stop and external_stop.is_set():break
-    finally:engine.stop();api.stop();lock.close()
+    finally:
+        if getattr(engine,'mobile',None):engine.mobile.stop()
+        engine.stop();api.stop();lock.close()

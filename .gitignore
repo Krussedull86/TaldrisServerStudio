@@ -16,3 +16,11 @@ backups/
 *.bikey
 *.biprivatekey
 *.pbo
+
+android/.gradle/
+android/.idea/
+android/local.properties
+android/app/build/
+*.apk
+*.jks
+*.keystore

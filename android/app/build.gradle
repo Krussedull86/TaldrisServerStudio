@@ -1,0 +1,17 @@
+plugins { id 'com.android.application' }
+android {
+    namespace 'com.cruzdoodelz.serverstudio'
+    compileSdk 35
+    defaultConfig {
+        applicationId 'com.cruzdoodelz.serverstudio'
+        minSdk 26
+        targetSdk 35
+        versionCode (System.getenv('BUILD') ?: '1').toInteger()
+        versionName '0.11.0-dev'
+    }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+}
+dependencies {
+    implementation 'com.journeyapps:zxing-android-embedded:4.3.0'
+    implementation 'androidx.work:work-runtime:2.10.1'
+}

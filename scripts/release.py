@@ -20,7 +20,7 @@ def package():
     shutil.copy2(binary,out/'CruzDoodelZServerStudio-Setup.exe')
     target=out/'TaldrisServerStudio-Windows.zip'
     with zipfile.ZipFile(target,'w',zipfile.ZIP_DEFLATED) as z:
-        z.write(binary,binary.name); z.writestr('LES_MEG.md',(ROOT/'LES_MEG.md').read_text('utf-8')+'\n\n'+(ROOT/'DRIFT_DISCORD_EDITORER.md').read_text('utf-8')+'\n\n'+(ROOT/'CHANGES_0.10.0.md').read_text('utf-8'))
+        z.write(binary,binary.name); z.writestr('LES_MEG.md',(ROOT/'LES_MEG.md').read_text('utf-8')+'\n\n'+(ROOT/'DRIFT_DISCORD_EDITORER.md').read_text('utf-8')+'\n\n'+(ROOT/'CHANGES_0.10.0.md').read_text('utf-8')+'\n\n'+(ROOT/'MOBILE_ACCESS.md').read_text('utf-8'))
     info=dict(version=v.VERSION,build=v.BUILD,sha256=sha(target),size=target.stat().st_size,asset=target.name)
     (out/'build.json').write_text(json.dumps(info,indent=2),encoding='utf-8')
     modzip=out/'CDSTelemetry-ServerMod.zip'
@@ -43,6 +43,11 @@ def promote():
     out=ROOT/'release_output'; out.mkdir(exist_ok=True)
     gh('release','download',tag,'--dir',str(out),'--pattern','TaldrisServerStudio-Windows.zip','--pattern','build.json','--pattern','SHA256SUMS.txt')
     if any(a['name']=='TaldrisServerStudio-Setup.exe' for a in source.get('assets',[])):gh('release','download',tag,'--dir',str(out),'--pattern','TaldrisServerStudio-Setup.exe')
+    for name in ('CDSTelemetry-ServerMod.zip','CDS-Android-dev.apk'):
+        if any(a['name']==name for a in source.get('assets',[])):gh('release','download',tag,'--dir',str(out),'--pattern',name)
+    expected_sums={line.split('  ',1)[1]:line.split('  ',1)[0] for line in (out/'SHA256SUMS.txt').read_text().splitlines() if '  ' in line}
+    for file in out.iterdir():
+        if file.name in expected_sums and sha(file)!=expected_sums[file.name]:raise ValueError('Asset checksum mismatch: '+file.name)
     info=json.loads((out/'build.json').read_text())
     if tag!=f"dev-v{info['version']}.b{int(info['build'])}":raise ValueError('Dev tag and metadata disagree')
     binary=out/'TaldrisServerStudio-Windows.zip'

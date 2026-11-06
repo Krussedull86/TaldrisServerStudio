@@ -4,3 +4,5 @@ certifi==2026.10.19
 psutil==7.2.2
 discord.py==2.7.1
 pywin32==312; sys_platform == "win32"
+cryptography==46.0.3
+qrcode==8.2

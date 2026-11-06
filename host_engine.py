@@ -172,6 +172,7 @@ class HostEngine:
     def perform(self,job,params,key):
         job['status']='running';self.log(job['actor']+': '+job['action']+' • '+job['server'])
         try:
+            if params.get('_mobile_deadline') and time.time()>params['_mobile_deadline']:raise ValueError('Mobile command expired before execution. Refresh status before trying again.')
             result=self.execute(job['action'],job['server'],params)
             raw=json.dumps(result,ensure_ascii=False) if isinstance(result,(dict,list)) else str(result)
             if len(raw.encode())>64000:
@@ -195,6 +196,7 @@ class HostEngine:
             p['desired_running']=False;p.pop('shutdown_request',None);self.retries.pop(p['id'],None);self.manager.force_stop(p);self.manager.save();return 'Force-stop request sent.'
         if action in ('restart','stop'):
             with self.rcon_locks.setdefault(p['id'],threading.RLock()):
+                if params.get('_mobile_deadline') and p.get('shutdown_request'):raise ValueError('A countdown is already active. Cancel it before creating another one.')
                 if not self.manager.running(p):raise ValueError('The server is not running.')
                 minutes=int(params.get('minutes',10))
                 if not 1<=minutes<=1440:raise ValueError('Choose 1–1440 minutes.')

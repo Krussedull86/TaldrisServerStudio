@@ -53,3 +53,7 @@ The application does not provide live player positions without an additional int
 ## 0.10.0 — per-server workspace and analytics
 
 Server tabs, CPU/priority/memory controls, native engine FPS and frame-time telemetry, local history, live player/loot overlays, occupancy heatmaps and a configurable community Discord link. See [0.10.0 setup and limits](CHANGES_0.10.0.md). The new server-only addon is a development build and needs DayZ test-server verification.
+
+## Android control (0.11.0 dev)
+
+Native Android client and opt-in pinned HTTPS gateway with QR pairing, per-server permissions, command history and automatic Windows TCP firewall rule management. See [MOBILE_ACCESS.md](MOBILE_ACCESS.md) for setup, router requirements and development-build limits.

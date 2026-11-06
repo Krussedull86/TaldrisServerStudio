@@ -72,9 +72,40 @@ jobs:
           name: windows-release
           path: release_output/*
           if-no-files-found: error
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: cds-android-dev-signing-v1
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Build Android development APK
+        working-directory: android
+        env:
+          BUILD: ${{ github.run_number }}
+        run: gradle --no-daemon :app:assembleDebug
+      - name: Name Android APK
+        run: |
+          mkdir -p android_release
+          cp android/app/build/outputs/apk/debug/app-debug.apk android_release/CDS-Android-dev.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-release
+          path: android_release/*
+          if-no-files-found: error
   publish:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/dev'
-    needs: windows
+    needs: [windows, android]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -87,6 +118,12 @@ jobs:
         with:
           name: windows-release
           path: release_output
+      - uses: actions/download-artifact@v4
+        with:
+          name: android-release
+          path: release_output
+      - name: Add Android checksum
+        run: python -c "from pathlib import Path; import hashlib; p=Path('release_output/CDS-Android-dev.apk'); f=Path('release_output/SHA256SUMS.txt'); f.write_text(f.read_text()+hashlib.sha256(p.read_bytes()).hexdigest()+'  '+p.name+'\n')"
       - name: Publish dev prerelease
         env:
           GH_TOKEN: ${{ github.token }}

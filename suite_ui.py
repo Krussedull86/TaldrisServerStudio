@@ -46,6 +46,8 @@ class SuiteStudio(OperationsStudio):
             index=self.stack.addWidget(widget);self.page_names.append(title);b=button(title,lambda checked=False,n=index:self.go(n),'nav');b.setCheckable(True);side.insertWidget(side.count()-4,b);self.nav.append(b)
         from community_ui import CommunityControls
         self.community=CommunityControls(self)
+        from mobile_ui import MobilePage
+        self.mobile_page=MobilePage(self);index=self.stack.addWidget(self.mobile_page);self.page_names.append('Android access');b=button('Android access',lambda checked=False,n=index:self.go(n),'nav');b.setCheckable(True);side.insertWidget(side.count()-4,b);self.nav.append(b)
 
     def sync_server_tabs(self):
         self.server_tabs.blockSignals(True)
