@@ -6,7 +6,7 @@ android {
         applicationId 'com.cruzdoodelz.serverstudio'
         minSdk 26
         targetSdk 35
-        versionCode (System.getenv('BUILD') ?: '1').toInteger()
+        versionCode = Integer.parseInt(System.getenv('BUILD') ?: '1')
         versionName '0.11.0-dev'
     }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
