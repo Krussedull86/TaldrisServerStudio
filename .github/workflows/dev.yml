@@ -87,8 +87,14 @@ jobs:
       - run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
       - uses: actions/cache@v4
         with:
-          path: ~/.android/debug.keystore
-          key: cds-android-dev-signing-v1
+          path: android/.signing/debug.keystore
+          key: dzsa-android-dev-signing-v2
+      - name: Prepare stable development signing key
+        run: |
+          mkdir -p android/.signing
+          if [ ! -f android/.signing/debug.keystore ]; then
+            keytool -genkeypair -noprompt -keystore android/.signing/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=DZSA Tools Development,O=DZSA Tools,C=NO"
+          fi
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.11.1'

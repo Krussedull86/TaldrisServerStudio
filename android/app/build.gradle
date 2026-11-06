@@ -9,6 +9,17 @@ android {
         versionCode = Integer.parseInt(System.getenv('BUILD') ?: '1')
         versionName '0.11.1-dev'
     }
+    signingConfigs {
+        debug {
+            def stableKey = file('../.signing/debug.keystore')
+            if (stableKey.exists()) {
+                storeFile = stableKey
+                storePassword = 'android'
+                keyAlias = 'androiddebugkey'
+                keyPassword = 'android'
+            }
+        }
+    }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
 }
 dependencies {

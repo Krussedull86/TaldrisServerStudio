@@ -1,6 +1,6 @@
 # DZSA Tools Android access — 0.11.1 development release
 
-The Windows background agent can expose a **separate opt-in HTTPS gateway** on TCP 8788 (configurable). Android uses this gateway, not the loopback owner API or a raw RCon connection. The Windows program and Android app are now named DZSA Tools. Existing installations and phone pairings keep their stable identities.
+The Windows background agent can expose a **separate opt-in HTTPS gateway** on TCP 8788 (configurable). Android uses this gateway, not the loopback owner API or a raw RCon connection. The Windows program and Android app are now named DZSA Tools. Windows installations and API identities are preserved. The first Android prototype may require one uninstall/re-pair because its signing key was not persisted correctly.
 
 ## Included in this first version
 
@@ -45,7 +45,7 @@ Disable the gateway and save to stop listening and remove its owned Windows Fire
 
 The dev workflow builds both Windows EXE and native Android APK, then publishes them together with SHA-256 checksums. Android uses Java 17, Gradle 8.11.1, AGP 8.9.2 and SDK 35. From a machine with that toolchain: `cd android` then `gradle :app:assembleDebug`.
 
-Development signing uses Android's debug key cached in GitHub Actions. If that cache is lost, Android may require uninstall/re-pair before accepting a differently signed development build. A production distribution requires a separately managed permanent signing key and release process. No signing secret is committed to the repository.
+Development signing uses an explicitly generated key at `android/.signing/debug.keystore`, selected by Gradle and cached in GitHub Actions. The 0.11.0 prototype did not persist its key correctly and may require uninstall/re-pair once. If that cache is lost, Android may require uninstall/re-pair before accepting a differently signed development build. A production distribution requires a separately managed permanent signing key and release process. No signing secret is committed to the repository.
 
 Real Windows UAC/firewall/router behavior and APK installation/QR scanning on a physical phone must be checked on the target setup. Local HTTPS authorization, scope filtering, expiry, replay protection and revocation are verified independently of the DayZ server process. No claim of successful real-device operation follows from an APK/EXE build alone.
 
