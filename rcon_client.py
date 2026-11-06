@@ -48,7 +48,7 @@ def command(host,port,password,text,timeout=5):
 
 def credentials(profile):
     if not profile.get('root','').strip():raise ValueError('Choose a server folder first.')
-    relative=profile.get('rcon_config','')
+    relative=profile.get('rcon_config','') or (Path(profile['profiles'])/'BattlEye/BEServer_x64.cfg').as_posix()
     if not relative:raise ValueError('Choose the active BattlEye BEServer_x64.cfg file in RCon settings.')
     path=local_path(profile['root'],relative)
     if not path.exists() and path.name.casefold().startswith('beserver'):

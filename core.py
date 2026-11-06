@@ -68,6 +68,9 @@ def command(p):
     for server, flag in [(False,'-mod='),(True,'-serverMod=')]:
         folders=[str(mod_path(p,m)) if m.get('source')=='local' else m['folder'] for m in p['mods'] if m.get('enabled',True) and mod_load_mode(m) in (('server','both') if server else ('client','both'))]
         if folders: args.append(flag+';'.join(folders))
+    if p.get('rcon_config') and Path(p['rcon_config']).parent.as_posix().casefold()==(Path(p['profiles'])/'BattlEye').as_posix().casefold():
+        if any(str(a).lower().startswith('-bepath') for a in p.get('extra_args',[])):raise ValueError('Remove the conflicting -BEpath extra argument.')
+        args.append('-BEpath='+str(local_path(p['root'],p['rcon_config']).parent))
     args.extend(p.get('extra_args',[]))
     from performance_policy import launch_arguments
     return launch_arguments(p,args)

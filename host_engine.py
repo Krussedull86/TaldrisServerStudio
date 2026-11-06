@@ -190,6 +190,10 @@ class HostEngine:
         with self.rcon_locks.setdefault(p['id'],threading.RLock()):return server_command(p,text)
     def execute(self,action,server,params):
         p=self.profile(server) if server else None
+        if action=='rcon_setup':
+            self.editable(p)
+            from rcon_setup import setup
+            result=setup(p,params.get('port'),params.get('password'));self.manager.save();return result
         if action=='start':
             self.retries.pop(p['id'],None);self.start_server(p,params.get('reason','start'));p['desired_running']=True;self.manager.save();return 'Server process started. Check server status and RPT.'
         if action=='force_stop':

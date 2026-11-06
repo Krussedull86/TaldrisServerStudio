@@ -198,6 +198,7 @@ class SuiteStudio(OperationsStudio):
     def rcon_page(self):
         layout=self.page();f,c=card('RCON AND PLAYERS','Choose the active BattlEye configuration. RConPassword is read locally when connecting and is not sent to Discord.')
         row=QHBoxLayout();self.rcon_path=QLineEdit(self.p.get('rcon_config',''));self.rcon_path.setPlaceholderText('profiles/BattlEye/BEServer_x64.cfg');row.addWidget(self.rcon_path,1);row.addWidget(button('Choose file',self.choose_rcon));row.addWidget(button('Save RCon settings',self.action(self.save_rcon)));c.addLayout(row)
+        c.addWidget(button('Create RCon in profile folder …',lambda:self.guard(self.create_rcon),'primary'))
         row=QHBoxLayout()
         for title,action in [('Players','players'),('Bans','bans'),('Lock','lock'),('Unlock','unlock')]:row.addWidget(button(title,lambda checked=False,a=action:self.guard(lambda:self.run_action(a))))
         c.addLayout(row);row=QHBoxLayout();self.broadcast=QLineEdit();self.broadcast.setPlaceholderText('Message to all players');row.addWidget(self.broadcast,1);row.addWidget(button('Send message',lambda:self.guard(lambda:self.run_action('say',{'message':self.broadcast.text()}))));c.addLayout(row)
@@ -208,6 +209,12 @@ class SuiteStudio(OperationsStudio):
         path,_=QFileDialog.getOpenFileName(self,'Choose active BattlEye configuration',self.p['root'],'CFG (*.cfg)')
         if path:
             relative=Path(path).resolve().relative_to(Path(self.p['root']).resolve());self.rcon_path.setText(relative.as_posix())
+    def create_rcon(self):
+        port,ok=QInputDialog.getInt(self,'RCon UDP port','Default: game port + 3. Must differ from Steam query port.',min(65535,int(self.p['port'])+3),1,65535)
+        if not ok:return
+        password,ok=QInputDialog.getText(self,'RCon password','Password (12–64 ASCII characters). Leave blank to preserve/generate:',QLineEdit.Password)
+        if not ok:return
+        self.run_action('rcon_setup',{'port':port,'password':password})
     def save_rcon(self):self.p['rcon_config']=self.rcon_path.text().strip();self.manager.save();self.events.put('RCon settings saved. The port must differ from the game and query ports.')
     def countdown(self,action):
         minutes,ok=QInputDialog.getInt(self,'Announced restart / stop','Minutes before shutdown:',10,1,1440)

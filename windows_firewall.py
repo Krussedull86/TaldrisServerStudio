@@ -31,6 +31,9 @@ def server_ports(profile):
     if not profile.get('query_enabled',True):
         game=int(profile['port']);ports=[game,game+1,game+2]
         if any(not 1<=port<=65535 for port in ports):raise ValueError('Invalid game port.')
+        if profile.get('rcon_config'):
+            from rcon_client import credentials
+            ports=sorted(set(ports+[credentials(profile)[1]]))
         return ports
     config = (Path(profile['root']) / profile['config']).read_text('utf-8-sig')
     config = mask_config(config)
@@ -44,6 +47,9 @@ def server_ports(profile):
     ports = sorted({game, game + 1, game + 2, query})
     if any(not 1 <= port <= 65535 for port in ports):
         raise ValueError('Invalid game port or steamQueryPort in the server configuration.')
+    if profile.get('rcon_config'):
+        from rcon_client import credentials
+        ports=sorted(set(ports+[credentials(profile)[1]]))
     return ports
 
 
