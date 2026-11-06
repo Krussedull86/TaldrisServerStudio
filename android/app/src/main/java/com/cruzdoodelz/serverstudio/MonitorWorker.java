@@ -19,11 +19,18 @@ public final class MonitorWorker extends Worker {
             JSONObject root=Vault.read(ctx);if(!root.optBoolean("monitor",false))return Result.success();JSONArray list=root.getJSONArray("connections");
             for(int i=0;i<list.length();i++){
                 JSONObject c=list.getJSONObject(i);
+                android.content.SharedPreferences monitor=ctx.getSharedPreferences("monitor-state",Context.MODE_PRIVATE);String monitorKey=Integer.toHexString(c.getString("token").hashCode());
                 try{
                     JSONObject status=Api.call(c,"/v1/request",new JSONObject().put("method","status"),false);JSONArray servers=status.getJSONArray("servers");JSONObject old=c.optJSONObject("cache");
                     if(old!=null){JSONArray previous=old.optJSONArray("servers");if(previous!=null)for(int n=0;n<servers.length();n++){JSONObject current=servers.getJSONObject(n);for(int j=0;j<previous.length();j++){JSONObject prior=previous.getJSONObject(j);if(prior.optString("id").equals(current.optString("id"))&&prior.optBoolean("running")&&!current.optBoolean("running"))notify(ctx,current.optString("id"),current.optString("name")+" stopped","Open CDS to check server status and command history.");}}}
                     Vault.cache(ctx,c,status);
-                }catch(Exception error){/* No command retries and no misleading crash alarm on a failed network request. */}
+                    if(monitor.getInt(monitorKey,0)>=2)notify(ctx,monitorKey,"CDS host reachable again",c.optString("name","Host")+" responded to a background status check.");
+                    monitor.edit().putInt(monitorKey,0).apply();
+                }catch(Exception error){
+                    int failures=Math.min(100,monitor.getInt(monitorKey,0)+1);monitor.edit().putInt(monitorKey,failures).apply();
+                    if(failures==2)notify(ctx,monitorKey,"CDS access needs attention",c.optString("name","Host")+" could not be checked twice. Open CDS to check connection, access and server state.");
+                    // A network/access failure is not reported as a confirmed crash.
+                }
             }
         }catch(Exception error){return Result.failure();}
         return Result.success();

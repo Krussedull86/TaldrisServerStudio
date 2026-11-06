@@ -9,7 +9,7 @@ The Windows background agent can expose a **separate opt-in HTTPS gateway** on T
 - Aggregate last-hour FPS/CPU/RAM graphs and this phone's command history. No arbitrary RCon, configuration writes, file access, player identities/positions, ban/wipe or force-stop endpoints.
 - One-use QR invitation (five minutes), explicit server selections and read/control/message permissions, revocable 90-day device credentials. Permission changes currently require revoking and re-pairing.
 - Encrypted phone credentials/cache using Android Keystore AES-GCM. Status is clearly marked cached/offline when requests fail. Commands are disabled for cached status and are never queued offline or automatically retried.
-- Optional Android WorkManager checks approximately every 15 minutes, subject to Android battery/network restrictions. They notify on a detected running-to-stopped transition. This is **not real-time push delivery** and cannot guarantee detection of a short outage/recovery between samples. While open, the app refreshes every 15 seconds.
+- Optional Android WorkManager checks approximately every 15 minutes, subject to Android battery/network restrictions. They notify on a detected running-to-stopped transition, two consecutive host-access failures and subsequent recovery. An access failure is not presented as proof that DayZ crashed. This is **not real-time push delivery** and cannot guarantee detection of a short outage/recovery between samples. While open, the app refreshes every 15 seconds.
 - Windows Firewall rule creation/update/removal for this installation's dedicated TCP port, with UAC if needed. The rule is scoped to the exact port and TCP. Gateway access remains disabled by default.
 
 ## Set up on the Windows host
