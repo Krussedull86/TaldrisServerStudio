@@ -70,7 +70,7 @@ public final class MainActivity extends Activity {
     private void pairScreen(){
         connection=null;lastStatus=null;base();root.addView(text("Pair your server host",24,TEXT));root.addView(text("In Windows: Android access → enable HTTPS → choose permissions → Create pairing QR code.",15,MUTED));
         invitation=input("Paste pairing invitation JSON");invitation.setMinLines(4);invitation.setMaxLines(7);invitation.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_FLAG_MULTI_LINE);root.addView(invitation);EditText name=input("Phone name");name.setText(Build.MODEL);root.addView(name);
-        root.addView(button("Scan pairing QR",()->new IntentIntegrator(this).setDesiredBarcodeFormats(IntentIntegrator.QR_CODE_TYPES).setPrompt("Scan the QR code shown in CDS on your Windows host").setBeepEnabled(false).initiateScan()));
+        root.addView(button("Scan pairing QR",()->new IntentIntegrator(this).setDesiredBarcodeFormats(java.util.Collections.singletonList("QR_CODE")).setPrompt("Scan the QR code shown in CDS on your Windows host").setBeepEnabled(false).initiateScan()));
         root.addView(button("Review and pair",()->{
             try{JSONObject setup=new JSONObject(invitation.getText().toString());String url=setup.getString("url"),pin=setup.getString("fingerprint");if(setup.optInt("protocol")!=1)throw new Exception("Unsupported pairing protocol.");
                 new AlertDialog.Builder(this).setTitle("Verify server identity").setMessage("Address:\n"+url+"\n\nCertificate SHA-256:\n"+pin+"\n\nCompare this fingerprint with the Windows application. Pair only if it matches.").setPositiveButton("Pair",(dialog,which)->{
