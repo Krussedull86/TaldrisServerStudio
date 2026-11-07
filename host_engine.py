@@ -10,7 +10,7 @@ from steam_status import plain_terminal
 from process_registry import save_processes
 from rcon_client import server_command
 
-EDITABLE={'performance','telemetry','name','root','steamcmd','steam_user','login_mode','workshop','config','profiles','port','mods','markers','map_size','map_image','extra_args','auto_firewall','query_enabled','auto_update','update_minutes','mission','max_players','start_after_install','update_game','scheduled_restart','restart_mode','restart_times','restart_interval','maintenance_backup','backup_keep','crash_recovery','rcon_config','local_scan_root','autostart','programs','log_rotation_enabled','log_keep_days','log_keep_archives','log_max_mb','mod_restart_enabled','mod_grace_minutes'}
+EDITABLE={'dzsa_auto_check','dzsa_public_ip','performance','telemetry','name','root','steamcmd','steam_user','login_mode','workshop','config','profiles','port','mods','markers','map_size','map_image','extra_args','auto_firewall','query_enabled','auto_update','update_minutes','mission','max_players','start_after_install','update_game','scheduled_restart','restart_mode','restart_times','restart_interval','maintenance_backup','backup_keep','crash_recovery','rcon_config','local_scan_root','autostart','programs','log_rotation_enabled','log_keep_days','log_keep_archives','log_max_mb','mod_restart_enabled','mod_grace_minutes'}
 
 
 def offline_job(fn):
@@ -32,6 +32,8 @@ class HostEngine:
         from telemetry_store import TelemetryStore
         self.analytics=TelemetryStore(self.home);self.analytics_procs={};self.analytics_due={};self.resource_warnings={};self.warning_last={}
         self.jobs={};self.queue=queue.Queue();self.stop_event=threading.Event();self.worker=None;self.schedule_thread=None;self.console='';self.pty=None;self.secrets=[];self.steam_profile=None;self.check_due={};self.retries={};self.crashes={};self.health={};self.health_due={};self.metric_procs={};self.rcon_locks={};self.pending_upgrade_exe=None;self.fast_threads=[];self.program_due={};self.program_runtime={};self.pending_keys=set();self.pending_lock=threading.Lock();self.discord=None
+        from dzsa_check import LauncherChecks
+        self.dzsa=LauncherChecks(self)
         from companion_programs import CompanionPrograms
         self.companions=CompanionPrograms()
         for p in self.manager.state['servers']:
@@ -83,7 +85,7 @@ class HostEngine:
                         except (psutil.Error,OSError):pass
                 telemetry=self.analytics.status(p)
                 if not running:telemetry.update(connected=False,sample=None,message='Server stopped')
-                entry['telemetry']=telemetry;entry['performance']=record.get('performance',{}) if record else {};entry['resource_warning']=self.resource_warnings.get(p['id'],'')
+                entry['dzsa']=self.dzsa.status(p['id']);entry['telemetry']=telemetry;entry['performance']=record.get('performance',{}) if record else {};entry['resource_warning']=self.resource_warnings.get(p['id'],'')
                 runtime[p['id']]=entry
             state=copy.deepcopy(self.manager.state)
             with self.event_lock:events=[copy.deepcopy(e) for e in self.events if e['id']>since]
@@ -91,7 +93,7 @@ class HostEngine:
             return dict(version=VERSION,build=BUILD,state=state,runtime=runtime,events=events,event_id=self.event_id,jobs=[j for j in self.jobs.values() if j['status'] in ('queued','running')]+[j for j in self.jobs.values() if j['status'] not in ('queued','running')][-50:],console=self.redact(plain_terminal(self.console[-100000:])),steam_profile=self.steam_profile,service=self.service)
     def patch_state(self,changes):
         from server_schedule import next_restart
-        boolean={'auto_firewall','query_enabled','auto_update','start_after_install','update_game','scheduled_restart','maintenance_backup','crash_recovery','autostart','log_rotation_enabled','mod_restart_enabled'}
+        boolean={'dzsa_auto_check','auto_firewall','query_enabled','auto_update','start_after_install','update_game','scheduled_restart','maintenance_backup','crash_recovery','autostart','log_rotation_enabled','mod_restart_enabled'}
         prepared=[]
         with self.manager.lock:
             for change in changes:
@@ -105,6 +107,8 @@ class HostEngine:
                 if 'telemetry' in change['fields'] and self.manager.running(p):raise ValueError('Stop the server before changing telemetry collection settings, then install/update the bridge.')
                 from runtime_tools import validate_runtime
                 validate_runtime(candidate)
+                from dzsa_check import validate_settings
+                validate_settings(candidate)
                 if 'programs' in change['fields'] and p['id'] in self.manager.busy:raise ValueError('Wait for the server job to finish before changing the EXE list.')
                 if candidate['root']:validate(candidate)
                 if candidate.get('restart_mode','clock') not in ('clock','interval'):raise ValueError('Unknown restart schedule.')
@@ -190,6 +194,13 @@ class HostEngine:
         with self.rcon_locks.setdefault(p['id'],threading.RLock()):return server_command(p,text)
     def execute(self,action,server,params):
         p=self.profile(server) if server else None
+        if action=='dzsa_check':
+            if not self.manager.running(p):raise ValueError('Start the server before checking DZSA.')
+            from dzsa_check import endpoint
+            endpoint(p)
+            if not p.get('query_enabled',True):raise ValueError('Enable Steam query monitoring before checking DZSA.')
+            self.dzsa.update(p,True,self.manager.launches.get(p['id'],{}),self.health.get(p['id'],{}),manual=True)
+            return 'DZSA check queued. Read the result under Automation → DZSA Launcher.'
         if action=='rcon_setup':
             self.editable(p)
             from rcon_setup import setup
@@ -635,6 +646,7 @@ class HostEngine:
                     if not previous:self.log(p['name']+': Steam query responded. Map '+self.health[key]['map']+'.')
                 except (OSError,ValueError):self.health[key]={'responding':False,'checked':now}
             elif not running:self.health[key]={'responding':False,'checked':now}
+            self.dzsa.update(p,running,self.manager.launches.get(key,{}),self.health.get(key,{}))
             with self.rcon_locks.setdefault(p['id'],threading.RLock()):
                 request=p.get('shutdown_request')
                 if request and running:

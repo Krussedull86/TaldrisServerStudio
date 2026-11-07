@@ -9,7 +9,7 @@ from process_registry import save_processes,restore_processes,discover_processes
 
 DEFAULT = dict(name='Taldris • DayZ', root='', steamcmd='', steam_user='', workshop='',
                config='serverDZ.cfg', profiles='profiles', port=2302, mods=[], markers=[],
-               map_size=25600, map_image='', auto_firewall=True, query_enabled=True, auto_update=False, update_minutes=60)
+               dzsa_auto_check=True, dzsa_public_ip='', map_size=25600, map_image='', auto_firewall=True, query_enabled=True, auto_update=False, update_minutes=60)
 
 def local_path(root, relative):
     p = (Path(root).resolve() / relative).resolve()
@@ -57,6 +57,8 @@ def validate(p):
     if int(p['update_minutes']) < 5: raise ValueError('Update interval: at least 5 minutes.')
     from runtime_tools import validate_runtime
     validate_runtime(p)
+    from dzsa_check import validate_settings
+    validate_settings(p)
     from launch_options import validate_extra
     validate_extra(p.get('extra_args',[]))
     for m in p['mods']:validate_mod(m)

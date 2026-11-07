@@ -2,7 +2,7 @@
 import copy,json,uuid
 from pathlib import Path
 from core import DEFAULT,validate
-FIELDS={'performance','telemetry','name','root','steamcmd','login_mode','workshop','config','profiles','port','mods','markers','map_size','map_image','extra_args','auto_firewall','query_enabled','auto_update','update_minutes','mission','max_players','update_game','scheduled_restart','restart_mode','restart_times','restart_interval','maintenance_backup','backup_keep','crash_recovery','log_rotation_enabled','log_keep_days','log_keep_archives','log_max_mb','mod_restart_enabled','mod_grace_minutes'}
+FIELDS={'dzsa_auto_check','dzsa_public_ip','performance','telemetry','name','root','steamcmd','login_mode','workshop','config','profiles','port','mods','markers','map_size','map_image','extra_args','auto_firewall','query_enabled','auto_update','update_minutes','mission','max_players','update_game','scheduled_restart','restart_mode','restart_times','restart_interval','maintenance_backup','backup_keep','crash_recovery','log_rotation_enabled','log_keep_days','log_keep_archives','log_max_mb','mod_restart_enabled','mod_grace_minutes'}
 MOD_FIELDS={'folder','id','title','source','path','enabled','server','load_mode','installed_updated','remote_updated'}
 
 def sanitized(raw):
@@ -10,7 +10,7 @@ def sanitized(raw):
     fields={k:copy.deepcopy(v) for k,v in raw.items() if k in FIELDS}
     if not isinstance(fields.get('mods',[]),list):raise ValueError('Invalid mod list.')
     if any(not isinstance(m,dict) for m in fields.get('mods',[])):raise ValueError('Invalid mod entry.')
-    for key in ('auto_firewall','query_enabled','auto_update','update_game','scheduled_restart','maintenance_backup','crash_recovery','log_rotation_enabled','mod_restart_enabled'):
+    for key in ('dzsa_auto_check','auto_firewall','query_enabled','auto_update','update_game','scheduled_restart','maintenance_backup','crash_recovery','log_rotation_enabled','mod_restart_enabled'):
         if key in fields and type(fields[key]) is not bool:raise ValueError(key+' must be on/off.')
     fields['mods']=[{k:v for k,v in m.items() if k in MOD_FIELDS} for m in fields.get('mods',[]) if isinstance(m,dict)]
     candidate=copy.deepcopy(DEFAULT);candidate.update(fields);candidate.setdefault('mission','dayzOffline.chernarusplus');candidate.setdefault('max_players',40);validate(candidate)

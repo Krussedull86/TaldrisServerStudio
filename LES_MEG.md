@@ -83,3 +83,27 @@ The current English release is built without automated test suites, as requested
 Select a server tab, then use Performance for CPU affinity, priority, worker count, FPS ceiling, CPU budget and RAM settings. A hard private-commit memory ceiling may crash DayZ when reached; it is disabled by default. Use warning-only monitoring first.
 
 For Live analytics, stop the server, enable collection settings, install/update the server-only bridge and restart. Native engine FPS and script-update timing are separate measurements; network tick rate is not inferred. Loot counts cover sampled player areas only. See the included 0.10.0 guide for setup, retention, Discord reporting and limitations. The community invite is configured separately under Discord / service.
+
+### DZSA Launcher automatic server check (0.12.2)
+Under **Automation → DZSA Launcher**, enter the server's public IPv4 address
+(without a port) and save. Automatic checks are enabled by default once an address
+is configured. Each process start, restart and crash recovery waits at least
+30 seconds and for a fresh successful local Steam query before contacting DZSA.
+The check uses `steamQueryPort` from the active server configuration, never an
+assumed game-port offset. Waiting expires after 10 minutes; failed remote checks
+retry after 60 and 120 seconds, up to three attempts per launch. Checks run in the
+background agent even when the desktop window is closed. Agent restart also
+checks an already-running server once. Check now allows a manual retry.
+
+A successful local query does not prove internet accessibility. Forward the Steam
+query **UDP** port in your router and allow it in Windows Firewall (the existing
+automatic firewall option covers the configured query port). No additional port,
+RCon password, Steam login or DZSA login is sent. Only the public IP and query
+port go to DZSA. Success is shown only when DZSA returns a successful server
+result; its launcher list can then take about five minutes to update.
+
+This uses the same `/api/v1/query/IP:QUERYPORT` request as DZSA's official
+servercheck website, inspected 2026-11-07. It is a website integration, not a
+versioned integration contract; if it changes or requires verification, the
+error is shown and **Open official servercheck** remains available. There is no
+continuous polling of DZSA and no server shutdown when a check fails.

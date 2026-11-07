@@ -29,6 +29,11 @@ class OperationsStudio(ReleaseStudio):
         self.auto=QCheckBox('Enable automatic Steam updates (Workshop mods)'); c.addWidget(self.auto)
         self.op_game=QCheckBox('Also update DayZ server files during maintenance'); c.addWidget(self.op_game)
         form=QFormLayout(); self.interval=QLineEdit('30'); form.addRow('Check interval, minutes',self.interval);self.mod_restart=QCheckBox('Announce a restart when a Workshop mod has an update');form.addRow('',self.mod_restart);self.mod_grace=QSpinBox();self.mod_grace.setRange(1,1440);self.mod_grace.setValue(15);form.addRow('Delay before mod restart, minutes',self.mod_grace); c.addLayout(form); inner.addWidget(f)
+        f,c=card('DZSA LAUNCHER','Automatically check this server after start, scheduled restart and crash recovery. Uses steamQueryPort from serverDZ.cfg. Forward that UDP port in your router; Windows Firewall rules alone do not configure the router.')
+        self.dzsa_auto=QCheckBox('Check automatically after every start / restart');c.addWidget(self.dzsa_auto)
+        self.dzsa_ip=QLineEdit();self.dzsa_ip.setPlaceholderText('Public IPv4 address, without port');form=QFormLayout();form.addRow('Public server IP',self.dzsa_ip);c.addLayout(form)
+        c.addWidget(button('Save DZSA settings',self.action(self.save_dzsa)));c.addWidget(button('Check now',self.action(lambda:self.run_action('dzsa_check'))));c.addWidget(button('Open official servercheck',self.action(self.open_dzsa)))
+        self.dzsa_status=label('No check recorded.','muted');c.addWidget(self.dzsa_status);inner.addWidget(f)
         from runtime_tools_ui import RuntimeTools
         self.runtime_tools=RuntimeTools(self);inner.addWidget(self.runtime_tools)
         f,c=card('RESTART SCHEDULE','DayZ uses messages.xml for player warnings, saving and shutdown. Schedule changes apply from the next server start. Times follow the Windows local time zone.')
@@ -44,6 +49,14 @@ class OperationsStudio(ReleaseStudio):
         self.op_status=label('No operations events recorded.','muted'); inner.addWidget(self.op_status)
         inner.addWidget(label('The background agent performs maintenance and restarts without an open application window. Steam may require login or Steam Guard again. If an update fails, the server remains stopped and the error appears in the log. No automatic force-stop or wipe is performed.','muted'))
         inner.addStretch(); scroll.setWidget(content); layout.addWidget(scroll)
+    def save_dzsa(self):
+        from dzsa_check import validate_settings
+        values=dict(dzsa_auto_check=self.dzsa_auto.isChecked(),dzsa_public_ip=self.dzsa_ip.text().strip());validate_settings(values)
+        self.p.update(values);self.manager.save();self.events.put('DZSA settings saved.')
+    def open_dzsa(self):
+        import webbrowser
+        from dzsa_check import endpoint
+        webbrowser.open('https://dayzsalauncher.com/#/servercheck/'+endpoint(self.p))
     def manual_maintenance(self):
         if self.manager.running(self.p):raise ValueError('The server is running. Wait for the scheduled restart for a safe shutdown.')
         if not self.begin_maintenance(self.p,False):raise ValueError('A job is running. Wait for it to finish.')
@@ -52,7 +65,7 @@ class OperationsStudio(ReleaseStudio):
         super().load()
         if hasattr(self,'op_schedule'):self.load_operations()
     def load_operations(self):
-        p=self.p;self.mod_restart.setChecked(p.get('mod_restart_enabled',False));self.mod_grace.setValue(p.get('mod_grace_minutes',15));self.runtime_tools.load(p); self.op_game.setChecked(p.get('update_game',True)); self.op_schedule.setChecked(p.get('scheduled_restart',False)); self.op_mode.setCurrentIndex(0 if p.get('restart_mode','clock')=='clock' else 1)
+        p=self.p;self.dzsa_auto.setChecked(p.get('dzsa_auto_check',True));self.dzsa_ip.setText(p.get('dzsa_public_ip',''));self.mod_restart.setChecked(p.get('mod_restart_enabled',False));self.mod_grace.setValue(p.get('mod_grace_minutes',15));self.runtime_tools.load(p); self.op_game.setChecked(p.get('update_game',True)); self.op_schedule.setChecked(p.get('scheduled_restart',False)); self.op_mode.setCurrentIndex(0 if p.get('restart_mode','clock')=='clock' else 1)
         self.op_times.setText(p.get('restart_times','00:00, 06:00, 12:00, 18:00')); self.op_minutes.setText(str(p.get('restart_interval',240))); self.op_backup.setChecked(p.get('maintenance_backup',True)); self.op_keep.setText(str(p.get('backup_keep',10))); self.op_recover.setChecked(p.get('crash_recovery',False))
     def save_operations(self):
         p=self.p

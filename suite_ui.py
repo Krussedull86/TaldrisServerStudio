@@ -155,6 +155,7 @@ class SuiteStudio(OperationsStudio):
         from release_info import VERSION,BUILD
         text=f"Panel {VERSION} / build {BUILD} • Agent {self.manager.raw.get('version', '?')} / build {self.manager.raw.get('build', '?')}\n"+'Background agent: '+('Windows service' if self.manager.raw.get('service') else 'standalone process (install the service to run after logout)')+'\n'+p['name']+' • '+('Process running' if runtime.get('running') else 'Stopped')+' • RAM '+str(runtime.get('ram_mb','—'))+' MB • CPU '+str(runtime.get('cpu_percent','—'))+' % • Free disk '+str(runtime.get('disk_free_gb','—'))+' GB\nMaintenance: '+p.get('maintenance_state','idle')
         self.runtime_tools.update_status(runtime.get('programs',[]))
+        dzsa=runtime.get('dzsa',{});self.dzsa_status.setText('DZSA: '+dzsa.get('state','idle').upper()+' • '+dzsa.get('message','Start the server to run its configured check.')+'\nAttempts: '+str(dzsa.get('attempts',0)))
         if p.get('mods_pending'):text+='\nMod update pending: '+', '.join(p.get('mods_pending_titles',[]))
         if p.get('mod_restart_note'):text+='\n'+p['mod_restart_note']
         health=runtime.get('health',{})
