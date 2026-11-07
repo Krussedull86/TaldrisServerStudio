@@ -34,7 +34,7 @@ import java.util.concurrent.TimeUnit;
 public final class MainActivity extends Activity {
     private final int BG=Color.rgb(12,18,29),PANEL=Color.rgb(22,32,47),ACCENT=Color.rgb(103,223,198),TEXT=Color.rgb(231,238,247),MUTED=Color.rgb(148,169,190);
     private final ExecutorService network=Executors.newSingleThreadExecutor();private final Handler ui=new Handler(Looper.getMainLooper());
-    private LinearLayout root,cards,connectionPanel;private TextView status,connectionDetail,summary;private ScrollView scroll;private String filter="",lastFailure="";private boolean connected=false,fetching=false;private long lastContact=0,latency=0;private EditText search;private final java.util.Set<String> expanded=new java.util.HashSet<>();private JSONObject connection,lastStatus;private boolean busy=false,foreground=false;private EditText invitation;
+    private LinearLayout root,cards,connectionPanel;private TextView status,connectionDetail,summary;private ScrollView scroll;private String filter="",lastFailure="";private boolean connected=false,fetching=false;private long lastContact=0,latency=0,lastContactElapsed=0;private double serverTime=0;private EditText search;private final java.util.Set<String> expanded=new java.util.HashSet<>();private JSONObject connection,lastStatus;private boolean busy=false,foreground=false;private EditText invitation;
     private final Runnable refreshLoop=new Runnable(){public void run(){if(foreground){refresh();updateConnection();ui.postDelayed(this,10000);}}};
     @Override public void onCreate(Bundle state){super.onCreate(state);getWindow().setStatusBarColor(BG);getWindow().setNavigationBarColor(BG);home();}
     @Override public void onResume(){super.onResume();foreground=true;ui.removeCallbacks(refreshLoop);ui.postDelayed(refreshLoop,500);}
@@ -67,7 +67,7 @@ public final class MainActivity extends Activity {
         try{
             JSONObject vault=Vault.read(this);JSONArray connections=vault.getJSONArray("connections");int active=Math.max(0,Math.min(vault.optInt("active",0),connections.length()-1));connection=connections.length()==0?null:connections.getJSONObject(active);
             if(connection==null){pairScreen();return;}
-            connected=false;fetching=false;lastContact=0;lastFailure="";filter="";base();
+            connected=false;fetching=false;lastContact=0;lastContactElapsed=0;serverTime=0;lastFailure="";filter="";base();
             LinearLayout top=new LinearLayout(this);rowButton(top,"Switch host",this::hosts);rowButton(top,"Refresh",this::refresh);root.addView(top);
             connectionPanel=panel();status=text("CONNECTING",15,ACCENT);connectionDetail=text("Establishing a secure connection…",13,MUTED);connectionPanel.addView(text(connection.optString("name","Server host"),19,TEXT));connectionPanel.addView(status);connectionPanel.addView(text(connection.getString("url"),12,MUTED));connectionPanel.addView(connectionDetail);connectionPanel.addView(button("Connection details & diagnostics",this::connectionDetails));spaced(root,connectionPanel);
             summary=text("Waiting for server overview",17,TEXT);spaced(root,summary);
@@ -105,7 +105,7 @@ public final class MainActivity extends Activity {
     @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){IntentResult result=IntentIntegrator.parseActivityResult(requestCode,resultCode,data);if(result!=null){if(result.getContents()!=null&&invitation!=null)invitation.setText(result.getContents());return;}super.onActivityResult(requestCode,resultCode,data);}
     private void refresh(){
         if(isDestroyed()||isFinishing()||connection==null||busy)return;JSONObject selected=connection;busy=true;fetching=true;long began=SystemClock.elapsedRealtime();updateConnection();
-        network.execute(()->{try{JSONObject result=Api.call(selected,"/v1/request",new JSONObject().put("method","status"),false);Vault.cache(this,selected,result);post(()->{busy=false;if(connection==selected){fetching=false;connected=true;lastFailure="";lastContact=System.currentTimeMillis();latency=SystemClock.elapsedRealtime()-began;lastStatus=result;render(result,true);updateConnection();}});}
+        network.execute(()->{try{JSONObject result=Api.call(selected,"/v1/request",new JSONObject().put("method","status"),false);Vault.cache(this,selected,result);post(()->{busy=false;if(connection==selected){fetching=false;connected=true;lastFailure="";lastContact=System.currentTimeMillis();lastContactElapsed=SystemClock.elapsedRealtime();serverTime=result.optDouble("at",0);latency=SystemClock.elapsedRealtime()-began;lastStatus=result;render(result,true);updateConnection();}});}
             catch(Exception e){post(()->{busy=false;if(connection!=selected)return;fetching=false;connected=false;lastFailure=diagnose(e);if(lastStatus!=null)render(lastStatus,false);else if(cards!=null){cards.removeAllViews();cards.addView(text("No live data yet. Check the connection details below and try again.",16,MUTED));}updateConnection();});}});
     }
     private String diagnose(Exception error){
@@ -119,7 +119,7 @@ public final class MainActivity extends Activity {
     }
     private void updateConnection(){
         if(connection==null||status==null)return;
-        long age=lastContact==0?Long.MAX_VALUE:(System.currentTimeMillis()-lastContact)/1000;
+        long age=lastContact==0?Long.MAX_VALUE:(SystemClock.elapsedRealtime()-lastContactElapsed)/1000;
         boolean fresh=connected&&age<35;
         String title=fetching?(fresh?"● CONNECTED · SYNCING":"◌ CONNECTING"):(fresh?"● CONNECTED TO AGENT":(lastFailure.isEmpty()?"○ WAITING FOR CONNECTION":"○ DISCONNECTED"));status.setText(title);status.setTextColor(fresh?ACCENT:Color.rgb(255,193,107));
         String detail=fresh?"Secure HTTPS · "+latency+" ms round trip · updated "+age+"s ago":"Server controls need a fresh authenticated response.";
@@ -156,8 +156,8 @@ public final class MainActivity extends Activity {
     }
     private void message(String server){EditText field=input("Message to all players (max. 240 characters)");new AlertDialog.Builder(this).setTitle("Server message").setView(field).setPositiveButton("Send",(dialog,which)->{try{send(new JSONObject().put("method","action").put("server",server).put("action","say").put("message",field.getText().toString()));}catch(Exception e){error(e);}}).setNegativeButton("Cancel",null).show();}
     private void send(JSONObject body){
-        if(busy||connection==null)return;if(!connected||System.currentTimeMillis()-lastContact>35000){error(new Exception("Connection is not fresh. Refresh status before sending commands."));return;}JSONObject selected=connection;
-        try{body.put("request",UUID.randomUUID().toString().replace("-","")).put("expires",System.currentTimeMillis()/1000.0+60);}catch(Exception e){error(e);return;}
+        if(busy||connection==null)return;if(!connected||serverTime<=0||SystemClock.elapsedRealtime()-lastContactElapsed>35000){error(new Exception("Connection is not fresh. Refresh status before sending commands."));return;}JSONObject selected=connection;
+        try{body.put("request",UUID.randomUUID().toString().replace("-","")).put("expires",serverTime+(SystemClock.elapsedRealtime()-lastContactElapsed)/1000.0+60);}catch(Exception e){error(e);return;}
         busy=true;Toast.makeText(this,"Sending command…",Toast.LENGTH_SHORT).show();network.execute(()->{try{Api.call(selected,"/v1/request",body,false);post(()->{busy=false;if(connection==selected){Toast.makeText(this,"Command accepted. Check Activity for the result.",Toast.LENGTH_LONG).show();ui.postDelayed(this::refresh,1200);}});}catch(Exception e){post(()->{busy=false;new AlertDialog.Builder(this).setTitle("Command not confirmed").setMessage(e.getMessage()+"\n\nRefresh status and history before trying again. No automatic retry was sent.").setPositiveButton("Refresh",(d,w)->refresh()).show();});}});
     }
     private void history(){

@@ -1,0 +1,3 @@
+# Android command clock correction
+
+Command expiration now derives from the timestamp returned by the last authenticated agent status response, advanced by Android monotonic elapsed time. Phone/server wall clocks can differ without rejecting every command. Freshness also uses monotonic time. Cached data cannot supply command time after reconnection or process restart; a fresh status response is required. Server acceptance limits, execution expiry, token expiry and certificate verification remain intact. A server clock change after its last status response can still require Refresh. This does not change Windows system time or solve an invalid TLS certificate validity period.
